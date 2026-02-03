@@ -1,0 +1,254 @@
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: #0c0c0e;
+  --foreground: #e4e4e7;
+  --surface: #141418;
+  --surface-2: #1a1a1f;
+  --border: #27272a;
+  --border-dim: #1e1e22;
+  --accent: #3b82f6;
+  --accent-dim: #1e3a5f;
+  --success: #22c55e;
+  --warning: #eab308;
+  --error: #ef4444;
+  --muted: #71717a;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+*::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--muted);
+}
+
+body {
+  color: var(--foreground);
+  background: var(--background);
+  font-family: 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+/* Resizable panel handle */
+.resize-handle {
+  width: 4px;
+  background: transparent;
+  cursor: col-resize;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.resize-handle::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 2px;
+  height: 24px;
+  background: var(--border);
+  border-radius: 1px;
+  transition: background 0.15s, height 0.15s;
+}
+
+.resize-handle:hover {
+  background: var(--accent-dim);
+}
+
+.resize-handle:hover::after {
+  background: var(--accent);
+  height: 48px;
+}
+
+/* Drawer animation */
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideOut {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+.drawer-enter {
+  animation: slideIn 0.2s ease-out forwards;
+}
+
+.drawer-exit {
+  animation: slideOut 0.2s ease-in forwards;
+}
+
+/* Fade animation for overlays */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fade-enter {
+  animation: fadeIn 0.15s ease-out forwards;
+}
+
+.fade-exit {
+  animation: fadeOut 0.15s ease-in forwards;
+}
+
+/* Status pulse animation */
+@keyframes pulse-dot {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.status-pulse {
+  animation: pulse-dot 1.5s ease-in-out infinite;
+}
+
+/* Log line hover effect */
+.log-line {
+  transition: background 0.1s;
+}
+
+.log-line:hover {
+  background: rgba(59, 130, 246, 0.05);
+}
+
+/* Custom input styles */
+input[type="text"],
+input[type="number"],
+input[type="password"],
+textarea,
+select {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="password"]:focus,
+textarea:focus,
+select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+  outline: none;
+}
+
+/* Button base styles */
+.btn {
+  @apply px-3 py-1.5 text-sm font-medium rounded transition-all;
+}
+
+.btn-primary {
+  @apply bg-blue-600 hover:bg-blue-500 text-white;
+}
+
+.btn-ghost {
+  @apply hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200;
+}
+
+/* Compact form inputs */
+.input-compact {
+  @apply bg-[var(--surface)] border border-[var(--border)] rounded px-2 py-1 text-sm;
+}
+
+/* Panel headers */
+.panel-header {
+  @apply flex items-center justify-between px-3 py-2 border-b border-[var(--border)] bg-[var(--surface)];
+}
+
+.panel-title {
+  @apply text-xs font-semibold uppercase tracking-wider text-zinc-500;
+}
+
+/* Status badges */
+.status-badge {
+  @apply inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-medium uppercase tracking-wide;
+}
+
+.status-pending {
+  @apply bg-yellow-500/10 text-yellow-500;
+}
+
+.status-processing {
+  @apply bg-blue-500/10 text-blue-400;
+}
+
+.status-completed {
+  @apply bg-green-500/10 text-green-400;
+}
+
+.status-failed {
+  @apply bg-red-500/10 text-red-400;
+}
+
+/* Tooltip */
+[data-tooltip] {
+  position: relative;
+}
+
+[data-tooltip]::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 8px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-size: 11px;
+  white-space: nowrap;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s;
+  z-index: 100;
+}
+
+[data-tooltip]:hover::after {
+  opacity: 1;
+}
+
+/* Keyboard shortcut badge */
+.kbd {
+  @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono bg-zinc-800 border border-zinc-700 rounded text-zinc-400;
+}

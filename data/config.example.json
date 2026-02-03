@@ -1,0 +1,7 @@
+{
+  "apiUrl": "https://api.deapi.ai/api/v1/client",
+  "apiToken": "your-token-here",
+  "outputDir": "./output",
+  "pollingIntervalMs": 2000,
+  "maxPollingAttempts": 120
+}
