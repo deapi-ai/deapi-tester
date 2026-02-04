@@ -85,32 +85,35 @@ const modelSelectParam = (options: { value: string; label: string }[]): Endpoint
   description: 'AI model to use for generation',
 });
 
-const seedParam = (required = true): EndpointParam => ({
+const seedParam = (defaultVal?: number): EndpointParam => ({
   name: 'seed',
   label: 'Seed',
   type: 'number',
-  required,
-  default: Math.floor(Math.random() * 1000000),
+  required: false,
+  nullable: true,
+  default: defaultVal ?? Math.floor(Math.random() * 1000000),
   placeholder: 'Random seed for reproducibility',
   description: 'Seed for reproducible results',
 });
 
-const stepsParam = (defaultVal = 20, required = true): EndpointParam => ({
+const stepsParam = (defaultVal = 20): EndpointParam => ({
   name: 'steps',
   label: 'Steps',
   type: 'number',
-  required,
+  required: false,
+  nullable: true,
   default: defaultVal,
   min: 1,
   max: 100,
   description: 'Inference steps. Higher = better quality, slower.',
 });
 
-const guidanceParam = (defaultVal = 7.5, required = true): EndpointParam => ({
+const guidanceParam = (defaultVal = 7.5): EndpointParam => ({
   name: 'guidance',
   label: 'Guidance Scale',
   type: 'number',
-  required,
+  required: false,
+  nullable: true,
   default: defaultVal,
   min: 0,
   max: 30,
@@ -118,12 +121,13 @@ const guidanceParam = (defaultVal = 7.5, required = true): EndpointParam => ({
   description: 'How closely to follow the prompt. Higher = more literal.',
 });
 
-const dimensionParams = (defaultW = 1024, defaultH = 1024, required = true): EndpointParam[] => [
+const dimensionParams = (defaultW = 1024, defaultH = 1024): EndpointParam[] => [
   {
     name: 'width',
     label: 'Width',
     type: 'number',
-    required,
+    required: false,
+    nullable: true,
     default: defaultW,
     min: 64,
     max: 2048,
@@ -134,7 +138,8 @@ const dimensionParams = (defaultW = 1024, defaultH = 1024, required = true): End
     name: 'height',
     label: 'Height',
     type: 'number',
-    required,
+    required: false,
+    nullable: true,
     default: defaultH,
     min: 64,
     max: 2048,
@@ -280,7 +285,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         name: 'frames',
         label: 'Frames',
         type: 'number',
-        required: true,
+        required: false,
+        nullable: true,
         default: 97,
         min: 1,
         max: 257,
@@ -291,6 +297,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         label: 'FPS',
         type: 'number',
         required: false,
+        nullable: true,
         default: 30,
         min: 1,
         max: 60,
@@ -323,7 +330,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         name: 'frames',
         label: 'Frames',
         type: 'number',
-        required: true,
+        required: false,
+        nullable: true,
         default: 97,
         min: 1,
         max: 257,
@@ -333,6 +341,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         label: 'FPS',
         type: 'number',
         required: false,
+        nullable: true,
         default: 30,
         min: 1,
         max: 60,
@@ -416,7 +425,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         name: 'speed',
         label: 'Speed',
         type: 'number',
-        required: true,
+        required: false,
+        nullable: true,
         default: 1.0,
         min: 0.5,
         max: 2.0,
@@ -426,7 +436,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         name: 'format',
         label: 'Format',
         type: 'select',
-        required: true,
+        required: false,
+        nullable: true,
         default: 'mp3',
         options: [
           { value: 'mp3', label: 'MP3' },
@@ -437,7 +448,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         name: 'sample_rate',
         label: 'Sample Rate',
         type: 'number',
-        required: true,
+        required: false,
+        nullable: true,
         default: 24000,
         min: 8000,
         max: 48000,

@@ -83,3 +83,79 @@ export interface AppConfig {
   pollingIntervalMs?: number;      // default 2000
   maxPollingAttempts?: number;     // default 120 (4 minutes)
 }
+
+// Model data from deAPI /models endpoint
+export interface ModelLora {
+  display_name: string;
+  name: string;
+}
+
+export interface ModelVoice {
+  name: string;
+  slug: string;
+  gender: 'male' | 'female';
+}
+
+export interface ModelLanguage {
+  name: string;
+  slug: string;
+  voices: ModelVoice[];
+}
+
+export interface ModelFeatures {
+  supports_steps?: boolean;
+  supports_guidance?: boolean;
+  supports_negative_prompt?: boolean;
+  supports_last_frame?: boolean;
+}
+
+export interface ModelLimits {
+  max_steps?: number;
+  min_steps?: number;
+  max_width?: number;
+  min_width?: number;
+  max_height?: number;
+  min_height?: number;
+  max_frames?: number;
+  min_frames?: number;
+  max_fps?: number;
+  min_fps?: number;
+  max_text?: number;
+  min_text?: number;
+  max_speed?: number;
+  min_speed?: number;
+  max_input_tokens?: number;
+  max_total_tokens?: number;
+  resolution_step?: number;
+  available_ratios?: number[];
+}
+
+export interface ModelDefaults {
+  steps?: number;
+  width?: number;
+  height?: number;
+  frames?: number;
+  fps?: number;
+  prompt?: string;
+  negative_prompt?: string;
+  lang?: string;
+  speed?: number;
+  voice?: string;
+  format?: string;
+  sample_rate?: number;
+}
+
+export interface ModelInfo {
+  limits?: ModelLimits;
+  defaults?: ModelDefaults;
+  features?: ModelFeatures;
+}
+
+export interface DeApiModel {
+  name: string;
+  slug: string;
+  inference_types: string[];
+  info: ModelInfo | [];
+  loras?: ModelLora[];
+  languages?: ModelLanguage[];
+}

@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
+import { useModels } from '@/hooks/useModels';
+import { ModelInfo } from '@/components/ModelInfo';
 
 interface EndpointFormProps {
   endpoint: EndpointDefinition;
@@ -14,6 +16,11 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
+  const { models, isLoading: modelsLoading, getModelBySlug } = useModels();
+
+  // Get selected model info
+  const selectedModelSlug = values['model'] as string | undefined;
+  const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
 
   useEffect(() => {
     const defaults: Record<string, JsonValue> = {};
@@ -64,13 +71,22 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    // Filter out disabled nullable fields (null values)
+    const filteredValues: Record<string, JsonValue> = {};
+    Object.entries(values).forEach(([key, value]) => {
+      // Skip null values (from disabled nullable fields)
+      if (value !== null) {
+        filteredValues[key] = value;
+      }
+    });
+
     if (endpoint.contentType === 'multipart') {
       const formData = new FormData();
       formData.append('_endpointId', endpoint.id);
 
-      Object.entries(values).forEach(([key, value]) => {
-        // Skip null values (from disabled nullable fields)
-        if (value !== undefined && value !== null && value !== '') {
+      Object.entries(filteredValues).forEach(([key, value]) => {
+        // Skip undefined and empty strings
+        if (value !== undefined && value !== '') {
           formData.append(key, String(value));
         }
       });
@@ -79,7 +95,7 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         // Check if this field has multi mode and get the correct field name
         const param = endpoint.params.find(p => p.name === key);
         const isMultiMode = param?.multiFieldName && multiFileMode[key];
-        const fieldName = isMultiMode ? param.multiFieldName : key;
+        const fieldName = (isMultiMode && param?.multiFieldName) ? param.multiFieldName : key;
 
         if (Array.isArray(fileOrFiles)) {
           // Multiple files - append each with same key
@@ -91,9 +107,9 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         }
       });
 
-      onSubmit(values, formData);
+      onSubmit(filteredValues, formData);
     } else {
-      onSubmit({ ...values, _endpointId: endpoint.id });
+      onSubmit({ ...filteredValues, _endpointId: endpoint.id });
     }
   };
 
@@ -158,20 +174,34 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         );
 
       case 'select':
+        const isSelectDisabled = param.nullable && nullableDisabled[param.name];
         return (
-          <select
-            value={String(value ?? '')}
-            onChange={(e) => handleChange(param.name, e.target.value)}
-            className={baseClass}
-            required={param.required}
-          >
-            <option value="">Select...</option>
-            {param.options?.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.label}
-              </option>
-            ))}
-          </select>
+          <div className="flex items-center gap-2">
+            {param.nullable && (
+              <label className="flex items-center gap-1 cursor-pointer flex-shrink-0" title={isSelectDisabled ? "Enable field" : "Disable field (don't send)"}>
+                <input
+                  type="checkbox"
+                  checked={!isSelectDisabled}
+                  onChange={(e) => toggleNullable(param.name, !e.target.checked)}
+                  className="w-3 h-3 rounded bg-zinc-800 border-zinc-700 text-blue-600 cursor-pointer"
+                />
+              </label>
+            )}
+            <select
+              value={isSelectDisabled ? '' : String(value ?? '')}
+              onChange={(e) => handleChange(param.name, e.target.value)}
+              className={`${baseClass} flex-1 ${isSelectDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              required={param.required && !param.nullable}
+              disabled={isSelectDisabled}
+            >
+              <option value="">Select...</option>
+              {param.options?.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
         );
 
       case 'boolean':
@@ -189,7 +219,7 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
 
       case 'file':
         const currentFiles = files[param.name];
-        const isMultiMode = param.multiFieldName && multiFileMode[param.name];
+        const isMultiMode = !!(param.multiFieldName && multiFileMode[param.name]);
         const fileArray = currentFiles ? (Array.isArray(currentFiles) ? currentFiles : [currentFiles]) : [];
         const fileCount = fileArray.length;
         const fileLabel = fileCount === 0
@@ -335,10 +365,33 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         {endpoint.isAsync && (
           <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 rounded">async</span>
         )}
+        <div className="flex-1" />
+        <button
+          type="submit"
+          disabled={isSubmitting}
+          className="bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed rounded px-4 py-1.5 text-sm font-medium transition-colors flex items-center gap-2"
+        >
+          {isSubmitting ? (
+            <>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
+                <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
+              </svg>
+              Submitting...
+            </>
+          ) : (
+            <>
+              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
+                <path d="M2 1l8 5-8 5V1z" />
+              </svg>
+              Execute
+            </>
+          )}
+        </button>
       </div>
 
       {/* Form Content - Horizontal Layout */}
-      <div className="flex-1 flex gap-4 p-4 pb-2 overflow-hidden min-h-0">
+      <div className="flex-1 flex gap-4 p-4 overflow-hidden min-h-0">
         {/* Left: Prompts & Files */}
         <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-y-auto">
           {promptParams.map((param) => (
@@ -382,6 +435,10 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
                 {param.required && <span className="text-red-500">*</span>}
               </label>
               {renderField(param, true)}
+              {/* Show model info for model select */}
+              {param.name === 'model' && (
+                <ModelInfo model={selectedModel} isLoading={modelsLoading && !selectedModel} />
+              )}
             </div>
           ))}
 
@@ -428,32 +485,6 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
             </details>
           )}
         </div>
-      </div>
-
-      {/* Footer with Execute button - always visible */}
-      <div className="flex-shrink-0 px-4 pb-3 pt-1 border-t border-[var(--border-dim)]">
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-blue-800 disabled:cursor-not-allowed rounded py-2 text-sm font-medium transition-colors flex items-center justify-center gap-2"
-        >
-          {isSubmitting ? (
-            <>
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-              </svg>
-              Submitting...
-            </>
-          ) : (
-            <>
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="currentColor">
-                <path d="M2 1l8 5-8 5V1z" />
-              </svg>
-              Execute
-            </>
-          )}
-        </button>
       </div>
 
       {/* No params message */}
