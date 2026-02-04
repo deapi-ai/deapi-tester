@@ -3,11 +3,14 @@
 import { ReactNode } from 'react';
 import { ToastProvider } from './Toast';
 import { BalanceProvider } from './BalanceContext';
+import { ModelsProvider } from './ModelsContext';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <BalanceProvider>
-      <ToastProvider>{children}</ToastProvider>
+      <ModelsProvider>
+        <ToastProvider>{children}</ToastProvider>
+      </ModelsProvider>
     </BalanceProvider>
   );
 }

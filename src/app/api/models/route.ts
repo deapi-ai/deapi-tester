@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
 
+// Force dynamic to prevent caching - config can change
+export const dynamic = 'force-dynamic';
+
 // GET /api/models - Proxy to deAPI /models endpoint
 export async function GET() {
   try {
@@ -30,7 +33,11 @@ export async function GET() {
       );
     }
 
-    return NextResponse.json(data);
+    return NextResponse.json(data, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+      },
+    });
   } catch (error) {
     console.error('[deapi-tester] GET /api/models error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';

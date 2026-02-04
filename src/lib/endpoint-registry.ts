@@ -207,8 +207,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'image/*',
         multiple: true,
-        multiFieldName: 'images',
-        description: 'Single image (image) or multiple images (images array)',
+        multiFieldName: 'images[]',
+        description: 'Single image (image) or multiple images (images[] array)',
       },
       promptParam(),
       modelSelectParam([

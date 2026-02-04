@@ -75,7 +75,24 @@ export interface Job {
   costCredits?: number;
 }
 
-// Configuration
+// Configuration Profile (for multiple API keys/environments)
+export interface ConfigProfile {
+  id: string;                      // uuid
+  name: string;                    // user-friendly name (e.g. "Production", "Dev")
+  apiUrl: string;
+  apiToken: string;
+}
+
+// Full configuration with multiple profiles
+export interface AppConfigFull {
+  activeProfileId: string;
+  profiles: ConfigProfile[];
+  outputDir: string;
+  pollingIntervalMs: number;       // default 2000
+  maxPollingAttempts: number;      // default 120 (4 minutes)
+}
+
+// Flat configuration (for backward compatibility with existing code)
 export interface AppConfig {
   apiUrl: string;
   apiToken: string;

@@ -65,10 +65,11 @@ export function usePolling(requestId: string | null) {
           data: data,
         }));
 
-        if (status === 'completed') {
+        // deAPI returns: pending, processing, done, error
+        if (status === 'done' || status === 'completed') {
           setState(prev => ({ ...prev, status: 'completed' }));
           eventSource.close();
-        } else if (status === 'failed') {
+        } else if (status === 'error' || status === 'failed') {
           setState(prev => ({
             ...prev,
             status: 'failed',

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
-import { useModels } from '@/hooks/useModels';
+import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
 
 interface EndpointFormProps {
@@ -16,7 +16,7 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
-  const { models, isLoading: modelsLoading, getModelBySlug } = useModels();
+  const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
 
   // Get selected model info
   const selectedModelSlug = values['model'] as string | undefined;
@@ -44,6 +44,31 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
     setNullableDisabled(nullableDefaults);
     setMultiFileMode(multiFileModeDefaults);
   }, [endpoint.id, endpoint.params]);
+
+  // Reset model selection when dynamic models change (e.g., profile switch)
+  useEffect(() => {
+    if (models.length === 0) return;
+
+    const modelParam = endpoint.params.find(p => p.name === 'model');
+    if (!modelParam) return;
+
+    const currentModel = values['model'] as string | undefined;
+    if (!currentModel) return;
+
+    // Check if current model exists in the new model list for this inference type
+    const inferenceType = endpoint.id;
+    const filteredModels = models.filter(m => m.inference_types.includes(inferenceType));
+    const modelExists = filteredModels.some(m => m.slug === currentModel);
+
+    // If current model doesn't exist, select first available or clear
+    if (!modelExists) {
+      if (filteredModels.length > 0) {
+        setValues(prev => ({ ...prev, model: filteredModels[0].slug }));
+      } else {
+        setValues(prev => ({ ...prev, model: '' }));
+      }
+    }
+  }, [models, endpoint.id, endpoint.params]);
 
   const handleChange = useCallback((name: string, value: JsonValue) => {
     setValues((prev) => ({ ...prev, [name]: value }));
@@ -175,6 +200,25 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
 
       case 'select':
         const isSelectDisabled = param.nullable && nullableDisabled[param.name];
+
+        // For model field, use dynamic models from API filtered by inference type
+        let selectOptions = param.options || [];
+        if (param.name === 'model') {
+          // Map endpoint id to inference type (most are the same, e.g., txt2img -> txt2img)
+          const inferenceType = endpoint.id;
+          const filteredModels = models.filter(m =>
+            m.inference_types.includes(inferenceType)
+          );
+
+          if (filteredModels.length > 0) {
+            selectOptions = filteredModels.map(m => ({
+              value: m.slug,
+              label: m.name,
+            }));
+          }
+          // If no dynamic models, fall back to static options from registry
+        }
+
         return (
           <div className="flex items-center gap-2">
             {param.nullable && (
@@ -192,10 +236,10 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
               onChange={(e) => handleChange(param.name, e.target.value)}
               className={`${baseClass} flex-1 ${isSelectDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
               required={param.required && !param.nullable}
-              disabled={isSelectDisabled}
+              disabled={isSelectDisabled || (param.name === 'model' && modelsLoading)}
             >
-              <option value="">Select...</option>
-              {param.options?.map((opt) => (
+              <option value="">{param.name === 'model' && modelsLoading ? 'Loading models...' : 'Select...'}</option>
+              {selectOptions.map((opt) => (
                 <option key={opt.value} value={opt.value}>
                   {opt.label}
                 </option>

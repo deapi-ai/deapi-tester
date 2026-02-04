@@ -25,7 +25,7 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
   const refreshBalance = useCallback(async () => {
     setIsLoading(true);
     try {
-      const res = await fetch('/api/balance');
+      const res = await fetch('/api/balance', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
         setBalance(data.data?.balance ?? null);
@@ -37,13 +37,13 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
-  // Load balance on mount
+  // Load balance on mount if token exists
   useEffect(() => {
-    // Check if token exists first
     fetch('/api/config')
       .then(res => res.json())
       .then(data => {
-        if (data.hasToken) {
+        const activeProfile = data.profiles?.find((p: { id: string }) => p.id === data.activeProfileId);
+        if (activeProfile?.hasToken) {
           refreshBalance();
         }
       })

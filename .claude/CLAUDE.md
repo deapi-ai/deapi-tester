@@ -35,7 +35,8 @@ deapi-tester/
 │   │   ├── config.ts                   # Configuration management
 │   │   └── types.ts                    # Shared types
 │   ├── components/
-│   │   ├── ConfigPanel.tsx             # Token, API URL, output dir
+│   │   ├── ConfigPanel.tsx             # Quick profile switcher (header)
+│   │   ├── ConfigDrawer.tsx            # Full settings drawer (profiles CRUD)
 │   │   ├── EndpointSelector.tsx        # Endpoint selection from groups
 │   │   ├── EndpointForm.tsx            # Dynamic form from registry
 │   │   ├── RequestInspector.tsx        # Raw JSON request/response
@@ -76,7 +77,41 @@ deapi-tester/
 
 ## deAPI Base URL
 - Production: https://api.deapi.ai/api/v1/client/
-- Dev: configurable in settings
+- Dev: configurable in settings (via profiles)
+
+## Configuration (Multi-Profile)
+The app supports multiple configuration profiles for different API keys/environments.
+
+**Config structure (data/config.json):**
+```json
+{
+  "activeProfileId": "default",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Production",
+      "apiUrl": "https://api.deapi.ai/api/v1/client",
+      "apiToken": "xxx"
+    },
+    {
+      "id": "abc123",
+      "name": "Staging",
+      "apiUrl": "https://staging.deapi.ai/...",
+      "apiToken": "yyy"
+    }
+  ],
+  "outputDir": "./output",
+  "pollingIntervalMs": 2000,
+  "maxPollingAttempts": 120
+}
+```
+
+**Profile management:**
+- Profiles are stored as an array (easy to add/remove/reorder)
+- Each profile has: id, name, apiUrl, apiToken
+- Global settings (outputDir, polling) are shared across profiles
+- UI allows: add profile, edit profile, delete profile, switch active profile
+- Old config format (flat) is auto-migrated to new format on first load
 
 ## Notes
 - App runs ONLY locally (no need for token security in localStorage)
