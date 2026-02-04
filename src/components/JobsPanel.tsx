@@ -51,9 +51,16 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
     const [downloadStates, setDownloadStates] = useState<Map<string, DownloadState>>(new Map());
     const [viewMode, setViewMode] = useState<ViewMode>('list');
     const [autoScroll, setAutoScroll] = useState(true);
+    const [now, setNow] = useState(Date.now());
     const logContainerRef = useRef<HTMLDivElement>(null);
 
     const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
+
+    // Timer for real-time elapsed time updates
+    useEffect(() => {
+      const interval = setInterval(() => setNow(Date.now()), 1000);
+      return () => clearInterval(interval);
+    }, []);
     const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
     // Auto-scroll logs
@@ -499,21 +506,24 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
 
                         {/* Column 2: Polling & Status (4 cols) */}
                         <div className="col-span-4 flex items-center gap-2">
-                          {/* Progress bar for active jobs */}
-                          {activeJob?.isPolling && lastUpdate && (
-                            <div className="flex-1 max-w-28">
-                              <div className="flex items-center justify-between text-[10px] text-zinc-600 mb-0.5">
-                                <span>#{lastUpdate.attempt}</span>
-                                <span>{lastUpdate.status}</span>
+                          {/* Progress and elapsed time for active jobs */}
+                          {activeJob && activeJob.pollUpdates.length > 0 && (() => {
+                            const firstPollUpdate = activeJob.pollUpdates[0];
+                            const lastPollUpdate = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
+                            // Extract progress - API response is in update.data.data (SSE wraps it)
+                            const apiData = (lastPollUpdate?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+                            const pollProgress = apiData?.progress as number | undefined;
+                            const elapsedSec = Math.floor(((activeJob.isPolling ? now : lastPollUpdate?.timestamp) - firstPollUpdate?.timestamp) / 1000);
+
+                            return (
+                              <div className="flex items-center gap-2 text-[10px] font-mono">
+                                {pollProgress !== undefined && (
+                                  <span className="text-blue-400">{pollProgress}%</span>
+                                )}
+                                <span className="text-zinc-500">{elapsedSec}s</span>
                               </div>
-                              <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                                <div
-                                  className="h-full bg-blue-500 transition-all"
-                                  style={{ width: `${Math.min((lastUpdate.attempt / lastUpdate.maxAttempts) * 100, 100)}%` }}
-                                />
-                              </div>
-                            </div>
-                          )}
+                            );
+                          })()}
 
                           {/* Raw request button */}
                           {job.rawRequest && (
@@ -550,6 +560,13 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
 
                           {/* Status badge */}
                           <span className={`status-badge status-${job.status}`}>{job.status}</span>
+
+                          {/* Error message for failed jobs */}
+                          {job.status === 'failed' && job.error && (
+                            <span className="text-[10px] text-red-400 truncate max-w-[150px]" title={job.error}>
+                              {job.error}
+                            </span>
+                          )}
 
                           {/* Time */}
                           <span className="text-[10px] text-zinc-600">{formatTime(job.createdAt)}</span>
@@ -631,67 +648,117 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                         </div>
                       </div>
 
-                      {/* Expanded Raw Request */}
-                      {isRawExpanded && job.rawRequest && (
-                        <div className="px-4 pb-3">
-                          <div className="bg-zinc-900/50 border border-[var(--border-dim)] rounded p-2">
-                            <div className="flex items-center justify-between mb-1">
-                              <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Raw Request</span>
-                              <button
-                                onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawRequest, null, 2))}
-                                className="text-[10px] text-zinc-500 hover:text-zinc-300"
-                              >
-                                Copy
-                              </button>
+                      {/* Expanded Raw Request & Response */}
+                      {isRawExpanded && (job.rawRequest || job.rawResponse) && (
+                        <div className="px-4 pb-3 space-y-2">
+                          {/* Raw Request */}
+                          {job.rawRequest && (
+                            <div className="bg-zinc-900/50 border border-[var(--border-dim)] rounded p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Raw Request</span>
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawRequest, null, 2))}
+                                  className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-40">
+                                {JSON.stringify(job.rawRequest, null, 2)}
+                              </pre>
                             </div>
-                            <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-40">
-                              {JSON.stringify(job.rawRequest, null, 2)}
-                            </pre>
-                          </div>
+                          )}
+                          {/* Raw Response */}
+                          {job.rawResponse && (
+                            <div className="bg-zinc-900/50 border border-[var(--border-dim)] rounded p-2">
+                              <div className="flex items-center justify-between mb-1">
+                                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Raw Response</span>
+                                <button
+                                  onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawResponse, null, 2))}
+                                  className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                                >
+                                  Copy
+                                </button>
+                              </div>
+                              <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-40">
+                                {JSON.stringify(job.rawResponse, null, 2)}
+                              </pre>
+                            </div>
+                          )}
                         </div>
                       )}
 
                       {/* Expanded Polling Details */}
-                      {isPollingExpanded && activeJob && activeJob.pollUpdates.length > 0 && (
-                        <div className="bg-zinc-900/50 border-t border-[var(--border-dim)]">
-                          <div className="px-4 py-2 max-h-64 overflow-y-auto">
-                            <div className="space-y-1">
-                              {activeJob.pollUpdates.slice().reverse().map((update, idx) => (
-                                <details key={activeJob.pollUpdates.length - idx} className="group">
-                                  <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-zinc-800/50 cursor-pointer text-xs">
-                                    <svg
-                                      width="8"
-                                      height="8"
-                                      viewBox="0 0 8 8"
-                                      fill="currentColor"
-                                      className="text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0"
-                                    >
-                                      <path d="M2 0l4 4-4 4" />
-                                    </svg>
-                                    <span className="text-zinc-600 font-mono w-8">#{update.attempt}</span>
-                                    <span className={`font-medium ${
-                                      update.status === 'done' ? 'text-green-500' :
-                                      update.status === 'error' ? 'text-red-500' :
-                                      update.status === 'processing' ? 'text-blue-400' :
-                                      'text-yellow-500'
-                                    }`}>
-                                      {update.status}
-                                    </span>
-                                    <span className="text-zinc-600 flex-1">
-                                      {new Date(update.timestamp).toLocaleTimeString('en-US', { hour12: false })}
-                                    </span>
-                                  </summary>
-                                  <div className="ml-5 mt-1 mb-2">
-                                    <pre className="text-[10px] font-mono text-zinc-500 bg-zinc-900 rounded p-2 overflow-x-auto max-h-32">
-                                      {JSON.stringify(update.data, null, 2)}
-                                    </pre>
-                                  </div>
-                                </details>
-                              ))}
+                      {isPollingExpanded && activeJob && activeJob.pollUpdates.length > 0 && (() => {
+                        const firstUpdate = activeJob.pollUpdates[0];
+                        const lastUpdateData = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
+                        const elapsedMs = ((activeJob.isPolling ? now : lastUpdateData?.timestamp) || Date.now()) - (firstUpdate?.timestamp || Date.now());
+                        const elapsedSec = Math.floor(elapsedMs / 1000);
+                        // Extract progress - API response is in update.data.data
+                        const apiData = (lastUpdateData?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+                        const progressData = apiData?.progress as number | undefined;
+
+                        return (
+                          <div className="bg-zinc-900/50 border-t border-[var(--border-dim)]">
+                            <div className="px-4 py-2">
+                              {/* Header with elapsed time and progress */}
+                              <div className="flex items-center justify-between mb-2 text-[10px]">
+                                <span className="text-zinc-500 uppercase tracking-wide">Polling Updates</span>
+                                <div className="flex items-center gap-3 text-zinc-400 font-mono">
+                                  {progressData !== undefined && (
+                                    <span className="text-blue-400">{progressData}%</span>
+                                  )}
+                                  <span>
+                                    {elapsedSec}s
+                                    {activeJob.isPolling && <span className="ml-1 text-blue-400">(running)</span>}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                {activeJob.pollUpdates.slice().reverse().map((update, idx) => {
+                                  const updateApiData = (update.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+                                  const updateProgress = updateApiData?.progress as number | undefined;
+                                  return (
+                                    <details key={activeJob.pollUpdates.length - idx} className="group">
+                                      <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-zinc-800/50 cursor-pointer text-xs">
+                                        <svg
+                                          width="8"
+                                          height="8"
+                                          viewBox="0 0 8 8"
+                                          fill="currentColor"
+                                          className="text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0"
+                                        >
+                                          <path d="M2 0l4 4-4 4" />
+                                        </svg>
+                                        <span className="text-zinc-600 font-mono w-8">#{update.attempt}</span>
+                                        <span className={`font-medium ${
+                                          update.status === 'done' ? 'text-green-500' :
+                                          update.status === 'error' ? 'text-red-500' :
+                                          update.status === 'processing' ? 'text-blue-400' :
+                                          'text-yellow-500'
+                                        }`}>
+                                          {update.status}
+                                        </span>
+                                        {updateProgress !== undefined && (
+                                          <span className="text-blue-400 font-mono">{updateProgress}%</span>
+                                        )}
+                                        <span className="text-zinc-600 flex-1 text-right">
+                                          +{Math.floor((update.timestamp - firstUpdate.timestamp) / 1000)}s
+                                        </span>
+                                      </summary>
+                                      <div className="ml-5 mt-1 mb-2">
+                                        <pre className="text-[10px] font-mono text-zinc-500 bg-zinc-900 rounded p-2 overflow-x-auto max-h-32">
+                                          {JSON.stringify(update.data, null, 2)}
+                                        </pre>
+                                      </div>
+                                    </details>
+                                  );
+                                })}
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      )}
+                        );
+                      })()}
 
                       {/* Error display */}
                       {activeJob?.error && (

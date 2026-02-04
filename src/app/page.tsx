@@ -44,11 +44,6 @@ export default function Home() {
         showError(data.error || 'Request failed');
         return;
       }
-
-      // Select the new job if async
-      if (data.isAsync && data.jobId) {
-        jobsPanelRef.current?.selectJob(data.jobId);
-      }
     } catch (err) {
       showError(err instanceof Error ? err.message : 'Request failed');
     } finally {
