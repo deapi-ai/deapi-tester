@@ -68,7 +68,27 @@ export async function POST(request: Request) {
         headers,
         body: formData,
       };
-      bodyForLog = '[FormData]';
+      // Build readable FormData representation for logging
+      const formDataLog: Record<string, JsonValue> = {};
+      formData.forEach((value, key) => {
+        if (value instanceof File) {
+          // For files, show name and size
+          const fileInfo = `[File: ${value.name}, ${(value.size / 1024).toFixed(1)}KB]`;
+          // Handle multiple files with same key
+          if (formDataLog[key]) {
+            if (Array.isArray(formDataLog[key])) {
+              (formDataLog[key] as string[]).push(fileInfo);
+            } else {
+              formDataLog[key] = [formDataLog[key] as string, fileInfo];
+            }
+          } else {
+            formDataLog[key] = fileInfo;
+          }
+        } else {
+          formDataLog[key] = value;
+        }
+      });
+      bodyForLog = { _type: 'multipart/form-data', ...formDataLog };
     } else {
       headers['Content-Type'] = 'application/json';
       fetchOptions = {

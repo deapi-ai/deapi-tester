@@ -14,6 +14,9 @@ export interface EndpointParam {
   step?: number;
   options?: { value: string; label: string }[];  // for select
   accept?: string;  // for file (e.g. "image/*")
+  nullable?: boolean;  // allows field to be disabled/set to null via toggle
+  multiple?: boolean;  // for file: allows multiple file selection (array)
+  multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
 }
 
 export interface EndpointDefinition {

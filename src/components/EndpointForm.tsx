@@ -11,24 +11,38 @@ interface EndpointFormProps {
 
 export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormProps) {
   const [values, setValues] = useState<Record<string, JsonValue>>({});
-  const [files, setFiles] = useState<Record<string, File>>({});
+  const [files, setFiles] = useState<Record<string, File | File[]>>({});
+  const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
+  const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const defaults: Record<string, JsonValue> = {};
+    const nullableDefaults: Record<string, boolean> = {};
+    const multiFileModeDefaults: Record<string, boolean> = {};
     endpoint.params.forEach((param) => {
       if (param.default !== undefined) {
         defaults[param.name] = param.default;
       }
+      // Nullable fields start disabled (null) by default
+      if (param.nullable) {
+        nullableDefaults[param.name] = param.default === null;
+      }
+      // Multi file mode starts as false (single file mode)
+      if (param.multiFieldName) {
+        multiFileModeDefaults[param.name] = false;
+      }
     });
     setValues(defaults);
     setFiles({});
+    setNullableDisabled(nullableDefaults);
+    setMultiFileMode(multiFileModeDefaults);
   }, [endpoint.id, endpoint.params]);
 
   const handleChange = useCallback((name: string, value: JsonValue) => {
     setValues((prev) => ({ ...prev, [name]: value }));
   }, []);
 
-  const handleFileChange = useCallback((name: string, file: File | null) => {
+  const handleFileChange = useCallback((name: string, file: File | File[] | null) => {
     if (file) {
       setFiles((prev) => ({ ...prev, [name]: file }));
     } else {
@@ -40,6 +54,13 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
     }
   }, []);
 
+  const toggleNullable = useCallback((name: string, disabled: boolean) => {
+    setNullableDisabled((prev) => ({ ...prev, [name]: disabled }));
+    if (disabled) {
+      setValues((prev) => ({ ...prev, [name]: null }));
+    }
+  }, []);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -48,13 +69,26 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
       formData.append('_endpointId', endpoint.id);
 
       Object.entries(values).forEach(([key, value]) => {
+        // Skip null values (from disabled nullable fields)
         if (value !== undefined && value !== null && value !== '') {
           formData.append(key, String(value));
         }
       });
 
-      Object.entries(files).forEach(([key, file]) => {
-        formData.append(key, file);
+      Object.entries(files).forEach(([key, fileOrFiles]) => {
+        // Check if this field has multi mode and get the correct field name
+        const param = endpoint.params.find(p => p.name === key);
+        const isMultiMode = param?.multiFieldName && multiFileMode[key];
+        const fieldName = isMultiMode ? param.multiFieldName : key;
+
+        if (Array.isArray(fileOrFiles)) {
+          // Multiple files - append each with same key
+          fileOrFiles.forEach((file) => {
+            formData.append(fieldName, file);
+          });
+        } else {
+          formData.append(fieldName, fileOrFiles);
+        }
       });
 
       onSubmit(values, formData);
@@ -95,18 +129,32 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         );
 
       case 'number':
+        const isNullableDisabled = param.nullable && nullableDisabled[param.name];
         return (
-          <input
-            type="number"
-            value={value !== undefined ? String(value) : ''}
-            onChange={(e) => handleChange(param.name, e.target.value ? Number(e.target.value) : null)}
-            placeholder={param.placeholder}
-            min={param.min}
-            max={param.max}
-            step={param.step}
-            className={`${baseClass} font-mono`}
-            required={param.required}
-          />
+          <div className="flex items-center gap-2">
+            {param.nullable && (
+              <label className="flex items-center gap-1 cursor-pointer flex-shrink-0" title={isNullableDisabled ? "Enable field" : "Disable field (set to null)"}>
+                <input
+                  type="checkbox"
+                  checked={!isNullableDisabled}
+                  onChange={(e) => toggleNullable(param.name, !e.target.checked)}
+                  className="w-3 h-3 rounded bg-zinc-800 border-zinc-700 text-blue-600 cursor-pointer"
+                />
+              </label>
+            )}
+            <input
+              type="number"
+              value={isNullableDisabled ? '' : (value !== undefined && value !== null ? String(value) : '')}
+              onChange={(e) => handleChange(param.name, e.target.value ? Number(e.target.value) : null)}
+              placeholder={isNullableDisabled ? 'disabled' : param.placeholder}
+              min={param.min}
+              max={param.max}
+              step={param.step}
+              className={`${baseClass} font-mono flex-1 ${isNullableDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
+              required={param.required && !param.nullable}
+              disabled={isNullableDisabled}
+            />
+          </div>
         );
 
       case 'select':
@@ -140,23 +188,94 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
         );
 
       case 'file':
+        const currentFiles = files[param.name];
+        const isMultiMode = param.multiFieldName && multiFileMode[param.name];
+        const fileArray = currentFiles ? (Array.isArray(currentFiles) ? currentFiles : [currentFiles]) : [];
+        const fileCount = fileArray.length;
+        const fileLabel = fileCount === 0
+          ? (isMultiMode ? 'Choose file(s)...' : 'Choose file...')
+          : fileCount === 1
+            ? fileArray[0].name
+            : `${fileCount} files selected`;
+
         return (
-          <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 flex-shrink-0">
-              <path d="M8 12V4M4 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M14 12v2H2v-2" strokeLinecap="round" />
-            </svg>
-            <span className="text-xs text-zinc-400 truncate flex-1">
-              {files[param.name] ? files[param.name].name : 'Choose file...'}
-            </span>
-            <input
-              type="file"
-              accept={param.accept}
-              onChange={(e) => handleFileChange(param.name, e.target.files?.[0] || null)}
-              className="hidden"
-              required={param.required}
-            />
-          </label>
+          <div className="flex flex-col gap-1">
+            {/* Mode switch for fields with multiFieldName */}
+            {param.multiFieldName && (
+              <div className="flex items-center gap-2 mb-1">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMultiFileMode(prev => ({ ...prev, [param.name]: false }));
+                    // Clear files when switching mode
+                    handleFileChange(param.name, null);
+                  }}
+                  className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                    !isMultiMode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  Single ({param.name})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMultiFileMode(prev => ({ ...prev, [param.name]: true }));
+                    // Clear files when switching mode
+                    handleFileChange(param.name, null);
+                  }}
+                  className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
+                    isMultiMode
+                      ? 'bg-blue-600 text-white'
+                      : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  Multiple ({param.multiFieldName})
+                </button>
+              </div>
+            )}
+            <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 flex-shrink-0">
+                <path d="M8 12V4M4 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M14 12v2H2v-2" strokeLinecap="round" />
+              </svg>
+              <span className="text-xs text-zinc-400 truncate flex-1">
+                {fileLabel}
+              </span>
+              {isMultiMode && fileCount > 0 && (
+                <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+                  {fileCount}
+                </span>
+              )}
+              <input
+                type="file"
+                accept={param.accept}
+                multiple={isMultiMode}
+                onChange={(e) => {
+                  const selectedFiles = e.target.files;
+                  if (!selectedFiles || selectedFiles.length === 0) {
+                    handleFileChange(param.name, null);
+                  } else if (isMultiMode) {
+                    handleFileChange(param.name, Array.from(selectedFiles));
+                  } else {
+                    handleFileChange(param.name, selectedFiles[0]);
+                  }
+                }}
+                className="hidden"
+                required={param.required && fileCount === 0}
+              />
+            </label>
+            {isMultiMode && fileCount > 0 && (
+              <div className="flex flex-wrap gap-1 mt-1">
+                {fileArray.map((file, idx) => (
+                  <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded truncate max-w-[150px]" title={file.name}>
+                    {file.name}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
         );
 
       case 'lora-array':
