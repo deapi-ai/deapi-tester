@@ -21,6 +21,9 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
   const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
 
+  // Check if this is the request-status endpoint
+  const isRequestStatusEndpoint = endpoint.id === 'request-status';
+
   // Get selected model info
   const selectedModelSlug = values['model'] as string | undefined;
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
@@ -435,6 +438,10 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const otherParams: EndpointParam[] = [];
 
   endpoint.params.forEach(param => {
+    // Skip request_id for request-status endpoint (it's shown in left panel)
+    if (isRequestStatusEndpoint && param.name === 'request_id') {
+      return;
+    }
     if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea') {
       promptParams.push(param);
     } else if (param.type === 'file') {
@@ -522,8 +529,25 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
       {/* Form Content - Horizontal Layout */}
       <div className="flex-1 flex gap-4 p-4 overflow-hidden min-h-0">
-        {/* Left: Prompts & Files */}
+        {/* Left: Prompts & Files (or Result for request-status) */}
         <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-y-auto">
+          {/* Request Status - show request_id input prominently */}
+          {isRequestStatusEndpoint && (
+            <div className="flex flex-col gap-1">
+              <label className="text-xs text-zinc-400">
+                Request ID <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={String(values['request_id'] ?? '')}
+                onChange={(e) => handleChange('request_id', e.target.value)}
+                placeholder="c08a339c-73e5-4d67-a4d5-231302fbff9a"
+                className="w-full rounded px-3 py-2 text-sm font-mono bg-zinc-900 border border-[var(--border)] focus:border-blue-500 focus:outline-none"
+                required
+              />
+            </div>
+          )}
+
           {promptParams.map((param) => (
             <div key={param.name} className="flex flex-col min-h-0">
               <label className="flex items-baseline gap-1 text-xs text-zinc-400 mb-1 flex-shrink-0">
