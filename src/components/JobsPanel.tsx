@@ -628,8 +628,18 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                             </div>
                           )}
 
+                          {/* Audio player */}
+                          {resultUrl && resultType === 'audio' && (
+                            <audio
+                              src={resultUrl}
+                              controls
+                              className="h-8 w-32 flex-shrink-0"
+                              style={{ minWidth: '128px' }}
+                            />
+                          )}
+
                           {/* Processing placeholder */}
-                          {activeJob?.isPolling && !resultUrl && (resultType === 'image' || resultType === 'video') && (
+                          {activeJob?.isPolling && !resultUrl && (resultType === 'image' || resultType === 'video' || resultType === 'audio') && (
                             <div className="w-12 h-12 rounded bg-zinc-900 flex items-center justify-center flex-shrink-0">
                               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 animate-spin">
                                 <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
