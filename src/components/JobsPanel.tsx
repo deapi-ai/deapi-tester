@@ -496,7 +496,11 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 <span className="text-[10px] font-mono text-zinc-500">{job.requestId}</span>
                               )}
                               {cost !== null && (
-                                <span className="text-[10px] font-mono text-yellow-500">${cost}</span>
+                                <span className="text-[10px] font-mono text-yellow-500">
+                                  ${typeof cost === 'number' && cost !== 0 && Math.abs(cost) < 0.000001
+                                    ? cost.toFixed(10).replace(/\.?0+$/, '')
+                                    : cost}
+                                </span>
                               )}
                             </div>
                             <div className="text-xs text-zinc-600 truncate font-mono">
@@ -504,7 +508,9 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 ? job.params.prompt.slice(0, 60)
                                 : typeof job.params.text === 'string'
                                   ? job.params.text.slice(0, 60)
-                                  : job.requestId || '—'}
+                                  : typeof job.params.input === 'string'
+                                    ? job.params.input.slice(0, 60)
+                                    : job.requestId || '—'}
                             </div>
                           </div>
                         </div>
