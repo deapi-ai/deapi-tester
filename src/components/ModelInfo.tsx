@@ -1,7 +1,7 @@
 'use client';
 
 import { ChevronRight } from 'lucide-react';
-import { DeApiModel, ModelFeatures, ModelLimits } from '@/lib/types';
+import { DeApiModel, ModelDefaults, ModelFeatures, ModelLimits } from '@/lib/types';
 
 interface ModelInfoProps {
   model: DeApiModel | undefined;
@@ -36,13 +36,16 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       {hasFeatures && (
         <div className="flex flex-wrap gap-1">
           {Object.entries(info.features as ModelFeatures)
-            .filter(([, value]) => value)
-            .map(([key]) => {
+            .map(([key, value]) => {
               const label = key.replace('supports_', '').replace(/_/g, ' ');
               return (
                 <span
                   key={key}
-                  className="text-[9px] px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded"
+                  className={`text-[9px] px-1.5 py-0.5 rounded ${
+                    value
+                      ? 'bg-green-500/10 text-green-400'
+                      : 'bg-red-500/10 text-red-400 line-through'
+                  }`}
                 >
                   {label}
                 </span>
@@ -56,6 +59,19 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
         <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
           {renderLimitPairs(info.limits as ModelLimits)}
         </div>
+      )}
+
+      {/* Defaults */}
+      {hasDefaults && (
+        <details className="group">
+          <summary className="flex items-center gap-1 text-[9px] text-[var(--muted)] cursor-pointer hover:text-[var(--text-secondary)]">
+            <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
+            Defaults
+          </summary>
+          <div className="mt-1 grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+            {renderDefaults(info.defaults as ModelDefaults)}
+          </div>
+        </details>
       )}
 
       {/* LoRAs */}
@@ -103,6 +119,45 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
   );
 }
 
+const DEFAULT_LABELS: Record<string, string> = {
+  steps: 'Steps',
+  width: 'Width',
+  height: 'Height',
+  frames: 'Frames',
+  fps: 'FPS',
+  lang: 'Language',
+  speed: 'Speed',
+  voice: 'Voice',
+  format: 'Format',
+  sample_rate: 'Sample rate',
+  prompt: 'Prompt',
+  negative_prompt: 'Neg. prompt',
+};
+
+function renderDefaults(defaults: ModelDefaults) {
+  const elements: React.ReactNode[] = [];
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (value === undefined || value === null) continue;
+    const label = DEFAULT_LABELS[key] || key.replace(/_/g, ' ');
+    let display = String(value);
+    if (key === 'sample_rate' && typeof value === 'number') {
+      display = `${(value / 1000).toFixed(0)}kHz`;
+    }
+    if (typeof value === 'string' && value.length > 30) {
+      display = value.substring(0, 30) + '...';
+    }
+    elements.push(
+      <div key={`${key}-label`} className="text-[var(--muted)]">{label}:</div>,
+      <div key={`${key}-value`} className="text-[var(--text-secondary)] font-mono truncate" title={String(value)}>
+        {display}
+      </div>
+    );
+  }
+
+  return elements;
+}
+
 function renderLimitPairs(limits: ModelLimits) {
   const pairs: { label: string; min?: number; max?: number }[] = [];
 
@@ -122,7 +177,7 @@ function renderLimitPairs(limits: ModelLimits) {
     pairs.push({ label: 'FPS', min: limits.min_fps, max: limits.max_fps });
   }
   if (limits.min_text !== undefined || limits.max_text !== undefined) {
-    pairs.push({ label: 'Text', min: limits.min_text, max: limits.max_text });
+    pairs.push({ label: 'Text length', min: limits.min_text, max: limits.max_text });
   }
   if (limits.min_speed !== undefined || limits.max_speed !== undefined) {
     pairs.push({ label: 'Speed', min: limits.min_speed, max: limits.max_speed });
@@ -156,8 +211,28 @@ function renderLimitPairs(limits: ModelLimits) {
   }
   if (limits.max_input_tokens !== undefined) {
     elements.push(
-      <div key="input-tokens-label" className="text-[var(--muted)]">Max tokens:</div>,
+      <div key="input-tokens-label" className="text-[var(--muted)]">Input tokens:</div>,
       <div key="input-tokens-value" className="text-[var(--text-secondary)] font-mono">{limits.max_input_tokens.toLocaleString()}</div>
+    );
+  }
+  if (limits.max_total_tokens !== undefined) {
+    elements.push(
+      <div key="total-tokens-label" className="text-[var(--muted)]">Total tokens:</div>,
+      <div key="total-tokens-value" className="text-[var(--text-secondary)] font-mono">{limits.max_total_tokens.toLocaleString()}</div>
+    );
+  }
+  if (limits.max_input_images !== undefined) {
+    elements.push(
+      <div key="input-images-label" className="text-[var(--muted)]">Max images:</div>,
+      <div key="input-images-value" className="text-[var(--text-secondary)] font-mono">{limits.max_input_images}</div>
+    );
+  }
+  if (limits.available_ratios && limits.available_ratios.length > 0) {
+    elements.push(
+      <div key="sample-rates-label" className="text-[var(--muted)]">Sample rates:</div>,
+      <div key="sample-rates-value" className="text-[var(--text-secondary)] font-mono">
+        {limits.available_ratios.map(r => `${(r / 1000).toFixed(0)}kHz`).join(', ')}
+      </div>
     );
   }
 
