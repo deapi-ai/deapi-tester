@@ -5,13 +5,17 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unif
 ## Features
 
 - **Endpoint Browser** - Browse and select from all available deAPI endpoints organized by category
-- **Dynamic Forms** - Automatically generated forms based on endpoint parameters
+- **Dynamic Forms** - Automatically generated forms based on endpoint parameters with model-aware limits and defaults
+- **Dynamic Models** - Model options, limits, defaults, voices, and languages auto-discovered from API (zero code changes to add models)
 - **Async Job Tracking** - Real-time polling with SSE for async operations (image/video generation)
 - **Request Inspector** - View raw request/response JSON for debugging
 - **Job History** - Persistent history of all requests with status, cost, and results
-- **Result Preview** - Thumbnail previews for images and videos
+- **Result Preview** - Inline previews for images, videos, and audio
 - **Download Manager** - Save generated results to local directory
 - **Balance Display** - Track your deAPI credit balance
+- **Multi-Profile Config** - Multiple API profiles for different environments (production, staging, etc.)
+- **Light/Dark Theme** - Toggle between light and dark mode with system preference support
+- **Price Calculator** - Pre-calculate costs before sending requests
 
 ## Tech Stack
 
@@ -25,27 +29,18 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unif
 ### Prerequisites
 
 - Node.js 18+
-- npm or yarn
+- npm
 - deAPI account and API token from [deapi.ai](https://deapi.ai)
 
 ### Installation
 
 ```bash
 # Clone the repository
-git clone https://github.com/your-username/deapi-tester.git
+git clone <repo-url>
 cd deapi-tester
 
 # Install dependencies
 npm install
-
-# Configure your API token (choose one method):
-
-# Method 1: Environment variables (recommended for security)
-cp .env.local.example .env.local
-# Edit .env.local and add your deAPI token
-
-# Method 2: UI Configuration
-# Start the app and use the gear icon to enter your token
 
 # Start development server
 npm run dev
@@ -55,11 +50,22 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Configuration
 
-The app supports two configuration methods that work together:
+**Option 1: UI Configuration (Recommended for local use)**
 
-**Option 1: Environment Variables (Recommended for permanent setup)**
+1. Click the **gear icon** in the top right corner
+2. Enter your deAPI token and other settings
+3. Create multiple profiles for different environments
+4. Configuration is saved to `data/config.json`
 
-Create a `.env.local` file in the root directory:
+**Option 2: Environment Variables**
+
+Copy `.env.local.example` to `.env.local`:
+
+```bash
+cp .env.local.example .env.local
+```
+
+Edit `.env.local`:
 
 ```env
 DEAPI_API_TOKEN=your_token_here
@@ -69,22 +75,13 @@ DEAPI_POLLING_INTERVAL_MS=2000
 DEAPI_MAX_POLLING_ATTEMPTS=120
 ```
 
-**Option 2: UI Configuration (Convenient for testing)**
+**Priority:** Environment variables override `data/config.json` values when both exist.
 
-1. Click the **gear icon** in the top right corner
-2. Enter your deAPI token and other settings
-3. Configuration is saved to `data/config.json`
-
-**How it works (Hybrid approach):**
-- If `.env.local` exists → Environment variables take **priority** (secure, permanent)
-- If no `.env.local` → Uses `data/config.json` from UI (convenient for local testing)
-- UI can still update `config.json`, but `.env.local` will override it if present
-
-**Security:**
+**Git-ignored files:**
 - `.env.local` - excluded from git (safe to store tokens)
 - `data/config.json` - excluded from git (local configuration)
 - `data/history.json` - excluded from git (your job history)
-- `output/` - excluded from git (generated files can be large)
+- `output/` - excluded from git (generated files)
 
 ## Usage
 
@@ -93,9 +90,8 @@ DEAPI_MAX_POLLING_ATTEMPTS=120
 3. **Click Execute** to send the request
 4. **Track progress** in the Jobs panel below:
    - View polling status for async operations
-   - Click "Raw" to see the full request JSON
-   - Expand polling entries to see each response
-   - Preview results with thumbnails
+   - Click "Raw" to see the full request/response JSON
+   - Preview results inline
    - Download completed results
 
 ## Project Structure
@@ -105,36 +101,55 @@ deapi-tester/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx              # Main UI layout
+│   │   ├── layout.tsx            # Root layout (theme script)
+│   │   ├── globals.css           # Global styles, CSS variables, theme definitions
 │   │   ├── api/
 │   │   │   ├── proxy/            # Proxy requests to deAPI
 │   │   │   ├── poll/[id]/        # SSE polling for async jobs
+│   │   │   ├── endpoints/        # GET endpoint registry
 │   │   │   ├── history/          # Job history CRUD
 │   │   │   ├── config/           # Configuration management
+│   │   │   ├── models/           # Proxy to deAPI /models
+│   │   │   ├── balance/          # Proxy to deAPI /balance
 │   │   │   └── download/         # Download results
-│   │   └── ...
 │   ├── components/
+│   │   ├── Providers.tsx         # Root providers (Contexts + Toast)
+│   │   ├── BalanceContext.tsx     # Balance state (useBalance hook)
+│   │   ├── ModelsContext.tsx      # Models cache (useModelsContext hook)
+│   │   ├── ThemeContext.tsx       # Theme state (useTheme hook)
+│   │   ├── Toast.tsx             # Toast notifications (useToast hook)
+│   │   ├── ConfigPanel.tsx       # Quick profile switcher (header)
+│   │   ├── ConfigDrawer.tsx      # Full settings drawer
 │   │   ├── EndpointSelector.tsx  # Endpoint browser
 │   │   ├── EndpointForm.tsx      # Dynamic form generator
+│   │   ├── RequestInspector.tsx  # Raw JSON viewer
+│   │   ├── JobTracker.tsx        # Polling status, progress bar
 │   │   ├── JobsPanel.tsx         # Job tracking & history
-│   │   ├── ConfigDrawer.tsx      # Settings panel
+│   │   ├── ResultViewer.tsx      # Preview img/video/audio
+│   │   ├── HistoryPanel.tsx      # Previous jobs list
+│   │   ├── ModelInfo.tsx         # Model metadata display
+│   │   ├── PriceCalculator.tsx   # Cost pre-calculator
 │   │   ├── form/                 # Form field components
 │   │   │   ├── FormField.tsx     # Generic form field renderer
 │   │   │   └── FileUploadField.tsx # File upload with preview
-│   │   ├── jobs/                 # Job-related components
-│   │   │   ├── JobRow.tsx        # Single job row
-│   │   │   └── JobLogsView.tsx   # Logs view
-│   │   └── ...
+│   │   └── jobs/                 # Job-related components
+│   │       ├── JobRow.tsx        # Single job row
+│   │       └── JobLogsView.tsx   # Logs view
+│   ├── hooks/
+│   │   ├── useDeApi.ts           # Main API hook
+│   │   ├── usePolling.ts         # SSE/polling hook
+│   │   └── useConfig.ts          # Configuration hook
 │   └── lib/
-│       ├── endpoint-registry.ts  # All endpoint definitions
+│       ├── endpoint-registry.ts  # Endpoint definitions (form structure only)
+│       ├── deapi-client.ts       # HTTP client for deAPI
+│       ├── config.ts             # Configuration management
 │       ├── storage.ts            # JSON file operations
 │       ├── types.ts              # TypeScript types
 │       ├── constants.ts          # Shared constants
 │       ├── format-utils.ts       # Formatting utilities
 │       └── form-utils.ts         # Form utilities
-├── data/                         # Local storage (auto-created)
-│   ├── config.json              # User configuration
-│   └── history.json             # Job history
-├── output/                       # Downloaded results (configurable)
+├── data/                         # Local storage (auto-created, git-ignored)
+├── output/                       # Downloaded results (git-ignored)
 └── ...
 ```
 
@@ -146,27 +161,31 @@ Endpoints are defined in `src/lib/endpoint-registry.ts`. To add a new endpoint:
 {
   id: 'my-new-endpoint',
   name: 'My New Endpoint',
-  group: 'Image',
+  group: 'image-generation',
   method: 'POST',
   path: '/my-endpoint',
+  description: 'Does something cool',
+  contentType: 'json',
   isAsync: true,
+  hasPriceCalc: true,
+  priceCalcPath: '/my-endpoint/price-calculation',
   params: [
     { name: 'prompt', label: 'Prompt', type: 'textarea', required: true },
-    { name: 'model', label: 'Model', type: 'select', options: [...] },
-    // ... more params
+    { name: 'model', label: 'Model', type: 'select', required: true },
+    // NO hardcoded options/limits — they come from /models API
   ]
 }
 ```
 
-The form will be automatically generated based on the parameter definitions.
+The form is automatically generated. Model options, limits, and defaults are loaded dynamically from the API.
 
 ## Architecture
 
-- All requests to deAPI go through the backend proxy (`/api/proxy`) which:
-  - Adds the Authorization header
-  - Logs requests to history
-  - Handles async job creation
+- All requests to deAPI go through the backend proxy (`/api/proxy`) which adds the Authorization header and logs to history
 - Async job polling uses Server-Sent Events (SSE) from `/api/poll/[id]`
+- Endpoint registry defines form **structure** only (field names, types, required flags)
+- All model data (slugs, limits, defaults, voices, languages) comes dynamically from `/api/models`
+- Adding a new model to deAPI requires **zero code changes** — it auto-appears in the UI
 - Configuration and history are stored in local JSON files
 
 ## License

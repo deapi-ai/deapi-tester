@@ -10,9 +10,17 @@ npm run start    # Start production server
 npm run lint     # Run ESLint
 ```
 
+## Dev Server Management
+Use the `/dev-server` slash command for server lifecycle:
+- `/dev-server start` — kill existing + start fresh
+- `/dev-server stop` — kill server + free port
+- `/dev-server restart` — same as start
+- `/dev-server clean` — delete `.next/` cache + start fresh
+- `/dev-server status` — check if running
+
 ## Troubleshooting
-- If port 3000 is busy: kill the process or use `npm run dev -- --port 3001`
-- If build fails with stale cache: delete `.next/` directory and rebuild
+- If port 3000 is busy: use `/dev-server start` (auto-kills existing)
+- If build fails with stale cache: use `/dev-server clean`
 - If `@next/swc` version mismatch: run `npm install` to sync dependencies
 
 ## Rules

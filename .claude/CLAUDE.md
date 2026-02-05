@@ -18,7 +18,8 @@ deapi-tester/
 ├── src/
 │   ├── app/
 │   │   ├── page.tsx                    # Main UI
-│   │   ├── layout.tsx                  # Root layout
+│   │   ├── layout.tsx                  # Root layout (theme flash prevention)
+│   │   ├── globals.css                 # Global styles, CSS variables, theme defs
 │   │   ├── api/
 │   │   │   ├── proxy/route.ts          # Proxy to deAPI (adds auth, logs)
 │   │   │   ├── poll/[id]/route.ts      # SSE stream for job status
@@ -41,6 +42,7 @@ deapi-tester/
 │   │   ├── Providers.tsx               # Root providers wrapper (Contexts + Toast)
 │   │   ├── BalanceContext.tsx          # Global balance state (useBalance hook)
 │   │   ├── ModelsContext.tsx           # Global models cache (useModelsContext hook)
+│   │   ├── ThemeContext.tsx             # Theme state (useTheme hook)
 │   │   ├── Toast.tsx                   # Toast notifications (useToast hook)
 │   │   ├── ConfigPanel.tsx             # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx            # Full settings drawer (profiles CRUD)
@@ -139,7 +141,7 @@ The app supports multiple configuration profiles for different API keys/environm
 - Old config format (flat) is auto-migrated to new format on first load
 
 ## React Contexts
-The app uses three React contexts, all wrapped in `Providers.tsx`:
+The app uses four React contexts, all wrapped in `Providers.tsx`:
 
 **BalanceContext** (`useBalance` hook):
 - Fetches and caches user's credit balance from `/api/balance`
@@ -151,6 +153,13 @@ The app uses three React contexts, all wrapped in `Providers.tsx`:
 - Provides `getModelBySlug(slug)` for quick model lookup
 - Used by EndpointForm for: model dropdown options, voice/language options (TTS), numeric field limits/defaults
 - Model data includes: `info.limits`, `info.defaults`, `info.features`, `languages[]`, `loras[]`
+
+**ThemeContext** (`useTheme` hook):
+- Supports `'light' | 'dark' | 'system'` modes
+- `toggleTheme()` switches between light and dark
+- `resolvedTheme` returns the actual active theme
+- Persists to `localStorage` key `deapi-theme`
+- Flash prevention via inline `<script>` in `layout.tsx`
 
 **ToastContext** (`useToast` hook):
 - Global toast notifications (error, success, info, warning)
