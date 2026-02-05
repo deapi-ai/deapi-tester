@@ -91,18 +91,18 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     const modelParam = endpoint.params.find((p) => p.name === 'model');
     if (!modelParam) return;
 
-    const currentModel = values['model'] as string | undefined;
     const inferenceType = endpoint.id;
     const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
 
-    if (!currentModel || !filteredModels.some((m) => m.slug === currentModel)) {
-      if (filteredModels.length > 0) {
-        setValues((prev) => ({ ...prev, model: filteredModels[0].slug }));
-      } else {
-        setValues((prev) => ({ ...prev, model: '' }));
+    setValues((prev) => {
+      const currentModel = prev['model'] as string | undefined;
+      if (!currentModel || !filteredModels.some((m) => m.slug === currentModel)) {
+        const newModel = filteredModels.length > 0 ? filteredModels[0].slug : '';
+        return { ...prev, model: newModel };
       }
-    }
-  }, [models, endpoint.id, endpoint.params, values]);
+      return prev;
+    });
+  }, [models, endpoint.id, endpoint.params]);
 
   // Auto-apply model defaults when model selection changes
   useEffect(() => {
