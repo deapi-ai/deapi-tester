@@ -588,6 +588,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'textarea',
         required: true,
         placeholder: 'Text to embed...',
+        supportsArray: true,
       },
       modelSelectParam(),
     ],

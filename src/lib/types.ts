@@ -18,6 +18,7 @@ export interface EndpointParam {
   multiple?: boolean;  // for file: allows multiple file selection (array)
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
+  supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
 }
 
 export interface EndpointDefinition {

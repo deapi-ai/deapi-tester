@@ -34,6 +34,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
+  const [arrayMode, setArrayMode] = useState<Record<string, boolean>>({});
   const [imagePreviews, setImagePreviews] = useState<Record<string, ImagePreview[]>>({});
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
@@ -74,6 +75,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setFiles({});
     setNullableDisabled(nullableDefaults);
     setMultiFileMode(multiFileModeDefaults);
+    setArrayMode({});
     setPriceResult(null);
     prevModelSlugRef.current = undefined;
     setImagePreviews((prev) => {
@@ -363,7 +365,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     const filteredValues: Record<string, JsonValue> = {};
     Object.entries(values).forEach(([key, value]) => {
       if (value !== null) {
-        filteredValues[key] = value;
+        // Split into array if arrayMode is on for this field
+        if (arrayMode[key] && typeof value === 'string') {
+          filteredValues[key] = value.split('\n').map(s => s.trim()).filter(Boolean);
+        } else {
+          filteredValues[key] = value;
+        }
       } else {
         // For disabled nullable fields, send model default or param default
         const param = endpoint.params.find(p => p.name === key);
@@ -381,7 +388,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       }
     });
     return filteredValues;
-  }, [values, endpoint.params, modelDefaults]);
+  }, [values, endpoint.params, modelDefaults, arrayMode]);
 
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
@@ -544,14 +551,29 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
           {promptParams.map((param) => (
             <div key={param.name} className="flex flex-col min-h-0">
-              <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)] mb-1 flex-shrink-0">
-                {param.label}
-                {param.required && <span className="text-red-500">*</span>}
-              </label>
+              <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
+                <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)]">
+                  {param.label}
+                  {param.required && <span className="text-red-500">*</span>}
+                </label>
+                {param.supportsArray && (
+                  <button
+                    type="button"
+                    onClick={() => setArrayMode(prev => ({ ...prev, [param.name]: !prev[param.name] }))}
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                      arrayMode[param.name]
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-emphasis)]'
+                    }`}
+                  >
+                    {arrayMode[param.name] ? 'Array mode' : 'Single'}
+                  </button>
+                )}
+              </div>
               <textarea
                 value={String(values[param.name] ?? '')}
                 onChange={(e) => handleChange(param.name, e.target.value)}
-                placeholder={param.placeholder}
+                placeholder={arrayMode[param.name] ? 'One item per line...' : param.placeholder}
                 className="w-full rounded px-2 py-1.5 text-sm resize-none min-h-[50px] flex-1"
               />
             </div>
