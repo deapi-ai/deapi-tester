@@ -11,7 +11,7 @@ interface ModelInfoProps {
 export function ModelInfo({ model, isLoading }: ModelInfoProps) {
   if (isLoading) {
     return (
-      <div className="mt-2 text-[10px] text-zinc-600">Loading...</div>
+      <div className="mt-2 text-[10px] text-[var(--text-faint)]">Loading...</div>
     );
   }
 
@@ -31,7 +31,7 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
   }
 
   return (
-    <div className="mt-2 p-2 bg-zinc-800/50 rounded border border-zinc-700/50 space-y-2">
+    <div className="mt-2 p-2 bg-[var(--hover)] rounded border border-[var(--border)] space-y-2">
       {/* Features as badges */}
       {hasFeatures && (
         <div className="flex flex-wrap gap-1">
@@ -61,7 +61,7 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       {/* LoRAs */}
       {hasLoras && (
         <details className="group">
-          <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
+          <summary className="flex items-center gap-1 text-[9px] text-[var(--muted)] cursor-pointer hover:text-[var(--text-secondary)]">
             <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
             {model.loras!.length} LoRAs
           </summary>
@@ -82,7 +82,7 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       {/* Languages */}
       {hasLanguages && (
         <details className="group">
-          <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
+          <summary className="flex items-center gap-1 text-[9px] text-[var(--muted)] cursor-pointer hover:text-[var(--text-secondary)]">
             <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
             {model.languages!.length} languages
           </summary>
@@ -139,10 +139,10 @@ function renderLimitPairs(limits: ModelLimits) {
         : `max ${pair.max}`;
 
     elements.push(
-      <div key={`${pair.label}-label`} className="text-zinc-500">
+      <div key={`${pair.label}-label`} className="text-[var(--muted)]">
         {pair.label}:
       </div>,
-      <div key={`${pair.label}-value`} className="text-zinc-400 font-mono">
+      <div key={`${pair.label}-value`} className="text-[var(--text-secondary)] font-mono">
         {rangeStr}
       </div>
     );
@@ -150,14 +150,14 @@ function renderLimitPairs(limits: ModelLimits) {
 
   if (limits.resolution_step !== undefined) {
     elements.push(
-      <div key="res-step-label" className="text-zinc-500">Res step:</div>,
-      <div key="res-step-value" className="text-zinc-400 font-mono">{limits.resolution_step}px</div>
+      <div key="res-step-label" className="text-[var(--muted)]">Res step:</div>,
+      <div key="res-step-value" className="text-[var(--text-secondary)] font-mono">{limits.resolution_step}px</div>
     );
   }
   if (limits.max_input_tokens !== undefined) {
     elements.push(
-      <div key="input-tokens-label" className="text-zinc-500">Max tokens:</div>,
-      <div key="input-tokens-value" className="text-zinc-400 font-mono">{limits.max_input_tokens.toLocaleString()}</div>
+      <div key="input-tokens-label" className="text-[var(--muted)]">Max tokens:</div>,
+      <div key="input-tokens-value" className="text-[var(--text-secondary)] font-mono">{limits.max_input_tokens.toLocaleString()}</div>
     );
   }
 

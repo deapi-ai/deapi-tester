@@ -63,7 +63,7 @@ export function FileUploadField({
             className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
               !isMultiMode
                 ? 'bg-blue-600 text-white'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--border-strong)]'
             }`}
           >
             Single ({name})
@@ -77,7 +77,7 @@ export function FileUploadField({
             className={`text-[10px] px-2 py-0.5 rounded transition-colors ${
               isMultiMode
                 ? 'bg-blue-600 text-white'
-                : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:bg-[var(--border-strong)]'
             }`}
           >
             Multiple ({multiFieldName})
@@ -103,9 +103,9 @@ export function FileUploadField({
               <img
                 src={preview.url}
                 alt=""
-                className="h-20 w-auto rounded border border-[var(--border)] object-contain bg-zinc-900"
+                className="h-20 w-auto rounded border border-[var(--border)] object-contain bg-[var(--surface)]"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 text-[9px] font-mono text-zinc-300 rounded-b">
+              <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 text-[9px] font-mono text-[var(--text-primary)] rounded-b">
                 {preview.format} · {preview.width}×{preview.height} · {formatFileSize(preview.size)}
               </div>
             </div>
@@ -113,9 +113,9 @@ export function FileUploadField({
         </div>
       )}
 
-      <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
-        <Upload className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-        <span className="text-xs text-zinc-400 truncate flex-1">{fileLabel}</span>
+      <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-[var(--border-strong)] transition-colors">
+        <Upload className="w-3 h-3 text-[var(--muted)] flex-shrink-0" />
+        <span className="text-xs text-[var(--text-secondary)] truncate flex-1">{fileLabel}</span>
         {isMultiMode && fileCount > 0 && (
           <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
             {fileCount}

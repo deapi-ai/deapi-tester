@@ -34,26 +34,26 @@ export function RequestInspector({ rawRequest, rawResponse }: RequestInspectorPr
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--hover)] transition-colors"
       >
-        <span className="text-sm font-medium text-zinc-300 flex items-center gap-2">
+        <span className="text-sm font-medium text-[var(--text-primary)] flex items-center gap-2">
           <span>🔍</span> Request Inspector
         </span>
-        <span className="text-xs text-zinc-500">{isExpanded ? '▼' : '▶'}</span>
+        <span className="text-xs text-[var(--muted)]">{isExpanded ? '▼' : '▶'}</span>
       </button>
 
       {isExpanded && (
-        <div className="border-t border-zinc-800">
-          <div className="flex border-b border-zinc-800">
+        <div className="border-t border-[var(--border)]">
+          <div className="flex border-b border-[var(--border)]">
             <button
               onClick={() => setActiveTab('request')}
               className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === 'request'
-                  ? 'bg-zinc-800 text-zinc-200'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-[var(--surface-2)] text-[var(--text-emphasis)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text-primary)]'
               }`}
             >
               Request
@@ -62,8 +62,8 @@ export function RequestInspector({ rawRequest, rawResponse }: RequestInspectorPr
               onClick={() => setActiveTab('response')}
               className={`flex-1 px-4 py-2 text-sm font-medium transition-colors ${
                 activeTab === 'response'
-                  ? 'bg-zinc-800 text-zinc-200'
-                  : 'text-zinc-500 hover:text-zinc-300'
+                  ? 'bg-[var(--surface-2)] text-[var(--text-emphasis)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text-primary)]'
               }`}
             >
               Response
@@ -74,17 +74,17 @@ export function RequestInspector({ rawRequest, rawResponse }: RequestInspectorPr
             {activeTab === 'request' && rawRequest && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">
+                  <span className="text-xs text-[var(--muted)]">
                     {rawRequest.method} {rawRequest.url}
                   </span>
                   <button
                     onClick={() => copyToClipboard(rawRequest)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                    className="text-xs text-[var(--muted)] hover:text-[var(--text-primary)]"
                   >
                     Copy
                   </button>
                 </div>
-                <pre className="bg-zinc-950 rounded p-3 text-xs font-mono text-zinc-400 overflow-x-auto max-h-64 overflow-y-auto">
+                <pre className="bg-[var(--surface-inset)] rounded p-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto max-h-64 overflow-y-auto">
                   {formatJson(rawRequest)}
                 </pre>
               </div>
@@ -93,26 +93,26 @@ export function RequestInspector({ rawRequest, rawResponse }: RequestInspectorPr
             {activeTab === 'response' && rawResponse !== null && rawResponse !== undefined && (
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Response</span>
+                  <span className="text-xs text-[var(--muted)]">Response</span>
                   <button
                     onClick={() => copyToClipboard(rawResponse)}
-                    className="text-xs text-zinc-500 hover:text-zinc-300"
+                    className="text-xs text-[var(--muted)] hover:text-[var(--text-primary)]"
                   >
                     Copy
                   </button>
                 </div>
-                <pre className="bg-zinc-950 rounded p-3 text-xs font-mono text-zinc-400 overflow-x-auto max-h-64 overflow-y-auto">
+                <pre className="bg-[var(--surface-inset)] rounded p-3 text-xs font-mono text-[var(--text-secondary)] overflow-x-auto max-h-64 overflow-y-auto">
                   {formatJson(rawResponse)}
                 </pre>
               </div>
             )}
 
             {activeTab === 'request' && !rawRequest && (
-              <p className="text-sm text-zinc-500 italic">No request data</p>
+              <p className="text-sm text-[var(--muted)] italic">No request data</p>
             )}
 
             {activeTab === 'response' && !rawResponse && (
-              <p className="text-sm text-zinc-500 italic">No response data</p>
+              <p className="text-sm text-[var(--muted)] italic">No response data</p>
             )}
           </div>
         </div>

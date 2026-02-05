@@ -4,19 +4,78 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
+/* Default (dark) */
+:root,
+[data-theme="dark"] {
   --background: #0c0c0e;
   --foreground: #e4e4e7;
   --surface: #141418;
   --surface-2: #1a1a1f;
+  --surface-inset: #09090b;
   --border: #27272a;
   --border-dim: #1e1e22;
+  --border-strong: #3f3f46;
+  --hover: rgba(255,255,255,0.05);
   --accent: #3b82f6;
   --accent-dim: #1e3a5f;
   --success: #22c55e;
   --warning: #eab308;
   --error: #ef4444;
   --muted: #71717a;
+  --text-primary: #d4d4d8;
+  --text-secondary: #a1a1aa;
+  --text-emphasis: #e4e4e7;
+  --text-faint: #52525b;
+
+  /* Toast colors */
+  --toast-error-bg: #450a0a;
+  --toast-error-border: #b91c1c;
+  --toast-error-text: #fecaca;
+  --toast-success-bg: #052e16;
+  --toast-success-border: #15803d;
+  --toast-success-text: #bbf7d0;
+  --toast-warning-bg: #422006;
+  --toast-warning-border: #a16207;
+  --toast-warning-text: #fef08a;
+  --toast-info-bg: #172554;
+  --toast-info-border: #1d4ed8;
+  --toast-info-text: #bfdbfe;
+}
+
+[data-theme="light"] {
+  --background: #f4f4f5;
+  --foreground: #18181b;
+  --surface: #ffffff;
+  --surface-2: #f0f0f3;
+  --surface-inset: #e4e4e7;
+  --border: #d4d4d8;
+  --border-dim: #e4e4e7;
+  --border-strong: #a1a1aa;
+  --hover: rgba(0,0,0,0.04);
+  --accent: #2563eb;
+  --accent-dim: #dbeafe;
+  --success: #22c55e;
+  --warning: #eab308;
+  --error: #ef4444;
+  --muted: #71717a;
+  --text-primary: #3f3f46;
+  --text-secondary: #52525b;
+  --text-emphasis: #18181b;
+  --text-faint: #a1a1aa;
+
+  /* Toast colors */
+  --toast-error-bg: #fef2f2;
+  --toast-error-border: #fca5a5;
+  --toast-error-text: #991b1b;
+  --toast-success-bg: #f0fdf4;
+  --toast-success-border: #86efac;
+  --toast-success-text: #166534;
+  --toast-warning-bg: #fefce8;
+  --toast-warning-border: #fde047;
+  --toast-warning-text: #854d0e;
+  --toast-info-bg: #eff6ff;
+  --toast-info-border: #93c5fd;
+  --toast-info-text: #1e40af;
 }
 
 * {
@@ -183,7 +242,11 @@ select:focus {
 }
 
 .btn-ghost {
-  @apply hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200;
+  @apply text-[var(--text-secondary)] hover:text-[var(--text-emphasis)];
+  background: transparent;
+}
+.btn-ghost:hover {
+  background: var(--surface-2);
 }
 
 /* Compact form inputs */
@@ -197,7 +260,7 @@ select:focus {
 }
 
 .panel-title {
-  @apply text-xs font-semibold uppercase tracking-wider text-zinc-500;
+  @apply text-xs font-semibold uppercase tracking-wider text-[var(--muted)];
 }
 
 /* Status badges */
@@ -248,7 +311,35 @@ select:focus {
   opacity: 1;
 }
 
+/* Toast styles */
+.toast-error {
+  background: var(--toast-error-bg);
+  border-color: var(--toast-error-border);
+  color: var(--toast-error-text);
+}
+
+.toast-success {
+  background: var(--toast-success-bg);
+  border-color: var(--toast-success-border);
+  color: var(--toast-success-text);
+}
+
+.toast-warning {
+  background: var(--toast-warning-bg);
+  border-color: var(--toast-warning-border);
+  color: var(--toast-warning-text);
+}
+
+.toast-info {
+  background: var(--toast-info-bg);
+  border-color: var(--toast-info-border);
+  color: var(--toast-info-text);
+}
+
 /* Keyboard shortcut badge */
 .kbd {
-  @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono bg-zinc-800 border border-zinc-700 rounded text-zinc-400;
+  @apply inline-flex items-center justify-center px-1.5 py-0.5 text-[10px] font-mono rounded;
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text-secondary);
 }

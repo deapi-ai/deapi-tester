@@ -44,11 +44,11 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   const showError = useCallback((message: string) => showToast(message, 'error'), [showToast]);
   const showSuccess = useCallback((message: string) => showToast(message, 'success'), [showToast]);
 
-  const typeStyles: Record<ToastType, string> = {
-    error: 'bg-red-900 border-red-700 text-red-100',
-    success: 'bg-green-900 border-green-700 text-green-100',
-    warning: 'bg-yellow-900 border-yellow-700 text-yellow-100',
-    info: 'bg-blue-900 border-blue-700 text-blue-100',
+  const toastVarStyles: Record<ToastType, string> = {
+    error: 'toast-error',
+    success: 'toast-success',
+    warning: 'toast-warning',
+    info: 'toast-info',
   };
 
   const typeIcons: Record<ToastType, string> = {
@@ -67,7 +67,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toasts.map(toast => (
           <div
             key={toast.id}
-            className={`flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg animate-slide-in ${typeStyles[toast.type]}`}
+            className={`flex items-start gap-3 px-4 py-3 rounded-lg border shadow-lg animate-slide-in ${toastVarStyles[toast.type]}`}
           >
             <span className="text-lg flex-shrink-0">{typeIcons[toast.type]}</span>
             <p className="text-sm flex-1">{toast.message}</p>

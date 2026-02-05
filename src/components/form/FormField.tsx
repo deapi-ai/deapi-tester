@@ -72,7 +72,7 @@ export function FormField({
                 type="checkbox"
                 checked={!isNullableDisabled}
                 onChange={(e) => onNullableToggle(param.name, !e.target.checked)}
-                className="w-3 h-3 rounded bg-zinc-800 border-zinc-700 text-blue-600 cursor-pointer"
+                className="w-3 h-3 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
               />
             </label>
           )}
@@ -91,7 +91,7 @@ export function FormField({
             <button
               type="button"
               onClick={randomizeSeed}
-              className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors flex-shrink-0"
+              className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded transition-colors flex-shrink-0"
               title="Random seed"
             >
               <Dices className="w-3.5 h-3.5" />
@@ -114,7 +114,7 @@ export function FormField({
                 type="checkbox"
                 checked={!isNullableDisabled}
                 onChange={(e) => onNullableToggle(param.name, !e.target.checked)}
-                className="w-3 h-3 rounded bg-zinc-800 border-zinc-700 text-blue-600 cursor-pointer"
+                className="w-3 h-3 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
               />
             </label>
           )}
@@ -144,9 +144,9 @@ export function FormField({
             type="checkbox"
             checked={Boolean(value)}
             onChange={(e) => onValueChange(param.name, e.target.checked)}
-            className="w-3.5 h-3.5 rounded bg-zinc-800 border-zinc-700 text-blue-600"
+            className="w-3.5 h-3.5 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600"
           />
-          <span className="text-xs text-zinc-400">Enable</span>
+          <span className="text-xs text-[var(--text-secondary)]">Enable</span>
         </label>
       );
 

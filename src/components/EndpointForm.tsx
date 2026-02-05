@@ -333,11 +333,11 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     <form onSubmit={handleSubmit} className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center gap-3 px-4 py-2 border-b border-[var(--border)] flex-shrink-0">
-        <h3 className="text-sm font-medium text-zinc-200">{endpoint.name}</h3>
-        <span className="text-[10px] font-mono px-1.5 py-0.5 bg-zinc-800 rounded text-zinc-500">
+        <h3 className="text-sm font-medium text-[var(--text-emphasis)]">{endpoint.name}</h3>
+        <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[var(--surface-2)] rounded text-[var(--muted)]">
           {endpoint.method}
         </span>
-        <span className="text-[10px] font-mono text-zinc-600">{endpoint.path}</span>
+        <span className="text-[10px] font-mono text-[var(--text-faint)]">{endpoint.path}</span>
         {endpoint.isAsync && (
           <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 rounded">async</span>
         )}
@@ -354,7 +354,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             type="button"
             onClick={handleCheckPrice}
             disabled={isCheckingPrice || isSubmitting}
-            className="bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:cursor-not-allowed rounded px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2"
+            className="bg-[var(--border-strong)] hover:bg-[var(--muted)] disabled:bg-[var(--surface-2)] disabled:cursor-not-allowed rounded px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2"
           >
             {isCheckingPrice ? (
               <>
@@ -395,7 +395,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         <div className="flex-1 flex flex-col gap-2 min-w-0 overflow-y-auto">
           {isRequestStatusEndpoint && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs text-zinc-400">
+              <label className="text-xs text-[var(--text-secondary)]">
                 Request ID <span className="text-red-500">*</span>
               </label>
               <input
@@ -403,14 +403,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 value={String(values['request_id'] ?? '')}
                 onChange={(e) => handleChange('request_id', e.target.value)}
                 placeholder="c08a339c-73e5-4d67-a4d5-231302fbff9a"
-                className="w-full rounded px-3 py-2 text-sm font-mono bg-zinc-900 border border-[var(--border)] focus:border-blue-500 focus:outline-none"
+                className="w-full rounded px-3 py-2 text-sm font-mono bg-[var(--surface)] border border-[var(--border)] focus:border-blue-500 focus:outline-none"
               />
             </div>
           )}
 
           {promptParams.map((param) => (
             <div key={param.name} className="flex flex-col min-h-0">
-              <label className="flex items-baseline gap-1 text-xs text-zinc-400 mb-1 flex-shrink-0">
+              <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)] mb-1 flex-shrink-0">
                 {param.label}
                 {param.required && <span className="text-red-500">*</span>}
               </label>
@@ -427,7 +427,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             <div className="flex gap-2 flex-wrap flex-shrink-0">
               {fileParams.map((param) => (
                 <div key={param.name} className="flex-1 min-w-[180px]">
-                  <label className="flex items-baseline gap-1 text-xs text-zinc-400 mb-1">
+                  <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)] mb-1">
                     {param.label}
                     {param.required && <span className="text-red-500">*</span>}
                   </label>
@@ -460,12 +460,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 return (
                   <div key={param.name}>
                     <div className="flex items-baseline justify-between gap-1 mb-0.5">
-                      <label className="text-[10px] text-zinc-500">
+                      <label className="text-[10px] text-[var(--muted)]">
                         {param.label}
                         {param.required && <span className="text-red-500 ml-0.5">*</span>}
                       </label>
                       {(defaultVal !== undefined || limit) && (
-                        <span className="text-[8px] font-mono text-zinc-600">
+                        <span className="text-[8px] font-mono text-[var(--text-faint)]">
                           {limit && `${limit.min ?? '?'}-${limit.max ?? '?'}`}
                           {defaultVal !== undefined && (
                             <span className="text-green-600 ml-1">def:{defaultVal}</span>
@@ -492,7 +492,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         <div className="w-48 flex-shrink-0 space-y-2 overflow-y-auto">
           {selectParams.map((param) => (
             <div key={param.name}>
-              <label className="flex items-baseline gap-1 text-[10px] text-zinc-500 mb-1">
+              <label className="flex items-baseline gap-1 text-[10px] text-[var(--muted)] mb-1">
                 {param.label}
                 {param.required && <span className="text-red-500">*</span>}
               </label>
@@ -512,7 +512,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                     <button
                       type="button"
                       onClick={handleSetDefaults}
-                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1 mt-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1 mt-1.5 text-[10px] text-[var(--text-secondary)] hover:text-[var(--text-emphasis)] bg-[var(--surface-2)] hover:bg-[var(--border-strong)] rounded transition-colors"
                       title="Fill with model defaults and disable unsupported fields"
                     >
                       <RotateCcw className="w-2.5 h-2.5" />
@@ -527,14 +527,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
           {otherParams.length > 0 && (
             <details className="group">
-              <summary className="flex items-center gap-1 text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-400 py-1">
+              <summary className="flex items-center gap-1 text-[10px] text-[var(--muted)] cursor-pointer hover:text-[var(--text-secondary)] py-1">
                 <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
                 More options ({otherParams.length})
               </summary>
               <div className="mt-2 space-y-2">
                 {otherParams.map((param) => (
                   <div key={param.name}>
-                    <label className="flex items-baseline gap-1 text-[10px] text-zinc-500 mb-1">
+                    <label className="flex items-baseline gap-1 text-[10px] text-[var(--muted)] mb-1">
                       {param.label}
                     </label>
                     <FormField
@@ -555,7 +555,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
       {endpoint.params.length === 0 && (
         <div className="flex-1 flex items-center justify-center -mt-12">
-          <p className="text-sm text-zinc-500">No parameters required</p>
+          <p className="text-sm text-[var(--muted)]">No parameters required</p>
         </div>
       )}
     </form>

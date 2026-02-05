@@ -107,31 +107,31 @@ export function JobTracker({ requestId, onComplete, onError }: JobTrackerProps) 
   const progress = maxAttempts > 0 ? (attempt / maxAttempts) * 100 : 0;
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
-        <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+        <h3 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
           <span>{STATUS_ICONS[status] || '🔄'}</span> Job Status
         </h3>
-        <span className={`text-sm font-medium ${STATUS_TEXT_COLORS[status] || 'text-zinc-400'}`}>
+        <span className={`text-sm font-medium ${STATUS_TEXT_COLORS[status] || 'text-[var(--text-secondary)]'}`}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
       </div>
 
       {(status === 'polling' || status === 'processing' || status === 'pending') && (
         <>
-          <div className="w-full bg-zinc-800 rounded-full h-2 mb-2">
+          <div className="w-full bg-[var(--surface-2)] rounded-full h-2 mb-2">
             <div
               className="bg-blue-500 h-2 rounded-full transition-all duration-300"
               style={{ width: `${Math.min(progress, 100)}%` }}
             />
           </div>
-          <p className="text-xs text-zinc-500">
+          <p className="text-xs text-[var(--muted)]">
             Polling attempt {attempt} of {maxAttempts}
           </p>
         </>
       )}
 
-      <p className="text-xs text-zinc-600 mt-2 font-mono truncate">
+      <p className="text-xs text-[var(--text-faint)] mt-2 font-mono truncate">
         Request ID: {requestId}
       </p>
     </div>

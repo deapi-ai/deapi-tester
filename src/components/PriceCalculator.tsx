@@ -64,7 +64,7 @@ export function PriceCalculator({ endpoint, params }: PriceCalculatorProps) {
         type="button"
         onClick={calculatePrice}
         disabled={isCalculating}
-        className="px-4 py-2 bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
+        className="px-4 py-2 bg-[var(--border-strong)] hover:bg-[var(--muted)] disabled:bg-[var(--surface-2)] disabled:cursor-not-allowed rounded text-sm font-medium transition-colors"
       >
         {isCalculating ? 'Calculating...' : 'Calculate Price'}
       </button>
@@ -73,7 +73,7 @@ export function PriceCalculator({ endpoint, params }: PriceCalculatorProps) {
         <span className="text-sm text-green-400">
           ~{price.estimated_credits ?? '?'} credits
           {price.details && (
-            <span className="text-zinc-500 ml-2">({price.details})</span>
+            <span className="text-[var(--muted)] ml-2">({price.details})</span>
           )}
         </span>
       )}

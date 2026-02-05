@@ -56,12 +56,12 @@ import { Play, Loader2, Check, X, RefreshCw } from 'lucide-react';
 ## Button Patterns
 ```tsx
 // Primary action
-<button className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded text-white">
+<button className="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded text-white">
   Execute
 </button>
 
 // Secondary action
-<button className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded text-zinc-200">
+<button className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-[var(--text-emphasis)]">
   Cancel
 </button>
 
@@ -71,19 +71,50 @@ import { Play, Loader2, Check, X, RefreshCw } from 'lucide-react';
 </button>
 
 // Icon-only button
-<button className="p-1.5 hover:bg-zinc-700 rounded">
+<button className="p-1.5 hover:bg-[var(--surface-2)] rounded">
   <RefreshCw className="w-4 h-4" />
 </button>
 ```
 
+## Theme System (Light/Dark Mode)
+All chrome/surface colors use CSS variables defined in `globals.css`. Never use hardcoded `zinc-*` classes for surfaces, borders, or text — use CSS variable references instead.
+
+**ThemeContext** (`useTheme` hook):
+- Supports `'light' | 'dark' | 'system'` modes
+- Persists to `localStorage` key `deapi-theme`
+- Sets `data-theme` attribute on `<html>`
+- `toggleTheme()` switches between light and dark
+- Flash prevention via inline `<script>` in `layout.tsx`
+
+**CSS Variable mapping (use these instead of zinc-*):**
+| Role | Variable | Example class |
+|---|---|---|
+| Main background | `--background` | `bg-[var(--background)]` |
+| Surface (cards) | `--surface` | `bg-[var(--surface)]` |
+| Surface elevated | `--surface-2` | `bg-[var(--surface-2)]` |
+| Surface inset | `--surface-inset` | `bg-[var(--surface-inset)]` |
+| Hover overlay | `--hover` | `hover:bg-[var(--hover)]` |
+| Border default | `--border` | `border-[var(--border)]` |
+| Border strong | `--border-strong` | `border-[var(--border-strong)]` |
+| Text primary | `--text-primary` | `text-[var(--text-primary)]` |
+| Text secondary | `--text-secondary` | `text-[var(--text-secondary)]` |
+| Text emphasis | `--text-emphasis` | `text-[var(--text-emphasis)]` |
+| Text faint | `--text-faint` | `text-[var(--text-faint)]` |
+| Muted | `--muted` | `text-[var(--muted)]` |
+
+**What stays hardcoded (semantic colors):**
+- Status colors: `bg-green-500`, `text-red-400`, `bg-blue-500/10` etc.
+- Accent actions: `bg-blue-600`, `hover:bg-blue-500`
+- Danger: `bg-red-600`, `text-red-400`
+- These work in both themes without changes.
+
 ## Layout Colors
-- Background: `bg-zinc-900` (main), `bg-zinc-800` (cards/panels)
-- Borders: `border-zinc-700`
-- Text: `text-zinc-100` (primary), `text-zinc-400` (secondary)
+- Background: `bg-[var(--background)]` (main), `bg-[var(--surface)]` (cards/panels)
+- Borders: `border-[var(--border)]`
+- Text: `text-[var(--text-primary)]` (primary), `text-[var(--text-secondary)]` (secondary)
 - Accent: `text-blue-400` (links, active states)
 
 ## Form Fields
-- Labels: `text-sm text-zinc-400`
-- Inputs: `bg-zinc-800 border-zinc-600 focus:border-blue-500`
-- Placeholders: `placeholder-zinc-500`
-- Help text: `text-xs text-zinc-500`
+- Labels: `text-sm text-[var(--text-secondary)]`
+- Inputs: auto-styled via globals.css (use `var(--surface)` bg, `var(--border)` border)
+- Help text: `text-xs text-[var(--muted)]`

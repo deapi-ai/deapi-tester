@@ -76,7 +76,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
       {/* Search */}
       <div className="p-2 border-b border-[var(--border)]">
         <div className="relative">
-          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 w-3.5 h-3.5" />
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted)] w-3.5 h-3.5" />
           <input
             type="text"
             value={searchQuery}
@@ -97,12 +97,12 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
             <div key={group.id}>
               <button
                 onClick={() => toggleGroup(group.id)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-zinc-800/50 transition-colors"
+                className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-[var(--hover)] transition-colors"
               >
-<ChevronRight className={`w-2.5 h-2.5 text-zinc-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
+<ChevronRight className={`w-2.5 h-2.5 text-[var(--text-faint)] transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                 <span className="text-sm">{group.icon}</span>
-                <span className="flex-1 text-xs font-medium text-zinc-400">{group.label}</span>
-                <span className="text-[10px] text-zinc-600 font-mono">{groupEndpoints.length}</span>
+                <span className="flex-1 text-xs font-medium text-[var(--text-secondary)]">{group.label}</span>
+                <span className="text-[10px] text-[var(--text-faint)] font-mono">{groupEndpoints.length}</span>
               </button>
 
               {isExpanded && groupEndpoints.length > 0 && (
@@ -114,7 +114,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
                       className={`w-full flex items-center gap-2 pl-7 pr-2 py-1.5 text-left transition-colors ${
                         selectedEndpoint?.id === endpoint.id
                           ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
-                          : 'text-zinc-500 hover:bg-zinc-800/30 hover:text-zinc-300 border-l-2 border-transparent'
+                          : 'text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--text-primary)] border-l-2 border-transparent'
                       }`}
                     >
                       <span className="flex-1 text-xs truncate">{endpoint.name}</span>
@@ -132,7 +132,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
         })}
 
         {visibleGroups.length === 0 && searchQuery && (
-          <div className="p-4 text-center text-xs text-zinc-600">
+          <div className="p-4 text-center text-xs text-[var(--text-faint)]">
             No endpoints found
           </div>
         )}

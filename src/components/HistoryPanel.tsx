@@ -55,29 +55,29 @@ export function HistoryPanel({ onRerun, refreshTrigger }: HistoryPanelProps) {
   };
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg overflow-hidden">
       <button
         onClick={() => setIsExpanded(!isExpanded)}
-        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-zinc-800/50 transition-colors"
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-[var(--hover)] transition-colors"
       >
-        <span className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+        <span className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
           <span>📋</span> History
           {jobs.length > 0 && (
-            <span className="text-xs text-zinc-500">({jobs.length})</span>
+            <span className="text-xs text-[var(--muted)]">({jobs.length})</span>
           )}
         </span>
-        <span className="text-xs text-zinc-500">{isExpanded ? '▼' : '▶'}</span>
+        <span className="text-xs text-[var(--muted)]">{isExpanded ? '▼' : '▶'}</span>
       </button>
 
       {isExpanded && (
-        <div className="border-t border-zinc-800">
+        <div className="border-t border-[var(--border)]">
           {isLoading ? (
-            <div className="p-4 text-sm text-zinc-500 text-center">Loading...</div>
+            <div className="p-4 text-sm text-[var(--muted)] text-center">Loading...</div>
           ) : jobs.length === 0 ? (
-            <div className="p-4 text-sm text-zinc-500 text-center italic">No history yet</div>
+            <div className="p-4 text-sm text-[var(--muted)] text-center italic">No history yet</div>
           ) : (
             <>
-              <div className="flex justify-end px-4 py-2 border-b border-zinc-800">
+              <div className="flex justify-end px-4 py-2 border-b border-[var(--border)]">
                 <button
                   onClick={handleClearAll}
                   className="text-xs text-red-400 hover:text-red-300"
@@ -89,36 +89,36 @@ export function HistoryPanel({ onRerun, refreshTrigger }: HistoryPanelProps) {
                 {jobs.map((job) => (
                   <div
                     key={job.id}
-                    className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/30"
+                    className="flex items-center gap-3 px-4 py-3 border-b border-[var(--border)] last:border-0 hover:bg-[var(--hover)]"
                   >
                     <span className="text-lg">{STATUS_ICONS[job.status] || '❓'}</span>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-zinc-300 truncate">
+                      <p className="text-sm font-medium text-[var(--text-primary)] truncate">
                         {job.endpointId}
                       </p>
-                      <p className="text-xs text-zinc-500 truncate">
+                      <p className="text-xs text-[var(--muted)] truncate">
                         {typeof job.params.prompt === 'string'
                           ? job.params.prompt.slice(0, 50)
                           : job.requestId || 'No prompt'}
                       </p>
                     </div>
-                    <span className={`text-xs ${STATUS_TEXT_COLORS[job.status] || 'text-zinc-500'}`}>
+                    <span className={`text-xs ${STATUS_TEXT_COLORS[job.status] || 'text-[var(--muted)]'}`}>
                       {job.status}
                     </span>
-                    <span className="text-xs text-zinc-600 w-16 text-right">
+                    <span className="text-xs text-[var(--text-faint)] w-16 text-right">
                       {formatRelativeTime(job.createdAt)}
                     </span>
                     <div className="flex gap-1">
                       <button
                         onClick={() => onRerun(job)}
-                        className="text-xs px-2 py-1 bg-zinc-800 hover:bg-zinc-700 rounded"
+                        className="text-xs px-2 py-1 bg-[var(--surface-2)] hover:bg-[var(--border-strong)] rounded"
                         title="Rerun"
                       >
                         🔄
                       </button>
                       <button
                         onClick={() => handleDelete(job.id)}
-                        className="text-xs px-2 py-1 bg-zinc-800 hover:bg-red-900 rounded"
+                        className="text-xs px-2 py-1 bg-[var(--surface-2)] hover:bg-red-900 rounded"
                         title="Delete"
                       >
                         🗑️

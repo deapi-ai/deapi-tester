@@ -235,10 +235,10 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       <div className="fixed right-0 top-0 h-full w-[420px] bg-[var(--surface)] border-l border-[var(--border)] z-50 drawer-enter flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
-          <h2 className="text-sm font-semibold text-zinc-200">Settings</h2>
+          <h2 className="text-sm font-semibold text-[var(--text-emphasis)]">Settings</h2>
           <button
             onClick={onClose}
-            className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-200"
+            className="p-1 hover:bg-[var(--surface-2)] rounded transition-colors text-[var(--text-secondary)] hover:text-[var(--text-emphasis)]"
           >
 <X className="w-4 h-4" />
           </button>
@@ -249,11 +249,11 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
           {/* Balance Card */}
           <div className="bg-[var(--surface-2)] rounded-lg p-3 border border-[var(--border)]">
             <div className="flex items-center justify-between">
-              <span className="text-xs text-zinc-500 uppercase tracking-wide">Balance</span>
+              <span className="text-xs text-[var(--muted)] uppercase tracking-wide">Balance</span>
               <button
                 onClick={refreshBalance}
                 disabled={isBalanceLoading}
-                className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50 p-1"
+                className="text-[var(--muted)] hover:text-[var(--text-primary)] disabled:opacity-50 p-1"
               >
 <RefreshCw className={`w-3.5 h-3.5 ${isBalanceLoading ? 'animate-spin' : ''}`} />
               </button>
@@ -262,7 +262,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
               {balance !== null ? `$${balance}` : '—'}
             </p>
             {activeProfile && (
-              <p className="text-xs text-zinc-500 mt-1">
+              <p className="text-xs text-[var(--muted)] mt-1">
                 Profile: {activeProfile.name}
               </p>
             )}
@@ -283,7 +283,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
           {/* Profiles Section */}
           <div>
             <div className="flex items-center justify-between mb-2">
-              <label className="text-xs text-zinc-500 uppercase tracking-wide">
+              <label className="text-xs text-[var(--muted)] uppercase tracking-wide">
                 API Profiles
               </label>
               <button
@@ -339,7 +339,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                         </button>
                         <button
                           onClick={() => setEditingProfileId(null)}
-                          className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded text-xs"
+                          className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-xs"
                         >
                           Cancel
                         </button>
@@ -376,21 +376,21 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                           )}
                           <button
                             onClick={() => startEditProfile(profile)}
-                            className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded"
+                            className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded"
                           >
 <Pencil className="w-3.5 h-3.5" />
                           </button>
                           {config.profiles.length > 1 && (
                             <button
                               onClick={() => deleteProfile(profile.id)}
-                              className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded"
+                              className="p-1 text-[var(--muted)] hover:text-red-400 hover:bg-red-500/10 rounded"
                             >
 <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>
                       </div>
-                      <p className="text-xs text-zinc-500 mt-1 font-mono truncate">
+                      <p className="text-xs text-[var(--muted)] mt-1 font-mono truncate">
                         {profile.apiUrl}
                       </p>
                     </div>
@@ -436,7 +436,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                         setIsAddingProfile(false);
                         setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v1/client', apiToken: '' });
                       }}
-                      className="px-3 py-1.5 bg-zinc-700 hover:bg-zinc-600 rounded text-xs"
+                      className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-xs"
                     >
                       Cancel
                     </button>
@@ -448,13 +448,13 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
 
           {/* Global Settings */}
           <div className="border-t border-[var(--border)] pt-4">
-            <label className="block text-xs text-zinc-500 mb-2 uppercase tracking-wide">
+            <label className="block text-xs text-[var(--muted)] mb-2 uppercase tracking-wide">
               Global Settings
             </label>
 
             <div className="space-y-3">
               <div>
-                <label className="block text-xs text-zinc-500 mb-1">
+                <label className="block text-xs text-[var(--muted)] mb-1">
                   Output Directory
                 </label>
                 <input
@@ -464,7 +464,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                   className="w-full rounded px-3 py-2 text-sm font-mono"
                   placeholder="./output"
                 />
-                <p className="mt-1 text-[11px] text-zinc-600">
+                <p className="mt-1 text-[11px] text-[var(--text-faint)]">
                   Where downloaded results will be saved
                 </p>
               </div>

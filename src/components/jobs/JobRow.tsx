@@ -90,27 +90,27 @@ export function JobRow({
   const cost = getCost();
 
   return (
-    <div className="hover:bg-zinc-800/20">
+    <div className="hover:bg-[var(--hover)]">
       {/* Job Row - 3 columns */}
       <div className="grid grid-cols-12 gap-4 px-4 py-3 items-center">
         {/* Column 1: Job Info (5 cols) */}
         <div className="col-span-5 flex items-center gap-3 min-w-0">
           <span
-            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_BG_COLORS[job.status] || 'bg-zinc-500'} ${
+            className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_BG_COLORS[job.status] || 'bg-[var(--muted)]'} ${
               activeJob?.isPolling ? 'status-pulse' : ''
             }`}
           />
           <div className="min-w-0 flex-1">
             <div className="flex items-baseline gap-2">
-              <span className="text-sm font-medium text-zinc-300">{job.endpointId}</span>
+              <span className="text-sm font-medium text-[var(--text-primary)]">{job.endpointId}</span>
               {job.requestId && (
-                <span className="text-[10px] font-mono text-zinc-500">{job.requestId}</span>
+                <span className="text-[10px] font-mono text-[var(--muted)]">{job.requestId}</span>
               )}
               {cost !== null && (
                 <span className="text-[10px] font-mono text-yellow-500">${formatCost(cost)}</span>
               )}
             </div>
-            <div className="text-xs text-zinc-600 truncate font-mono">
+            <div className="text-xs text-[var(--text-faint)] truncate font-mono">
               {typeof job.params.prompt === 'string'
                 ? job.params.prompt.slice(0, 60)
                 : typeof job.params.text === 'string'
@@ -136,7 +136,7 @@ export function JobRow({
             return (
               <div className="flex items-center gap-2 text-[10px] font-mono">
                 {pollProgress !== undefined && <span className="text-blue-400">{pollProgress}%</span>}
-                <span className="text-zinc-500">{elapsedSec}s</span>
+                <span className="text-[var(--muted)]">{elapsedSec}s</span>
               </div>
             );
           })()}
@@ -146,8 +146,8 @@ export function JobRow({
               onClick={() => onToggleRaw(job.id)}
               className={`px-2 py-1 text-[10px] rounded transition-colors ${
                 isRawExpanded
-                  ? 'bg-zinc-700 text-zinc-300'
-                  : 'text-zinc-500 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800'
+                  ? 'bg-[var(--border-strong)] text-[var(--text-primary)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text-primary)] bg-[var(--hover)] hover:bg-[var(--surface-2)]'
               }`}
             >
               Raw
@@ -159,8 +159,8 @@ export function JobRow({
               onClick={() => onTogglePolling(job.id)}
               className={`flex items-center gap-1 px-2 py-1 text-[10px] rounded transition-colors ${
                 isPollingExpanded
-                  ? 'bg-zinc-700 text-zinc-300'
-                  : 'text-zinc-500 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800'
+                  ? 'bg-[var(--border-strong)] text-[var(--text-primary)]'
+                  : 'text-[var(--muted)] hover:text-[var(--text-primary)] bg-[var(--hover)] hover:bg-[var(--surface-2)]'
               }`}
             >
               <ChevronRight className={`w-2 h-2 transition-transform ${isPollingExpanded ? 'rotate-90' : ''}`} />
@@ -200,14 +200,14 @@ export function JobRow({
             </span>
           )}
 
-          <span className="text-[10px] text-zinc-600">{formatTime(job.createdAt)}</span>
+          <span className="text-[10px] text-[var(--text-faint)]">{formatTime(job.createdAt)}</span>
         </div>
 
         {/* Column 3: Preview & Actions (3 cols) */}
         <div className="col-span-3 flex items-center justify-end gap-2">
           {resultUrl && (resultType === 'image' || resultType === 'video') && (
             <div
-              className="w-12 h-12 rounded bg-zinc-900 overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex-shrink-0"
+              className="w-12 h-12 rounded bg-[var(--surface)] overflow-hidden cursor-pointer hover:ring-2 hover:ring-blue-500 transition-all flex-shrink-0"
               onClick={() => onOpenResult(resultUrl)}
             >
               {resultType === 'image' ? (
@@ -231,7 +231,7 @@ export function JobRow({
 
               if (previewBase64 && resultType === 'image') {
                 return (
-                  <div className="w-12 h-12 rounded bg-zinc-900 overflow-hidden flex-shrink-0 relative">
+                  <div className="w-12 h-12 rounded bg-[var(--surface)] overflow-hidden flex-shrink-0 relative">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={`data:image/jpeg;base64,${previewBase64}`}
@@ -246,8 +246,8 @@ export function JobRow({
               }
 
               return (
-                <div className="w-12 h-12 rounded bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                  <Loader2 className="w-4 h-4 text-zinc-700 animate-spin" />
+                <div className="w-12 h-12 rounded bg-[var(--surface)] flex items-center justify-center flex-shrink-0">
+                  <Loader2 className="w-4 h-4 text-[var(--border-strong)] animate-spin" />
                 </div>
               );
             })()}
@@ -256,7 +256,7 @@ export function JobRow({
             <>
               <button
                 onClick={() => onOpenResult(resultUrl)}
-                className="p-1.5 text-zinc-500 hover:text-blue-400 transition-colors"
+                className="p-1.5 text-[var(--muted)] hover:text-blue-400 transition-colors"
                 title="Open"
               >
                 <ExternalLink className="w-3.5 h-3.5" />
@@ -265,7 +265,7 @@ export function JobRow({
                 onClick={() => onDownload(job, resultUrl)}
                 disabled={downloadState?.isDownloading}
                 className={`p-1.5 transition-colors ${
-                  downloadState?.downloaded ? 'text-green-400' : 'text-zinc-500 hover:text-green-400'
+                  downloadState?.downloaded ? 'text-green-400' : 'text-[var(--muted)] hover:text-green-400'
                 }`}
                 title="Download"
               >
@@ -276,7 +276,7 @@ export function JobRow({
 
           <button
             onClick={() => onDelete(job.id)}
-            className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
+            className="p-1.5 text-[var(--muted)] hover:text-red-400 transition-colors"
             title="Delete"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -288,33 +288,33 @@ export function JobRow({
       {isRawExpanded && (job.rawRequest || job.rawResponse) && (
         <div className="px-4 pb-3 space-y-2">
           {job.rawRequest && (
-            <div className="bg-zinc-900/50 border border-[var(--border-dim)] rounded p-2">
+            <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Raw Request</span>
+                <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Raw Request</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawRequest, null, 2))}
-                  className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                  className="text-[10px] text-[var(--muted)] hover:text-[var(--text-primary)]"
                 >
                   Copy
                 </button>
               </div>
-              <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-40">
+              <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
                 {JSON.stringify(job.rawRequest, null, 2)}
               </pre>
             </div>
           )}
           {job.rawResponse && (
-            <div className="bg-zinc-900/50 border border-[var(--border-dim)] rounded p-2">
+            <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[10px] text-zinc-500 uppercase tracking-wide">Raw Response</span>
+                <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Raw Response</span>
                 <button
                   onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawResponse, null, 2))}
-                  className="text-[10px] text-zinc-500 hover:text-zinc-300"
+                  className="text-[10px] text-[var(--muted)] hover:text-[var(--text-primary)]"
                 >
                   Copy
                 </button>
               </div>
-              <pre className="text-[10px] font-mono text-zinc-400 overflow-x-auto max-h-40">
+              <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
                 {JSON.stringify(job.rawResponse, null, 2)}
               </pre>
             </div>
@@ -333,11 +333,11 @@ export function JobRow({
         const progressData = apiData?.progress as number | undefined;
 
         return (
-          <div className="bg-zinc-900/50 border-t border-[var(--border-dim)]">
+          <div className="bg-[var(--surface-inset)] border-t border-[var(--border-dim)]">
             <div className="px-4 py-2">
               <div className="flex items-center justify-between mb-2 text-[10px]">
-                <span className="text-zinc-500 uppercase tracking-wide">Polling Updates</span>
-                <div className="flex items-center gap-3 text-zinc-400 font-mono">
+                <span className="text-[var(--muted)] uppercase tracking-wide">Polling Updates</span>
+                <div className="flex items-center gap-3 text-[var(--text-secondary)] font-mono">
                   {progressData !== undefined && <span className="text-blue-400">{progressData}%</span>}
                   <span>
                     {elapsedSec}s{activeJob.isPolling && <span className="ml-1 text-blue-400">(running)</span>}
@@ -355,9 +355,9 @@ export function JobRow({
                     const updateProgress = updateApiData?.progress as number | undefined;
                     return (
                       <details key={activeJob.pollUpdates.length - idx} className="group">
-                        <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-zinc-800/50 cursor-pointer text-xs">
-                          <ChevronRight className="w-2 h-2 text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0" />
-                          <span className="text-zinc-600 font-mono w-8">#{update.attempt}</span>
+                        <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--hover)] cursor-pointer text-xs">
+                          <ChevronRight className="w-2 h-2 text-[var(--text-faint)] transition-transform group-open:rotate-90 flex-shrink-0" />
+                          <span className="text-[var(--text-faint)] font-mono w-8">#{update.attempt}</span>
                           <span
                             className={`font-medium ${
                               update.status === 'done'
@@ -374,12 +374,12 @@ export function JobRow({
                           {updateProgress !== undefined && (
                             <span className="text-blue-400 font-mono">{updateProgress}%</span>
                           )}
-                          <span className="text-zinc-600 flex-1 text-right">
+                          <span className="text-[var(--text-faint)] flex-1 text-right">
                             +{Math.floor((update.timestamp - firstUpdate.timestamp) / 1000)}s
                           </span>
                         </summary>
                         <div className="ml-5 mt-1 mb-2">
-                          <pre className="text-[10px] font-mono text-zinc-500 bg-zinc-900 rounded p-2 overflow-x-auto max-h-32">
+                          <pre className="text-[10px] font-mono text-[var(--muted)] bg-[var(--surface)] rounded p-2 overflow-x-auto max-h-32">
                             {JSON.stringify(update.data, null, 2)}
                           </pre>
                         </div>

@@ -74,10 +74,10 @@ export function ConfigPanel() {
   const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-4">
+    <div className="bg-[var(--surface)] border border-[var(--border)] rounded-lg p-4 mb-4">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <h2 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
+          <h2 className="text-sm font-semibold text-[var(--text-primary)] flex items-center gap-2">
             <span>Profile:</span>
           </h2>
 
@@ -86,7 +86,7 @@ export function ConfigPanel() {
               value={config.activeProfileId}
               onChange={e => switchProfile(e.target.value)}
               disabled={isSwitching}
-              className="bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
+              className="bg-[var(--surface-2)] border border-[var(--border-strong)] rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 disabled:opacity-50"
             >
               {config.profiles.map(profile => (
                 <option key={profile.id} value={profile.id}>
@@ -95,7 +95,7 @@ export function ConfigPanel() {
               ))}
             </select>
           ) : (
-            <span className="text-zinc-400 text-sm">
+            <span className="text-[var(--text-secondary)] text-sm">
               {activeProfile?.name || 'Default'}
               {activeProfile && !activeProfile.hasToken && (
                 <span className="ml-2 text-red-400">(no token)</span>
@@ -111,7 +111,7 @@ export function ConfigPanel() {
               <button
                 onClick={refreshBalance}
                 disabled={isBalanceLoading}
-                className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
+                className="text-[var(--muted)] hover:text-[var(--text-primary)] disabled:opacity-50"
                 title="Refresh balance"
               >
 {isBalanceLoading ? (
@@ -126,7 +126,7 @@ export function ConfigPanel() {
       </div>
 
       {activeProfile && (
-        <div className="mt-2 text-xs text-zinc-500 font-mono truncate">
+        <div className="mt-2 text-xs text-[var(--muted)] font-mono truncate">
           {activeProfile.apiUrl}
         </div>
       )}

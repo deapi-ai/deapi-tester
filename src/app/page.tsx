@@ -1,7 +1,8 @@
 'use client';
 
 import { useState, useRef } from 'react';
-import { Settings } from 'lucide-react';
+import { Settings, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/components/ThemeContext';
 import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
 import { EndpointForm } from '@/components/EndpointForm';
@@ -21,6 +22,7 @@ interface ProxyResponse {
 export default function Home() {
   const { showError } = useToast();
   const { balance } = useBalance();
+  const { resolvedTheme, toggleTheme } = useTheme();
   const jobsPanelRef = useRef<JobsPanelRef>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -58,26 +60,35 @@ export default function Home() {
       {/* Header Bar */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold text-zinc-200 tracking-tight">deAPI Tester</h1>
-          <span className="text-[10px] text-zinc-600 font-mono">v0.1</span>
+          <h1 className="text-sm font-semibold text-[var(--text-emphasis)] tracking-tight">deAPI Tester</h1>
+          <span className="text-[10px] text-[var(--text-faint)] font-mono">v0.1</span>
         </div>
 
         <div className="flex items-center gap-3">
           {/* Balance display */}
           {balance !== null && (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--surface-2)] rounded">
-              <span className="text-[10px] text-zinc-500">Balance:</span>
+              <span className="text-[10px] text-[var(--muted)]">Balance:</span>
               <span className="text-sm font-mono font-medium text-green-400">${balance}</span>
             </div>
           )}
 
+          {/* Theme toggle */}
+          <button
+            onClick={toggleTheme}
+            className="p-1.5 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded transition-colors"
+            title={resolvedTheme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          >
+            {resolvedTheme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+          </button>
+
           {/* Settings button */}
           <button
             onClick={() => setIsConfigOpen(true)}
-            className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
+            className="p-1.5 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded transition-colors"
             title="Settings"
           >
-<Settings className="w-4 h-4" />
+            <Settings className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -106,14 +117,14 @@ export default function Home() {
             ) : (
               <div className="h-[200px] flex items-center justify-center">
                 <div className="text-center">
-                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mx-auto mb-3 text-zinc-800">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mx-auto mb-3 text-[var(--border)]">
                     <path d="M12 8h24v6H12z" stroke="currentColor" strokeWidth="2" />
                     <path d="M8 18h32v22H8z" stroke="currentColor" strokeWidth="2" />
                     <circle cx="16" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
                     <circle cx="32" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
                     <path d="M24 14v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                   </svg>
-                  <p className="text-sm text-zinc-500">Select an endpoint to begin</p>
+                  <p className="text-sm text-[var(--muted)]">Select an endpoint to begin</p>
                 </div>
               </div>
             )}

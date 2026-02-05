@@ -332,8 +332,8 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold uppercase tracking-wider text-zinc-500">Jobs</span>
-          {jobs.length > 0 && <span className="text-[10px] font-mono text-zinc-600">{jobs.length}</span>}
+          <span className="text-xs font-semibold uppercase tracking-wider text-[var(--muted)]">Jobs</span>
+          {jobs.length > 0 && <span className="text-[10px] font-mono text-[var(--text-faint)]">{jobs.length}</span>}
           {activeCount > 0 && (
             <span className="flex items-center gap-1 text-[10px] text-blue-400">
               <span className="w-1.5 h-1.5 rounded-full bg-blue-500 status-pulse" />
@@ -343,11 +343,11 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
         </div>
         <div className="flex items-center gap-2">
           {/* View mode toggle */}
-          <div className="flex items-center bg-zinc-800 rounded p-0.5">
+          <div className="flex items-center bg-[var(--surface-2)] rounded p-0.5">
             <button
               onClick={() => setViewMode('list')}
               className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
-                viewMode === 'list' ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-500 hover:text-zinc-400'
+                viewMode === 'list' ? 'bg-[var(--border-strong)] text-[var(--text-emphasis)]' : 'text-[var(--muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               List
@@ -355,7 +355,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
             <button
               onClick={() => setViewMode('logs')}
               className={`px-2 py-0.5 text-[10px] rounded transition-colors ${
-                viewMode === 'logs' ? 'bg-zinc-700 text-zinc-200' : 'text-zinc-500 hover:text-zinc-400'
+                viewMode === 'logs' ? 'bg-[var(--border-strong)] text-[var(--text-emphasis)]' : 'text-[var(--muted)] hover:text-[var(--text-secondary)]'
               }`}
             >
               Logs
@@ -363,14 +363,14 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
           </div>
           <button
             onClick={loadJobs}
-            className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
+            className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] transition-colors"
             title="Refresh"
           >
             <RefreshCw className="w-3.5 h-3.5" />
           </button>
           <button
             onClick={handleClearAll}
-            className="p-1 text-zinc-500 hover:text-red-400 transition-colors"
+            className="p-1 text-[var(--muted)] hover:text-red-400 transition-colors"
             title="Clear all"
           >
             <Trash2 className="w-3.5 h-3.5" />
@@ -382,9 +382,9 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
       {viewMode === 'list' ? (
         <div className="flex-1 overflow-y-auto">
           {isLoading && jobs.length === 0 ? (
-            <div className="p-8 text-sm text-zinc-500 text-center">Loading...</div>
+            <div className="p-8 text-sm text-[var(--muted)] text-center">Loading...</div>
           ) : jobs.length === 0 ? (
-            <div className="p-8 text-sm text-zinc-600 text-center">
+            <div className="p-8 text-sm text-[var(--text-faint)] text-center">
               No jobs yet. Select an endpoint and execute a request.
             </div>
           ) : (
