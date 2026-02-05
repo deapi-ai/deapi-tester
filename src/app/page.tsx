@@ -110,6 +110,7 @@ export default function Home() {
             <EndpointForm
               endpoint={selectedEndpoint}
               onSubmit={handleSubmit}
+              onPriceCheck={() => jobsPanelRef.current?.refresh()}
               isSubmitting={isSubmitting}
             />
           ) : (

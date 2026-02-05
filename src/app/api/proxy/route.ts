@@ -33,11 +33,23 @@ export async function POST(request: Request) {
       delete params._endpointId;
     }
 
+    // Check if this is a price-only request
+    const isPriceCalc = params._priceCalc === true || params._priceCalc === 'true';
+    delete params._priceCalc;
+
     // Validate endpoint
     const endpoint = getEndpointById(endpointId);
     if (!endpoint) {
       return NextResponse.json(
         { error: `Unknown endpoint: ${endpointId}` },
+        { status: 400 }
+      );
+    }
+
+    // For price calculation, check if endpoint supports it
+    if (isPriceCalc && (!endpoint.hasPriceCalc || !endpoint.priceCalcPath)) {
+      return NextResponse.json(
+        { error: 'Endpoint does not support price calculation' },
         { status: 400 }
       );
     }
@@ -51,8 +63,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Build request
-    const url = config.apiUrl.replace(/\/$/, '') + endpoint.path;
+    // Build request - use priceCalcPath if price calculation mode
+    const targetPath = isPriceCalc ? endpoint.priceCalcPath! : endpoint.path;
+    const url = config.apiUrl.replace(/\/$/, '') + targetPath;
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${config.apiToken}`,
     };
@@ -111,9 +124,9 @@ export async function POST(request: Request) {
       finalUrl = url + '?' + queryParams.toString();
     }
 
-    // Fetch estimated price if endpoint supports price calculation
+    // Fetch estimated price if endpoint supports price calculation (skip if this IS a price calc request)
     let estimatedPrice: number | undefined;
-    if (endpoint.hasPriceCalc && endpoint.priceCalcPath) {
+    if (!isPriceCalc && endpoint.hasPriceCalc && endpoint.priceCalcPath) {
       try {
         const priceUrl = config.apiUrl.replace(/\/$/, '') + endpoint.priceCalcPath;
         console.log('[deapi-tester] Fetching price from:', priceUrl);
@@ -137,13 +150,14 @@ export async function POST(request: Request) {
 
     // Create job entry before making request
     const jobId = generateJobId();
+    const jobEndpointId = isPriceCalc ? `${endpointId}/price` : endpointId;
     const job: Job = {
       id: jobId,
       requestId: '', // Will be updated after response
-      endpointId,
+      endpointId: jobEndpointId,
       params,
       rawRequest: {
-        method: endpoint.method,
+        method: 'POST', // Price calc is always POST
         url: finalUrl,
         headers: { ...headers, Authorization: 'Bearer ***' }, // Mask token in logs
         body: bodyForLog,

@@ -8,14 +8,17 @@ import { ModelInfo } from '@/components/ModelInfo';
 interface EndpointFormProps {
   endpoint: EndpointDefinition;
   onSubmit: (params: Record<string, JsonValue>, formData?: FormData) => void;
+  onPriceCheck?: () => void;
   isSubmitting: boolean;
 }
 
-export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormProps) {
+export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }: EndpointFormProps) {
   const [values, setValues] = useState<Record<string, JsonValue>>({});
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
+  const [isCheckingPrice, setIsCheckingPrice] = useState(false);
+  const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
   const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
 
   // Get selected model info
@@ -43,6 +46,7 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
     setFiles({});
     setNullableDisabled(nullableDefaults);
     setMultiFileMode(multiFileModeDefaults);
+    setPriceResult(null);
   }, [endpoint.id, endpoint.params]);
 
   // Reset model selection when dynamic models change (e.g., profile switch)
@@ -92,6 +96,51 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
       setValues((prev) => ({ ...prev, [name]: null }));
     }
   }, []);
+
+  const handleCheckPrice = async () => {
+    if (!endpoint.hasPriceCalc) return;
+
+    setIsCheckingPrice(true);
+    setPriceResult(null);
+
+    try {
+      // Filter out disabled nullable fields
+      const filteredValues: Record<string, JsonValue> = {};
+      Object.entries(values).forEach(([key, value]) => {
+        if (value !== null) {
+          filteredValues[key] = value;
+        }
+      });
+
+      const res = await fetch('/api/proxy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          ...filteredValues,
+          _endpointId: endpoint.id,
+          _priceCalc: true,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!data.success) {
+        setPriceResult({ credits: 0, error: data.error || 'Failed to calculate' });
+        return;
+      }
+
+      // Extract price from rawResponse
+      const price = data.rawResponse?.data?.price || 0;
+      setPriceResult({ credits: price });
+
+      // Refresh jobs panel
+      onPriceCheck?.();
+    } catch (err) {
+      setPriceResult({ credits: 0, error: err instanceof Error ? err.message : 'Failed' });
+    } finally {
+      setIsCheckingPrice(false);
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -410,6 +459,43 @@ export function EndpointForm({ endpoint, onSubmit, isSubmitting }: EndpointFormP
           <span className="text-[10px] px-1.5 py-0.5 bg-yellow-500/10 text-yellow-500 rounded">async</span>
         )}
         <div className="flex-1" />
+
+        {/* Price result display */}
+        {priceResult && (
+          <span className={`text-xs font-mono ${priceResult.error ? 'text-red-400' : 'text-green-400'}`}>
+            {priceResult.error ? priceResult.error : `~$${priceResult.credits.toFixed(6)}`}
+          </span>
+        )}
+
+        {/* Check Price button */}
+        {endpoint.hasPriceCalc && (
+          <button
+            type="button"
+            onClick={handleCheckPrice}
+            disabled={isCheckingPrice || isSubmitting}
+            className="bg-zinc-700 hover:bg-zinc-600 disabled:bg-zinc-800 disabled:cursor-not-allowed rounded px-3 py-1.5 text-sm font-medium transition-colors flex items-center gap-2"
+          >
+            {isCheckingPrice ? (
+              <>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
+                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
+                  <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
+                </svg>
+                Checking...
+              </>
+            ) : (
+              <>
+                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
+                  <circle cx="8" cy="8" r="6" />
+                  <path d="M8 4v4M6 6.5c0-1 .7-1.5 2-1.5s2 .5 2 1.5-.7 1.5-2 1.5v2" strokeLinecap="round" />
+                </svg>
+                Check Price
+              </>
+            )}
+          </button>
+        )}
+
+        {/* Execute button */}
         <button
           type="submit"
           disabled={isSubmitting}
