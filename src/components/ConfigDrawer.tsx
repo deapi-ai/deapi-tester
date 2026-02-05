@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { X, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
 
@@ -239,9 +240,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
             onClick={onClose}
             className="p-1 hover:bg-zinc-800 rounded transition-colors text-zinc-400 hover:text-zinc-200"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-              <path d="M4 4l8 8M12 4l-8 8" />
-            </svg>
+<X className="w-4 h-4" />
           </button>
         </div>
 
@@ -256,18 +255,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                 disabled={isBalanceLoading}
                 className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50 p-1"
               >
-                <svg
-                  width="14"
-                  height="14"
-                  viewBox="0 0 16 16"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  className={isBalanceLoading ? 'animate-spin' : ''}
-                >
-                  <path d="M14 8A6 6 0 1 1 8 2" strokeLinecap="round" />
-                  <path d="M14 2v6h-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+<RefreshCw className={`w-3.5 h-3.5 ${isBalanceLoading ? 'animate-spin' : ''}`} />
               </button>
             </div>
             <p className="text-xl font-mono font-semibold text-green-400 mt-1">
@@ -390,18 +378,14 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                             onClick={() => startEditProfile(profile)}
                             className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded"
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                              <path d="M11.5 2.5l2 2-8 8H3.5v-2l8-8z" />
-                            </svg>
+<Pencil className="w-3.5 h-3.5" />
                           </button>
                           {config.profiles.length > 1 && (
                             <button
                               onClick={() => deleteProfile(profile.id)}
                               className="p-1 text-zinc-500 hover:text-red-400 hover:bg-red-500/10 rounded"
                             >
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                                <path d="M3 4h10M6 4V3a1 1 0 011-1h2a1 1 0 011 1v1M5 4v9a1 1 0 001 1h4a1 1 0 001-1V4" />
-                              </svg>
+<Trash2 className="w-3.5 h-3.5" />
                             </button>
                           )}
                         </div>

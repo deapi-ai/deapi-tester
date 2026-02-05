@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { Loader2, RefreshCw } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
 
@@ -113,15 +114,10 @@ export function ConfigPanel() {
                 className="text-zinc-500 hover:text-zinc-300 disabled:opacity-50"
                 title="Refresh balance"
               >
-                {isBalanceLoading ? (
-                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 8A6 6 0 1 1 8 2" strokeLinecap="round" />
-                  </svg>
+{isBalanceLoading ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 ) : (
-                  <svg className="w-4 h-4" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                    <path d="M14 8A6 6 0 1 1 8 2" strokeLinecap="round" />
-                    <path d="M14 2v6h-6" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
+                  <RefreshCw className="w-4 h-4" />
                 )}
               </button>
             </span>

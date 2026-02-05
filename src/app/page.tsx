@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useRef } from 'react';
+import { Settings } from 'lucide-react';
 import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
 import { EndpointForm } from '@/components/EndpointForm';
 import { JobsPanel, JobsPanelRef } from '@/components/JobsPanel';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
-import { EndpointDefinition, Job, JsonValue } from '@/lib/types';
+import { EndpointDefinition, JsonValue } from '@/lib/types';
 
 interface ProxyResponse {
   success: boolean;
@@ -51,16 +52,6 @@ export default function Home() {
     }
   };
 
-  const handleRerun = useCallback((job: Job) => {
-    fetch(`/api/endpoints?id=${job.endpointId}`)
-      .then((res) => res.json())
-      .then((endpoint: EndpointDefinition) => {
-        if (endpoint) {
-          setSelectedEndpoint(endpoint);
-        }
-      })
-      .catch(console.error);
-  }, []);
 
   return (
     <main className="h-screen flex flex-col bg-[var(--background)]">
@@ -86,10 +77,7 @@ export default function Home() {
             className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
             title="Settings"
           >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M6.5 1h3l.3 2.1a5.5 5.5 0 0 1 1.5.9l2-.8 1.5 2.6-1.7 1.3a5.5 5.5 0 0 1 0 1.8l1.7 1.3-1.5 2.6-2-.8a5.5 5.5 0 0 1-1.5.9L9.5 15h-3l-.3-2.1a5.5 5.5 0 0 1-1.5-.9l-2 .8-1.5-2.6 1.7-1.3a5.5 5.5 0 0 1 0-1.8L1.2 5.8l1.5-2.6 2 .8a5.5 5.5 0 0 1 1.5-.9L6.5 1z" strokeLinejoin="round" />
-              <circle cx="8" cy="8" r="2" />
-            </svg>
+<Settings className="w-4 h-4" />
           </button>
         </div>
       </header>
@@ -134,7 +122,6 @@ export default function Home() {
       <div className="flex-1 min-h-0 overflow-hidden">
         <JobsPanel
           ref={jobsPanelRef}
-          onRerun={handleRerun}
         />
       </div>
 

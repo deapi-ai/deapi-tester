@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
+import { Search, ChevronRight } from 'lucide-react';
 import { EndpointDefinition, EndpointGroupMeta } from '@/lib/types';
 
 interface EndpointSelectorProps {
@@ -75,18 +76,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
       {/* Search */}
       <div className="p-2 border-b border-[var(--border)]">
         <div className="relative">
-          <svg
-            className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500"
-            width="14"
-            height="14"
-            viewBox="0 0 16 16"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <circle cx="7" cy="7" r="5" />
-            <path d="M11 11l3 3" strokeLinecap="round" />
-          </svg>
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-500 w-3.5 h-3.5" />
           <input
             type="text"
             value={searchQuery}
@@ -109,15 +99,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
                 onClick={() => toggleGroup(group.id)}
                 className="w-full flex items-center gap-2 px-2 py-1.5 text-left hover:bg-zinc-800/50 transition-colors"
               >
-                <svg
-                  width="10"
-                  height="10"
-                  viewBox="0 0 10 10"
-                  fill="currentColor"
-                  className={`text-zinc-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-                >
-                  <path d="M3 1l4 4-4 4" />
-                </svg>
+<ChevronRight className={`w-2.5 h-2.5 text-zinc-600 transition-transform ${isExpanded ? 'rotate-90' : ''}`} />
                 <span className="text-sm">{group.icon}</span>
                 <span className="flex-1 text-xs font-medium text-zinc-400">{group.label}</span>
                 <span className="text-[10px] text-zinc-600 font-mono">{groupEndpoints.length}</span>

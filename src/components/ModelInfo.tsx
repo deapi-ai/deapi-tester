@@ -1,6 +1,7 @@
 'use client';
 
 import { ReactNode } from 'react';
+import { ChevronRight } from 'lucide-react';
 import { DeApiModel, ModelFeatures, ModelLimits } from '@/lib/types';
 
 interface ModelInfoProps {
@@ -66,15 +67,7 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       {hasLoras && (
         <details className="group">
           <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
-            <svg
-              width="6"
-              height="6"
-              viewBox="0 0 8 8"
-              fill="currentColor"
-              className="transition-transform group-open:rotate-90"
-            >
-              <path d="M2 0l4 4-4 4" />
-            </svg>
+            <ChevronRight className="w-1.5 h-1.5 transition-transform group-open:rotate-90" />
             LoRAs available ({model.loras!.length})
           </summary>
           <div className="mt-1 flex flex-wrap gap-1">
@@ -95,15 +88,7 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       {hasLanguages && (
         <details className="group">
           <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
-            <svg
-              width="6"
-              height="6"
-              viewBox="0 0 8 8"
-              fill="currentColor"
-              className="transition-transform group-open:rotate-90"
-            >
-              <path d="M2 0l4 4-4 4" />
-            </svg>
+            <ChevronRight className="w-1.5 h-1.5 transition-transform group-open:rotate-90" />
             Languages ({model.languages!.length})
           </summary>
           <div className="mt-1 flex flex-wrap gap-1">

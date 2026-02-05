@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useRef, forwardRef, useImperativeHandle } from 'react';
+import { RefreshCw, Trash2, ChevronRight, Loader2, ExternalLink, Download } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { useToast } from './Toast';
 import { useBalance } from './BalanceContext';
@@ -440,19 +441,14 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
               className="p-1 text-zinc-500 hover:text-zinc-300 transition-colors"
               title="Refresh"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M2 8a6 6 0 0 1 10.2-4.2M14 8a6 6 0 0 1-10.2 4.2" strokeLinecap="round" />
-                <path d="M14 2v4h-4M2 14v-4h4" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <RefreshCw className="w-3.5 h-3.5" />
             </button>
             <button
               onClick={handleClearAll}
               className="p-1 text-zinc-500 hover:text-red-400 transition-colors"
               title="Clear all"
             >
-              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M2 4h12M5 4V2h6v2M6 7v6M10 7v6M3 4l1 10h8l1-10" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <Trash2 className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -556,15 +552,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 isPollingExpanded ? 'bg-zinc-700 text-zinc-300' : 'text-zinc-500 hover:text-zinc-300 bg-zinc-800/50 hover:bg-zinc-800'
                               }`}
                             >
-                              <svg
-                                width="8"
-                                height="8"
-                                viewBox="0 0 8 8"
-                                fill="currentColor"
-                                className={`transition-transform ${isPollingExpanded ? 'rotate-90' : ''}`}
-                              >
-                                <path d="M2 0l4 4-4 4" />
-                              </svg>
+                              <ChevronRight className={`w-2 h-2 transition-transform ${isPollingExpanded ? 'rotate-90' : ''}`} />
                               {activeJob.pollUpdates.length}
                             </button>
                           )}
@@ -655,10 +643,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                     className="w-full h-full object-cover opacity-70"
                                   />
                                   <div className="absolute inset-0 flex items-center justify-center">
-                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/70 animate-spin">
-                                      <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                                      <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-                                    </svg>
+                                    <Loader2 className="w-3 h-3 text-white/70 animate-spin" />
                                   </div>
                                 </div>
                               );
@@ -666,10 +651,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
 
                             return (
                               <div className="w-12 h-12 rounded bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 animate-spin">
-                                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                                  <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-                                </svg>
+                                <Loader2 className="w-4 h-4 text-zinc-700 animate-spin" />
                               </div>
                             );
                           })()}
@@ -682,9 +664,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 className="p-1.5 text-zinc-500 hover:text-blue-400 transition-colors"
                                 title="Open"
                               >
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M12 8V14H2V4h6M10 2h4v4M16 0L8 8" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                                <ExternalLink className="w-3.5 h-3.5" />
                               </button>
                               <button
                                 onClick={() => handleDownload(job, resultUrl)}
@@ -692,9 +672,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 className={`p-1.5 transition-colors ${downloadState?.downloaded ? 'text-green-400' : 'text-zinc-500 hover:text-green-400'}`}
                                 title="Download"
                               >
-                                <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                                  <path d="M8 2v8M4 7l4 4 4-4M2 12v2h12v-2" strokeLinecap="round" strokeLinejoin="round" />
-                                </svg>
+                                <Download className="w-3.5 h-3.5" />
                               </button>
                             </>
                           )}
@@ -704,9 +682,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                             className="p-1.5 text-zinc-500 hover:text-red-400 transition-colors"
                             title="Delete"
                           >
-                            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                              <path d="M2 4h12M5 4V2h6v2M6 7v6M10 7v6M3 4l1 10h8l1-10" strokeLinecap="round" strokeLinejoin="round" />
-                            </svg>
+                            <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
                       </div>
@@ -784,15 +760,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                   return (
                                     <details key={activeJob.pollUpdates.length - idx} className="group">
                                       <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-zinc-800/50 cursor-pointer text-xs">
-                                        <svg
-                                          width="8"
-                                          height="8"
-                                          viewBox="0 0 8 8"
-                                          fill="currentColor"
-                                          className="text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0"
-                                        >
-                                          <path d="M2 0l4 4-4 4" />
-                                        </svg>
+                                        <ChevronRight className="w-2 h-2 text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0" />
                                         <span className="text-zinc-600 font-mono w-8">#{update.attempt}</span>
                                         <span className={`font-medium ${
                                           update.status === 'done' ? 'text-green-500' :
@@ -867,15 +835,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                 allLogs.map((log, idx) => (
                   <details key={idx} className="group border-b border-[var(--border-dim)]">
                     <summary className="flex items-center gap-2 px-4 py-1.5 cursor-pointer hover:bg-zinc-800/30 log-line">
-                      <svg
-                        width="8"
-                        height="8"
-                        viewBox="0 0 8 8"
-                        fill="currentColor"
-                        className="text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0"
-                      >
-                        <path d="M2 0l4 4-4 4" />
-                      </svg>
+                      <ChevronRight className="w-2 h-2 text-zinc-600 transition-transform group-open:rotate-90 flex-shrink-0" />
                       <span className="text-zinc-600 shrink-0">
                         {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
                       </span>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { Copy, ExternalLink, Loader2, Check, Download } from 'lucide-react';
 import { JsonValue } from '@/lib/types';
 
 interface ResultViewerProps {
@@ -118,10 +119,7 @@ export function ResultViewer({ resultUrl, resultData, endpointId, jobId }: Resul
               className="absolute top-2 right-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-200 transition-colors"
               title="Copy"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="5" y="5" width="9" height="9" rx="1" />
-                <path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2" />
-              </svg>
+              <Copy className="w-3 h-3" />
             </button>
           </div>
         );
@@ -139,10 +137,7 @@ export function ResultViewer({ resultUrl, resultData, endpointId, jobId }: Resul
               className="absolute top-2 right-2 p-1.5 bg-zinc-800 hover:bg-zinc-700 rounded text-zinc-400 hover:text-zinc-200 transition-colors"
               title="Copy"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <rect x="5" y="5" width="9" height="9" rx="1" />
-                <path d="M11 5V3a1 1 0 00-1-1H3a1 1 0 00-1 1v7a1 1 0 001 1h2" />
-              </svg>
+              <Copy className="w-3 h-3" />
             </button>
           </div>
         );
@@ -167,9 +162,7 @@ export function ResultViewer({ resultUrl, resultData, endpointId, jobId }: Resul
               className="p-1.5 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800 rounded transition-colors"
               title="Open in new tab"
             >
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M12 8V14H2V4h6M10 2h4v4M16 0L8 8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+              <ExternalLink className="w-3 h-3" />
             </a>
             <button
               onClick={handleDownload}
@@ -182,18 +175,11 @@ export function ResultViewer({ resultUrl, resultData, endpointId, jobId }: Resul
               title={downloadStatus || 'Save to output folder'}
             >
               {isDownloading ? (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                  <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-                </svg>
+                <Loader2 className="w-3 h-3 animate-spin" />
               ) : downloadStatus && !downloadStatus.startsWith('Error') ? (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M4 8l3 3 5-6" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Check className="w-3 h-3" />
               ) : (
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                  <path d="M8 2v8M4 7l4 4 4-4M2 12v2h12v-2" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
+                <Download className="w-3 h-3" />
               )}
             </button>
           </div>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { X, Upload, Loader2, CircleDollarSign, Play, ChevronRight } from 'lucide-react';
 import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
@@ -463,9 +464,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                       className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
                       title="Remove"
                     >
-                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2">
-                        <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
-                      </svg>
+<X className="w-2.5 h-2.5 text-white" />
                     </button>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
@@ -482,10 +481,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             )}
 
             <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 flex-shrink-0">
-                <path d="M8 12V4M4 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M14 12v2H2v-2" strokeLinecap="round" />
-              </svg>
+<Upload className="w-3 h-3 text-zinc-500 flex-shrink-0" />
               <span className="text-xs text-zinc-400 truncate flex-1">
                 {fileLabel}
               </span>
@@ -595,18 +591,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           >
             {isCheckingPrice ? (
               <>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                  <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-                </svg>
+                <Loader2 className="w-3 h-3 animate-spin" />
                 Checking...
               </>
             ) : (
               <>
-                <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-                  <circle cx="8" cy="8" r="6" />
-                  <path d="M8 4v4M6 6.5c0-1 .7-1.5 2-1.5s2 .5 2 1.5-.7 1.5-2 1.5v2" strokeLinecap="round" />
-                </svg>
+                <CircleDollarSign className="w-3 h-3" />
                 Check Price
               </>
             )}
@@ -621,17 +611,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         >
           {isSubmitting ? (
             <>
-              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="animate-spin">
-                <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-              </svg>
+              <Loader2 className="w-3 h-3 animate-spin" />
               Submitting...
             </>
           ) : (
             <>
-              <svg width="10" height="10" viewBox="0 0 12 12" fill="currentColor">
-                <path d="M2 1l8 5-8 5V1z" />
-              </svg>
+              <Play className="w-2.5 h-2.5 fill-current" />
               Execute
             </>
           )}
@@ -726,15 +711,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           {otherParams.length > 0 && (
             <details className="group">
               <summary className="flex items-center gap-1 text-[10px] text-zinc-500 cursor-pointer hover:text-zinc-400 py-1">
-                <svg
-                  width="8"
-                  height="8"
-                  viewBox="0 0 8 8"
-                  fill="currentColor"
-                  className="transition-transform group-open:rotate-90"
-                >
-                  <path d="M2 0l4 4-4 4" />
-                </svg>
+                <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
                 More options ({otherParams.length})
               </summary>
               <div className="mt-2 space-y-2">

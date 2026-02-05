@@ -37,6 +37,7 @@ export async function GET(request: Request) {
           method: 'GET',
           url: apiUrl,
           headers: { Authorization: 'Bearer ***' },
+          body: null,
         },
         status: 'pending',
         createdAt: new Date().toISOString(),
