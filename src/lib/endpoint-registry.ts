@@ -57,6 +57,9 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
 // ============================================================
 // SHARED PARAM BUILDERS (DRY helpers)
 // ============================================================
+// NOTE: These define form STRUCTURE only.
+// Actual values (options, min/max, defaults) come from /models API
+// and are applied dynamically in EndpointForm.
 
 const promptParam = (required = true): EndpointParam => ({
   name: 'prompt',
@@ -76,77 +79,61 @@ const negativePromptParam = (): EndpointParam => ({
   description: 'Text describing what to exclude',
 });
 
-const modelSelectParam = (options: { value: string; label: string }[]): EndpointParam => ({
+const modelSelectParam = (): EndpointParam => ({
   name: 'model',
   label: 'Model',
   type: 'select',
   required: true,
-  options,
   description: 'AI model to use for generation',
 });
 
-const seedParam = (defaultVal?: number): EndpointParam => ({
+const seedParam = (): EndpointParam => ({
   name: 'seed',
   label: 'Seed',
   type: 'number',
   required: false,
   nullable: true,
-  default: defaultVal ?? Math.floor(Math.random() * 1000000),
+  default: Math.floor(Math.random() * 1000000),
   placeholder: 'Random seed for reproducibility',
   description: 'Seed for reproducible results',
 });
 
-const stepsParam = (defaultVal = 20): EndpointParam => ({
+const stepsParam = (): EndpointParam => ({
   name: 'steps',
   label: 'Steps',
   type: 'number',
   required: false,
   nullable: true,
-  default: defaultVal,
-  min: 1,
-  max: 100,
   description: 'Inference steps. Higher = better quality, slower.',
 });
 
-const guidanceParam = (defaultVal = 7.5): EndpointParam => ({
+const guidanceParam = (): EndpointParam => ({
   name: 'guidance',
   label: 'Guidance Scale',
   type: 'number',
   required: false,
   nullable: true,
-  default: defaultVal,
-  min: 0,
-  max: 30,
   step: 0.5,
   description: 'How closely to follow the prompt. Higher = more literal.',
 });
 
-const dimensionParams = (defaultW = 1024, defaultH = 1024): EndpointParam[] => [
-  {
-    name: 'width',
-    label: 'Width',
-    type: 'number',
-    required: false,
-    nullable: true,
-    default: defaultW,
-    min: 64,
-    max: 2048,
-    step: 64,
-    description: 'Output width in pixels (max 2048)',
-  },
-  {
-    name: 'height',
-    label: 'Height',
-    type: 'number',
-    required: false,
-    nullable: true,
-    default: defaultH,
-    min: 64,
-    max: 2048,
-    step: 64,
-    description: 'Output height in pixels (max 2048)',
-  },
-];
+const widthParam = (): EndpointParam => ({
+  name: 'width',
+  label: 'Width',
+  type: 'number',
+  required: false,
+  nullable: true,
+  description: 'Output width in pixels',
+});
+
+const heightParam = (): EndpointParam => ({
+  name: 'height',
+  label: 'Height',
+  type: 'number',
+  required: false,
+  nullable: true,
+  description: 'Output height in pixels',
+});
 
 const lorasParam = (): EndpointParam => ({
   name: 'loras',
@@ -176,11 +163,9 @@ export const ENDPOINTS: EndpointDefinition[] = [
     params: [
       promptParam(),
       negativePromptParam(),
-      modelSelectParam([
-        { value: 'Flux1schnell', label: 'Flux.1 Schnell' },
-        { value: 'ZImageTurbo_INT8', label: 'Z-Image Turbo (INT8)' },
-      ]),
-      ...dimensionParams(),
+      modelSelectParam(),
+      widthParam(),
+      heightParam(),
       guidanceParam(),
       stepsParam(),
       seedParam(),
@@ -211,33 +196,9 @@ export const ENDPOINTS: EndpointDefinition[] = [
         description: 'Single image (image) or multiple images (images[] array)',
       },
       promptParam(),
-      modelSelectParam([
-        { value: 'QwenImageEdit_Plus_NF4', label: 'Qwen Image Edit Plus (NF4)' },
-      ]),
-      {
-        name: 'width',
-        label: 'Width',
-        type: 'number',
-        required: false,
-        nullable: true,
-        default: null,
-        min: 64,
-        max: 2048,
-        step: 64,
-        description: 'Output width in pixels (optional - leave disabled for original size)',
-      },
-      {
-        name: 'height',
-        label: 'Height',
-        type: 'number',
-        required: false,
-        nullable: true,
-        default: null,
-        min: 64,
-        max: 2048,
-        step: 64,
-        description: 'Output height in pixels (optional - leave disabled for original size)',
-      },
+      modelSelectParam(),
+      widthParam(),
+      heightParam(),
       guidanceParam(),
       stepsParam(),
       seedParam(),
@@ -275,21 +236,17 @@ export const ENDPOINTS: EndpointDefinition[] = [
         description: 'Optional ending frame image',
       },
       promptParam(),
-      modelSelectParam([
-        { value: 'Ltxv_13B_0_9_8_Distilled_FP8', label: 'LTX-Video 13B (Distilled FP8)' },
-      ]),
-      ...dimensionParams(768, 512),
-      guidanceParam(3.0),
-      stepsParam(30),
+      negativePromptParam(),
+      modelSelectParam(),
+      widthParam(),
+      heightParam(),
+      stepsParam(),
       {
         name: 'frames',
         label: 'Frames',
         type: 'number',
         required: false,
         nullable: true,
-        default: 97,
-        min: 1,
-        max: 257,
         description: 'Number of frames to generate',
       },
       {
@@ -298,9 +255,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'number',
         required: false,
         nullable: true,
-        default: 30,
-        min: 1,
-        max: 60,
         description: 'Frames per second',
       },
       seedParam(),
@@ -320,21 +274,18 @@ export const ENDPOINTS: EndpointDefinition[] = [
     priceCalcPath: '/txt2video/price-calculation',
     params: [
       promptParam(),
-      modelSelectParam([
-        { value: 'Ltxv_13B_0_9_8_Distilled_FP8', label: 'LTX-Video 13B (Distilled FP8)' },
-      ]),
-      ...dimensionParams(768, 512),
-      guidanceParam(3.0),
-      stepsParam(30),
+      negativePromptParam(),
+      modelSelectParam(),
+      widthParam(),
+      heightParam(),
+      stepsParam(),
       {
         name: 'frames',
         label: 'Frames',
         type: 'number',
         required: false,
         nullable: true,
-        default: 97,
-        min: 1,
-        max: 257,
+        description: 'Number of frames to generate',
       },
       {
         name: 'fps',
@@ -342,9 +293,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'number',
         required: false,
         nullable: true,
-        default: 30,
-        min: 1,
-        max: 60,
+        description: 'Frames per second',
       },
       seedParam(),
     ],
@@ -370,56 +319,20 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         placeholder: 'Text to convert to speech...',
       },
-      modelSelectParam([
-        { value: 'Kokoro', label: 'Kokoro TTS' },
-      ]),
-      {
-        name: 'voice',
-        label: 'Voice',
-        type: 'select',
-        required: true,
-        default: 'af_alloy',
-        options: [
-          { value: 'af_alloy', label: 'Alloy (Female)' },
-          { value: 'af_aoede', label: 'Aoede (Female)' },
-          { value: 'af_bella', label: 'Bella (Female)' },
-          { value: 'af_heart', label: 'Heart (Female)' },
-          { value: 'af_jessica', label: 'Jessica (Female)' },
-          { value: 'af_kore', label: 'Kore (Female)' },
-          { value: 'af_nicole', label: 'Nicole (Female)' },
-          { value: 'af_nova', label: 'Nova (Female)' },
-          { value: 'af_river', label: 'River (Female)' },
-          { value: 'af_sarah', label: 'Sarah (Female)' },
-          { value: 'af_sky', label: 'Sky (Female)' },
-          { value: 'am_adam', label: 'Adam (Male)' },
-          { value: 'am_echo', label: 'Echo (Male)' },
-          { value: 'am_eric', label: 'Eric (Male)' },
-          { value: 'am_fable', label: 'Fable (Male)' },
-          { value: 'am_liam', label: 'Liam (Male)' },
-          { value: 'am_michael', label: 'Michael (Male)' },
-          { value: 'am_onyx', label: 'Onyx (Male)' },
-        ],
-        description: 'Voice to use for TTS',
-      },
+      modelSelectParam(),
       {
         name: 'lang',
         label: 'Language',
         type: 'select',
         required: true,
-        default: 'en-us',
-        options: [
-          { value: 'en-us', label: 'English (US)' },
-          { value: 'en-gb', label: 'English (UK)' },
-          { value: 'es', label: 'Spanish' },
-          { value: 'fr', label: 'French' },
-          { value: 'de', label: 'German' },
-          { value: 'it', label: 'Italian' },
-          { value: 'pt-br', label: 'Portuguese (BR)' },
-          { value: 'ja', label: 'Japanese' },
-          { value: 'ko', label: 'Korean' },
-          { value: 'zh', label: 'Chinese' },
-          { value: 'hi', label: 'Hindi' },
-        ],
+        description: 'Language for TTS',
+      },
+      {
+        name: 'voice',
+        label: 'Voice',
+        type: 'select',
+        required: true,
+        description: 'Voice to use for TTS',
       },
       {
         name: 'speed',
@@ -427,10 +340,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'number',
         required: false,
         nullable: true,
-        default: 1.0,
-        min: 0.5,
-        max: 2.0,
         step: 0.1,
+        description: 'Speech speed multiplier',
       },
       {
         name: 'format',
@@ -438,7 +349,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'select',
         required: false,
         nullable: true,
-        default: 'mp3',
         options: [
           { value: 'mp3', label: 'MP3' },
           { value: 'wav', label: 'WAV' },
@@ -450,10 +360,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'number',
         required: false,
         nullable: true,
-        default: 24000,
-        min: 8000,
-        max: 48000,
-        step: 1000,
+        description: 'Audio sample rate in Hz',
       },
     ],
   },
@@ -479,9 +386,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         placeholder: 'https://youtube.com/watch?v=...',
         description: 'YouTube, X, or Twitch video URL',
       },
-      modelSelectParam([
-        { value: 'WhisperLargeV3', label: 'Whisper Large V3' },
-      ]),
+      modelSelectParam(),
       {
         name: 'include_ts',
         label: 'Include Timestamps',
@@ -518,9 +423,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         default: false,
       },
-      modelSelectParam([
-        { value: 'WhisperLargeV3', label: 'Whisper Large V3' },
-      ]),
+      modelSelectParam(),
     ],
   },
 
@@ -530,7 +433,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
     group: 'transcription',
     method: 'POST',
     path: '/aud2txt',
-    description: 'Transcribe audio (including X Spaces)',
+    description: 'Transcribe audio from X/Twitter Spaces URL',
     contentType: 'json',
     isAsync: true,
     hasPriceCalc: true,
@@ -541,12 +444,10 @@ export const ENDPOINTS: EndpointDefinition[] = [
         label: 'Audio URL',
         type: 'text',
         required: true,
-        placeholder: 'https://...',
-        description: 'Audio URL or X Spaces URL',
+        placeholder: 'https://x.com/i/spaces/...',
+        description: 'X/Twitter Spaces URL',
       },
-      modelSelectParam([
-        { value: 'WhisperLargeV3', label: 'Whisper Large V3' },
-      ]),
+      modelSelectParam(),
       {
         name: 'include_ts',
         label: 'Include Timestamps',
@@ -583,9 +484,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         default: false,
       },
-      modelSelectParam([
-        { value: 'WhisperLargeV3', label: 'Whisper Large V3' },
-      ]),
+      modelSelectParam(),
     ],
   },
 
@@ -609,9 +508,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'image/*',
       },
-      modelSelectParam([
-        { value: 'Nanonets_Ocr_S_F16', label: 'Nanonets OCR S (F16)' },
-      ]),
+      modelSelectParam(),
       {
         name: 'language',
         label: 'Language',
@@ -643,9 +540,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'image/*',
       },
-      modelSelectParam([
-        { value: 'Rmbg_1_4', label: 'RMBG 1.4' },
-      ]),
+      modelSelectParam(),
     ],
   },
 
@@ -655,10 +550,11 @@ export const ENDPOINTS: EndpointDefinition[] = [
     group: 'image-utils',
     method: 'POST',
     path: '/img-upscale',
-    description: 'Upscale image resolution (coming soon)',
+    description: 'Upscale image resolution',
     contentType: 'multipart',
     isAsync: true,
-    hasPriceCalc: false,
+    hasPriceCalc: true,
+    priceCalcPath: '/img-upscale/price-calculation',
     params: [
       {
         name: 'image',
@@ -667,6 +563,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'image/*',
       },
+      modelSelectParam(),
     ],
   },
 
@@ -690,9 +587,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         placeholder: 'Text to embed...',
       },
-      modelSelectParam([
-        { value: 'bge-m3', label: 'BGE M3' },
-      ]),
+      modelSelectParam(),
     ],
   },
 

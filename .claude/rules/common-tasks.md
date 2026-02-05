@@ -4,6 +4,7 @@
 1. Edit `src/lib/endpoint-registry.ts`
 2. Add entry to `ENDPOINTS` array following existing patterns
 3. Frontend form generates automatically — no component changes needed
+4. Model options, limits, defaults load dynamically from `/api/models`
 
 ```typescript
 {
@@ -19,10 +20,15 @@
   priceCalcPath: '/my-endpoint/price-calculation',
   params: [
     { name: 'prompt', label: 'Prompt', type: 'textarea', required: true },
-    { name: 'model', label: 'Model', type: 'select', required: true, options: [...] },
+    { name: 'model', label: 'Model', type: 'select', required: true },
+    // NO hardcoded options/limits — they come from /models API
   ]
 }
 ```
+
+## Adding a New Model
+No code changes needed! Models are auto-discovered from deAPI `/models` endpoint.
+Just ensure the model's `inference_types` matches the endpoint `id` (e.g. `txt2img`, `img2img`).
 
 ## Adding a New Form Field Type
 1. Add type to `ParamType` in `src/lib/types.ts`

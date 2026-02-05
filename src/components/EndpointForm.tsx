@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw } from 'lucide-react';
-import { EndpointDefinition, JsonValue } from '@/lib/types';
+import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
@@ -42,6 +42,15 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const isRequestStatusEndpoint = endpoint.id === 'request-status';
   const selectedModelSlug = values['model'] as string | undefined;
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
+  const prevModelSlugRef = useRef<string | undefined>(undefined);
+
+  // Get model defaults/limits/features from API data
+  const modelDefaults =
+    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.defaults : undefined;
+  const modelLimits =
+    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.limits : undefined;
+  const modelFeatures =
+    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.features : undefined;
 
   // Initialize form state when endpoint changes
   useEffect(() => {
@@ -54,7 +63,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         defaults[param.name] = param.default;
       }
       if (param.nullable) {
-        nullableDefaults[param.name] = param.default === null;
+        nullableDefaults[param.name] = param.default === null || param.default === undefined;
       }
       if (param.multiFieldName) {
         multiFileModeDefaults[param.name] = false;
@@ -66,13 +75,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setNullableDisabled(nullableDefaults);
     setMultiFileMode(multiFileModeDefaults);
     setPriceResult(null);
+    prevModelSlugRef.current = undefined;
     setImagePreviews((prev) => {
       Object.values(prev).flat().forEach((p) => URL.revokeObjectURL(p.url));
       return {};
     });
   }, [endpoint.id, endpoint.params]);
 
-  // Reset model selection when dynamic models change
+  // Auto-select first model when models load or endpoint changes
   useEffect(() => {
     if (models.length === 0) return;
 
@@ -80,13 +90,10 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     if (!modelParam) return;
 
     const currentModel = values['model'] as string | undefined;
-    if (!currentModel) return;
-
     const inferenceType = endpoint.id;
     const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
-    const modelExists = filteredModels.some((m) => m.slug === currentModel);
 
-    if (!modelExists) {
+    if (!currentModel || !filteredModels.some((m) => m.slug === currentModel)) {
       if (filteredModels.length > 0) {
         setValues((prev) => ({ ...prev, model: filteredModels[0].slug }));
       } else {
@@ -95,12 +102,72 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     }
   }, [models, endpoint.id, endpoint.params, values]);
 
+  // Auto-apply model defaults when model selection changes
+  useEffect(() => {
+    if (!selectedModelSlug || selectedModelSlug === prevModelSlugRef.current) return;
+    prevModelSlugRef.current = selectedModelSlug;
+
+    if (!selectedModel?.info || Array.isArray(selectedModel.info)) return;
+
+    const defaults = (selectedModel.info.defaults || {}) as Record<string, unknown>;
+    const features = (selectedModel.info.features || {}) as Record<string, boolean | undefined>;
+
+    setValues((prev) => {
+      const newValues = { ...prev };
+      DEFAULTABLE_FIELDS.forEach((field) => {
+        if (defaults[field] !== undefined) {
+          const featureName = FIELD_TO_FEATURE_MAP[field];
+          if (!featureName || features[featureName] !== false) {
+            newValues[field] = defaults[field] as number;
+          }
+        }
+      });
+      if (defaults.negative_prompt !== undefined) {
+        const supportsNeg = features['supports_negative_prompt'] !== false;
+        if (supportsNeg) {
+          newValues['negative_prompt'] = defaults.negative_prompt as string;
+        }
+      }
+      // Auto-set lang/voice defaults for TTS
+      if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
+      if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
+      if (defaults.format !== undefined) newValues['format'] = defaults.format as string;
+      if (defaults.sample_rate !== undefined) newValues['sample_rate'] = defaults.sample_rate as number;
+      return newValues;
+    });
+
+    setNullableDisabled((prev) => {
+      const newDisabled = { ...prev };
+      DEFAULTABLE_FIELDS.forEach((field) => {
+        const featureName = FIELD_TO_FEATURE_MAP[field];
+        if (featureName && features[featureName] === false) {
+          newDisabled[field] = true;
+        } else if (defaults[field] !== undefined) {
+          newDisabled[field] = false;
+        }
+      });
+      return newDisabled;
+    });
+  }, [selectedModelSlug, selectedModel]);
+
   const handleChange = useCallback((name: string, value: JsonValue) => {
-    setValues((prev) => ({ ...prev, [name]: value }));
-  }, []);
+    setValues((prev) => {
+      const newValues = { ...prev, [name]: value };
+      // When language changes in TTS, auto-select first voice for that language
+      if (name === 'lang') {
+        const model = models.find((m) => m.slug === prev['model']);
+        if (model?.languages) {
+          const lang = model.languages.find((l) => l.slug === value);
+          if (lang && lang.voices.length > 0) {
+            newValues['voice'] = lang.voices[0].slug;
+          }
+        }
+      }
+      return newValues;
+    });
+  }, [models]);
 
   const handleFileChange = useCallback(async (name: string, file: File | File[] | null) => {
-    // Cleanup old preview URLs
     setImagePreviews((prev) => {
       const oldPreviews = prev[name];
       if (oldPreviews) {
@@ -114,7 +181,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     if (file) {
       setFiles((prev) => ({ ...prev, [name]: file }));
 
-      // Generate previews for image files
       const fileArray = Array.isArray(file) ? file : [file];
       const imageFiles = fileArray.filter((f) => f.type.startsWith('image/'));
 
@@ -171,14 +237,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setMultiFileMode((prev) => ({ ...prev, [name]: isMulti }));
   }, []);
 
-  // Get model defaults/limits/features
-  const modelDefaults =
-    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.defaults : undefined;
-  const modelLimits =
-    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.limits : undefined;
-  const modelFeatures =
-    selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.features : undefined;
-
   const getDefaultForField = (fieldName: string): number | undefined => {
     if (!modelDefaults) return undefined;
     const defaults = modelDefaults as Record<string, unknown>;
@@ -215,6 +273,10 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       if (defaults.negative_prompt !== undefined && modelSupportsField('negative_prompt')) {
         newValues['negative_prompt'] = defaults.negative_prompt as string;
       }
+      if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
+      if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
+      if (defaults.format !== undefined) newValues['format'] = defaults.format as string;
+      if (defaults.sample_rate !== undefined) newValues['sample_rate'] = defaults.sample_rate as number;
       return newValues;
     });
 
@@ -231,6 +293,96 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     });
   }, [modelDefaults, modelSupportsField]);
 
+  // Get effective param with model limits/defaults applied
+  const getEffectiveParam = useCallback((param: EndpointParam): EndpointParam => {
+    if (param.type !== 'number' || !modelLimits) return param;
+
+    const limits = modelLimits as Record<string, unknown>;
+    const effective = { ...param };
+
+    const min = limits[`min_${param.name}`] as number | undefined;
+    const max = limits[`max_${param.name}`] as number | undefined;
+    if (min !== undefined) effective.min = min;
+    if (max !== undefined) effective.max = max;
+
+    // Use resolution_step for width/height
+    if ((param.name === 'width' || param.name === 'height') && limits['resolution_step'] !== undefined) {
+      effective.step = limits['resolution_step'] as number;
+    }
+
+    // Apply model default as param default
+    if (modelDefaults) {
+      const defaults = modelDefaults as Record<string, unknown>;
+      if (defaults[param.name] !== undefined) {
+        effective.default = defaults[param.name] as number;
+      }
+    }
+
+    return effective;
+  }, [modelLimits, modelDefaults]);
+
+  // Get dynamic select options from model data
+  const getDynamicSelectOptions = useCallback((paramName: string): { value: string; label: string }[] | undefined => {
+    if (paramName === 'model') {
+      const inferenceType = endpoint.id;
+      const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
+      if (filteredModels.length > 0) {
+        return filteredModels.map((m) => ({ value: m.slug, label: m.name }));
+      }
+      return undefined;
+    }
+
+    if (!selectedModel) return undefined;
+
+    if (paramName === 'lang' && selectedModel.languages) {
+      return selectedModel.languages.map((l) => ({ value: l.slug, label: l.name }));
+    }
+
+    if (paramName === 'voice' && selectedModel.languages) {
+      const selectedLang = values['lang'] as string;
+      const language = selectedModel.languages.find((l) => l.slug === selectedLang);
+      if (language) {
+        return language.voices.map((v) => ({
+          value: v.slug,
+          label: `${v.name} (${v.gender === 'female' ? 'F' : 'M'})`,
+        }));
+      }
+      // Fallback: show all voices grouped by language
+      return selectedModel.languages.flatMap((l) =>
+        l.voices.map((v) => ({
+          value: v.slug,
+          label: `${v.name} (${l.slug.toUpperCase()}, ${v.gender === 'female' ? 'F' : 'M'})`,
+        }))
+      );
+    }
+
+    return undefined;
+  }, [endpoint.id, models, selectedModel, values]);
+
+  const buildFilteredValues = useCallback((): Record<string, JsonValue> => {
+    const filteredValues: Record<string, JsonValue> = {};
+    Object.entries(values).forEach(([key, value]) => {
+      if (value !== null) {
+        filteredValues[key] = value;
+      } else {
+        // For disabled nullable fields, send model default or param default
+        const param = endpoint.params.find(p => p.name === key);
+        // Try model default first, then param default
+        if (modelDefaults) {
+          const defaults = modelDefaults as Record<string, unknown>;
+          if (defaults[key] !== undefined && defaults[key] !== null) {
+            filteredValues[key] = defaults[key] as JsonValue;
+            return;
+          }
+        }
+        if (param?.default !== undefined && param.default !== null) {
+          filteredValues[key] = param.default;
+        }
+      }
+    });
+    return filteredValues;
+  }, [values, endpoint.params, modelDefaults]);
+
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
 
@@ -238,12 +390,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setPriceResult(null);
 
     try {
-      const filteredValues: Record<string, JsonValue> = {};
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== null) {
-          filteredValues[key] = value;
-        }
-      });
+      const filteredValues = buildFilteredValues();
 
       const res = await fetch('/api/proxy', {
         method: 'POST',
@@ -275,12 +422,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
-    const filteredValues: Record<string, JsonValue> = {};
-    Object.entries(values).forEach(([key, value]) => {
-      if (value !== null) {
-        filteredValues[key] = value;
-      }
-    });
+    const filteredValues = buildFilteredValues();
 
     if (endpoint.contentType === 'multipart') {
       const formData = new FormData();
@@ -312,21 +454,13 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     }
   };
 
-  // Get model options for select fields
-  const getModelOptions = () => {
-    const inferenceType = endpoint.id;
-    const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
-    if (filteredModels.length > 0) {
-      return filteredModels.map((m) => ({ value: m.slug, label: m.name }));
-    }
-    return undefined;
-  };
-
   // Categorize params for layout
-  const skipParams = isRequestStatusEndpoint ? ['request_id'] : [];
-  const { promptParams, fileParams, selectParams, compactParams, otherParams } = categorizeParams(
-    endpoint.params,
-    skipParams
+  const { promptParams, fileParams, selectParams, compactParams, otherParams } = useMemo(
+    () => {
+      const skip = isRequestStatusEndpoint ? ['request_id'] : [];
+      return categorizeParams(endpoint.params, skip);
+    },
+    [endpoint.params, isRequestStatusEndpoint]
   );
 
   return (
@@ -455,6 +589,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           <div className="w-44 flex-shrink-0 space-y-2 overflow-y-auto border-l border-r border-[var(--border)] px-3">
             <div className="space-y-2">
               {compactParams.map((param) => {
+                const effective = getEffectiveParam(param);
                 const defaultVal = getDefaultForField(param.name);
                 const limit = getLimitForField(param.name);
                 return (
@@ -474,7 +609,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                       )}
                     </div>
                     <FormField
-                      param={param}
+                      param={effective}
                       value={values[param.name]}
                       compact
                       isNullableDisabled={nullableDisabled[param.name]}
@@ -497,12 +632,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 {param.required && <span className="text-red-500">*</span>}
               </label>
               <FormField
-                param={param}
+                param={getEffectiveParam(param)}
                 value={values[param.name]}
                 compact
                 isNullableDisabled={nullableDisabled[param.name]}
                 modelsLoading={modelsLoading}
-                selectOptions={param.name === 'model' ? getModelOptions() : undefined}
+                selectOptions={getDynamicSelectOptions(param.name)}
                 onValueChange={handleChange}
                 onNullableToggle={toggleNullable}
               />
@@ -538,10 +673,11 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                       {param.label}
                     </label>
                     <FormField
-                      param={param}
+                      param={getEffectiveParam(param)}
                       value={values[param.name]}
                       compact
                       isNullableDisabled={nullableDisabled[param.name]}
+                      selectOptions={getDynamicSelectOptions(param.name)}
                       onValueChange={handleChange}
                       onNullableToggle={toggleNullable}
                     />

@@ -95,8 +95,10 @@ deapi-tester/
 - Frontend NEVER communicates directly with deAPI — always through backend proxy
 - Proxy adds auth header, logs request/response to history
 - Job status polling via Server-Sent Events (SSE) from backend to frontend
-- Endpoint Registry is single source of truth — form generates automatically
+- Endpoint Registry defines form STRUCTURE only (field names, types, required) — NO hardcoded values
+- All model data (slugs, limits, defaults, voices, languages) comes from `/api/models` → `ModelsContext`
 - Adding new endpoint = adding entry in registry (one file)
+- Adding new model to deAPI = ZERO code changes (auto-discovered via /models API)
 
 ## deAPI Base URL
 - Production: https://api.deapi.ai/api/v1/client/
@@ -147,7 +149,8 @@ The app uses three React contexts, all wrapped in `Providers.tsx`:
 **ModelsContext** (`useModelsContext` hook):
 - Fetches and caches all available models from `/api/models`
 - Provides `getModelBySlug(slug)` for quick model lookup
-- Used by ModelInfo and EndpointForm for model metadata
+- Used by EndpointForm for: model dropdown options, voice/language options (TTS), numeric field limits/defaults
+- Model data includes: `info.limits`, `info.defaults`, `info.features`, `languages[]`, `loras[]`
 
 **ToastContext** (`useToast` hook):
 - Global toast notifications (error, success, info, warning)
