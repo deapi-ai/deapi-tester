@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { X, Upload, Loader2, CircleDollarSign, Play, ChevronRight } from 'lucide-react';
+import { X, Upload, Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
 import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
@@ -183,6 +183,87 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     });
   }, [files, handleFileChange]);
 
+  // Get defaults from selected model
+  const modelDefaults = selectedModel?.info && !Array.isArray(selectedModel.info)
+    ? selectedModel.info.defaults
+    : undefined;
+
+  // Get model limits and features for display
+  const modelLimits = selectedModel?.info && !Array.isArray(selectedModel.info)
+    ? selectedModel.info.limits
+    : undefined;
+
+  const modelFeatures = selectedModel?.info && !Array.isArray(selectedModel.info)
+    ? selectedModel.info.features
+    : undefined;
+
+  // Helper to get default value for a field
+  const getDefaultForField = (fieldName: string): number | undefined => {
+    if (!modelDefaults) return undefined;
+    const defaults = modelDefaults as Record<string, unknown>;
+    return defaults[fieldName] as number | undefined;
+  };
+
+  // Helper to get limit for a field
+  const getLimitForField = (fieldName: string): { min?: number; max?: number } | undefined => {
+    if (!modelLimits) return undefined;
+    const limits = modelLimits as Record<string, unknown>;
+    const min = limits[`min_${fieldName}`] as number | undefined;
+    const max = limits[`max_${fieldName}`] as number | undefined;
+    if (min === undefined && max === undefined) return undefined;
+    return { min, max };
+  };
+
+  // Check if model supports a feature
+  const modelSupportsField = (fieldName: string): boolean => {
+    if (!modelFeatures) return true; // If no features info, assume supported
+    const features = modelFeatures as Record<string, boolean | undefined>;
+    // Map field names to feature names
+    const featureMap: Record<string, string> = {
+      'steps': 'supports_steps',
+      'guidance': 'supports_guidance',
+      'negative_prompt': 'supports_negative_prompt',
+    };
+    const featureName = featureMap[fieldName];
+    if (!featureName) return true; // No feature mapping = assumed supported
+    return features[featureName] !== false; // Only disable if explicitly false
+  };
+
+  const handleSetDefaults = useCallback(() => {
+    const defaults = (modelDefaults || {}) as Record<string, unknown>;
+
+    setValues(prev => {
+      const newValues = { ...prev };
+      // Map all available defaults to form fields
+      const fieldMappings = ['width', 'height', 'steps', 'frames', 'fps', 'speed', 'guidance', 'cfg_scale', 'num_inference_steps', 'seed'];
+      fieldMappings.forEach(field => {
+        if (defaults[field] !== undefined && modelSupportsField(field)) {
+          newValues[field] = defaults[field] as number;
+        }
+      });
+      if (defaults.negative_prompt !== undefined && modelSupportsField('negative_prompt')) {
+        newValues['negative_prompt'] = defaults.negative_prompt as string;
+      }
+      return newValues;
+    });
+
+    // Enable nullable fields that have defaults, disable unsupported fields
+    setNullableDisabled(prev => {
+      const newDisabled = { ...prev };
+      const fieldMappings = ['width', 'height', 'steps', 'frames', 'fps', 'speed', 'guidance', 'cfg_scale', 'num_inference_steps', 'seed'];
+      fieldMappings.forEach(field => {
+        if (!modelSupportsField(field)) {
+          // Disable fields not supported by model
+          newDisabled[field] = true;
+        } else if (defaults[field] !== undefined) {
+          // Enable fields with defaults
+          newDisabled[field] = false;
+        }
+      });
+      return newDisabled;
+    });
+  }, [modelDefaults, modelFeatures]);
+
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
 
@@ -306,8 +387,16 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
       case 'number':
         const isNullableDisabled = param.nullable && nullableDisabled[param.name];
+        const isSeedField = param.name === 'seed';
+        const randomizeSeed = () => {
+          const randomSeed = Math.floor(Math.random() * 2147483647);
+          handleChange(param.name, randomSeed);
+          if (param.nullable) {
+            toggleNullable(param.name, false);
+          }
+        };
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             {param.nullable && (
               <label className="flex items-center gap-1 cursor-pointer flex-shrink-0" title={isNullableDisabled ? "Enable field" : "Disable field (set to null)"}>
                 <input
@@ -330,6 +419,16 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
               required={param.required && !param.nullable}
               disabled={isNullableDisabled}
             />
+            {isSeedField && (
+              <button
+                type="button"
+                onClick={randomizeSeed}
+                className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors flex-shrink-0"
+                title="Random seed"
+              >
+                <Dices className="w-3.5 h-3.5" />
+              </button>
+            )}
           </div>
         );
 
@@ -623,10 +722,10 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         </button>
       </div>
 
-      {/* Form Content - Horizontal Layout */}
-      <div className="flex-1 flex gap-4 p-4 overflow-hidden min-h-0">
-        {/* Left: Prompts & Files (or Result for request-status) */}
-        <div className="flex-1 flex flex-col gap-3 min-w-0 overflow-y-auto">
+      {/* Form Content - 3 Column Layout */}
+      <div className="flex-1 flex gap-3 p-3 overflow-hidden min-h-0">
+        {/* Left: Prompts & Files */}
+        <div className="flex-1 flex flex-col gap-2 min-w-0 overflow-y-auto">
           {/* Request Status - show request_id input prominently */}
           {isRequestStatusEndpoint && (
             <div className="flex flex-col gap-1">
@@ -654,7 +753,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 value={String(values[param.name] ?? '')}
                 onChange={(e) => handleChange(param.name, e.target.value)}
                 placeholder={param.placeholder}
-                className="w-full rounded px-2 py-1.5 text-sm resize-none min-h-[60px] flex-1"
+                className="w-full rounded px-2 py-1.5 text-sm resize-none min-h-[50px] flex-1"
                 required={param.required}
               />
             </div>
@@ -663,7 +762,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           {fileParams.length > 0 && (
             <div className="flex gap-2 flex-wrap flex-shrink-0">
               {fileParams.map((param) => (
-                <div key={param.name} className="flex-1 min-w-[200px]">
+                <div key={param.name} className="flex-1 min-w-[180px]">
                   <label className="flex items-baseline gap-1 text-xs text-zinc-400 mb-1">
                     {param.label}
                     {param.required && <span className="text-red-500">*</span>}
@@ -675,7 +774,36 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           )}
         </div>
 
-        {/* Right: Settings */}
+        {/* Center: Params with defaults/limits */}
+        {compactParams.length > 0 && (
+          <div className="w-44 flex-shrink-0 space-y-2 overflow-y-auto border-l border-r border-[var(--border)] px-3">
+            <div className="space-y-2">
+              {compactParams.map((param) => {
+                const defaultVal = getDefaultForField(param.name);
+                const limit = getLimitForField(param.name);
+                return (
+                  <div key={param.name}>
+                    <div className="flex items-baseline justify-between gap-1 mb-0.5">
+                      <label className="text-[10px] text-zinc-500">
+                        {param.label}
+                        {param.required && <span className="text-red-500 ml-0.5">*</span>}
+                      </label>
+                      {(defaultVal !== undefined || limit) && (
+                        <span className="text-[8px] font-mono text-zinc-600">
+                          {limit && `${limit.min ?? '?'}-${limit.max ?? '?'}`}
+                          {defaultVal !== undefined && <span className="text-green-600 ml-1">def:{defaultVal}</span>}
+                        </span>
+                      )}
+                    </div>
+                    {renderField(param, true)}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Right: Model & other settings */}
         <div className="w-48 flex-shrink-0 space-y-2 overflow-y-auto">
           {/* Model/Select params */}
           {selectParams.map((param) => (
@@ -685,27 +813,25 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 {param.required && <span className="text-red-500">*</span>}
               </label>
               {renderField(param, true)}
-              {/* Show model info for model select */}
+              {/* Show Set defaults button and model info for model select */}
               {param.name === 'model' && (
-                <ModelInfo model={selectedModel} isLoading={modelsLoading && !selectedModel} />
+                <>
+                  {selectedModel && (
+                    <button
+                      type="button"
+                      onClick={handleSetDefaults}
+                      className="w-full flex items-center justify-center gap-1.5 px-2 py-1 mt-1.5 text-[10px] text-zinc-400 hover:text-zinc-200 bg-zinc-800 hover:bg-zinc-700 rounded transition-colors"
+                      title="Fill with model defaults and disable unsupported fields"
+                    >
+                      <RotateCcw className="w-2.5 h-2.5" />
+                      Set defaults
+                    </button>
+                  )}
+                  <ModelInfo model={selectedModel} isLoading={modelsLoading && !selectedModel} />
+                </>
               )}
             </div>
           ))}
-
-          {/* Compact number fields */}
-          {compactParams.length > 0 && (
-            <div className="grid grid-cols-2 gap-2">
-              {compactParams.map((param) => (
-                <div key={param.name}>
-                  <label className="flex items-baseline gap-1 text-[10px] text-zinc-500 mb-1">
-                    {param.label}
-                    {param.required && <span className="text-red-500">*</span>}
-                  </label>
-                  {renderField(param, true)}
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Other params */}
           {otherParams.length > 0 && (

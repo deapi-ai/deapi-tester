@@ -11,7 +11,7 @@ interface ModelInfoProps {
 export function ModelInfo({ model, isLoading }: ModelInfoProps) {
   if (isLoading) {
     return (
-      <div className="mt-1.5 text-[9px] text-zinc-600">Loading...</div>
+      <div className="mt-2 text-[10px] text-zinc-600">Loading...</div>
     );
   }
 
@@ -22,50 +22,27 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
   const info = Array.isArray(model.info) ? {} : model.info;
   const hasFeatures = info.features && Object.keys(info.features).length > 0;
   const hasLimits = info.limits && Object.keys(info.limits).length > 0;
+  const hasDefaults = info.defaults && Object.keys(info.defaults).length > 0;
   const hasLoras = model.loras && model.loras.length > 0;
   const hasLanguages = model.languages && model.languages.length > 0;
 
-  if (!hasFeatures && !hasLimits && !hasLoras && !hasLanguages) {
+  if (!hasFeatures && !hasLimits && !hasDefaults && !hasLoras && !hasLanguages) {
     return null;
   }
 
-  // Build compact limits string
-  const limits = info.limits as ModelLimits | undefined;
-  const compactLimits: string[] = [];
-  if (limits) {
-    if (limits.min_width !== undefined || limits.max_width !== undefined) {
-      const w = limits.min_width === limits.max_width
-        ? `${limits.min_width}`
-        : `${limits.min_width || '?'}-${limits.max_width || '?'}`;
-      compactLimits.push(`W:${w}`);
-    }
-    if (limits.min_height !== undefined || limits.max_height !== undefined) {
-      const h = limits.min_height === limits.max_height
-        ? `${limits.min_height}`
-        : `${limits.min_height || '?'}-${limits.max_height || '?'}`;
-      compactLimits.push(`H:${h}`);
-    }
-    if (limits.min_frames !== undefined || limits.max_frames !== undefined) {
-      compactLimits.push(`${limits.min_frames || '?'}-${limits.max_frames || '?'}f`);
-    }
-    if (limits.min_steps !== undefined || limits.max_steps !== undefined) {
-      compactLimits.push(`${limits.min_steps || '?'}-${limits.max_steps || '?'}st`);
-    }
-  }
-
   return (
-    <div className="mt-1.5 space-y-1">
-      {/* Features as inline badges */}
+    <div className="mt-2 p-2 bg-zinc-800/50 rounded border border-zinc-700/50 space-y-2">
+      {/* Features as badges */}
       {hasFeatures && (
-        <div className="flex flex-wrap gap-0.5">
+        <div className="flex flex-wrap gap-1">
           {Object.entries(info.features as ModelFeatures)
-            .filter(([, value]) => value) // Only show supported features
+            .filter(([, value]) => value)
             .map(([key]) => {
               const label = key.replace('supports_', '').replace(/_/g, ' ');
               return (
                 <span
                   key={key}
-                  className="text-[8px] px-1 py-0.5 bg-green-500/10 text-green-500 rounded"
+                  className="text-[9px] px-1.5 py-0.5 bg-green-500/10 text-green-400 rounded"
                 >
                   {label}
                 </span>
@@ -74,25 +51,25 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
         </div>
       )}
 
-      {/* Compact limits line */}
-      {compactLimits.length > 0 && (
-        <div className="text-[9px] font-mono text-zinc-500">
-          {compactLimits.join(' · ')}
+      {/* Limits - displayed as clean rows */}
+      {hasLimits && (
+        <div className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[9px]">
+          {renderLimitPairs(info.limits as ModelLimits)}
         </div>
       )}
 
-      {/* LoRAs - compact */}
+      {/* LoRAs */}
       {hasLoras && (
         <details className="group">
           <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
             <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
             {model.loras!.length} LoRAs
           </summary>
-          <div className="mt-1 flex flex-wrap gap-0.5">
+          <div className="mt-1 flex flex-wrap gap-1">
             {model.loras!.map((lora) => (
               <span
                 key={lora.name}
-                className="text-[8px] px-1 py-0.5 bg-purple-500/10 text-purple-400 rounded"
+                className="text-[9px] px-1.5 py-0.5 bg-purple-500/10 text-purple-400 rounded"
                 title={lora.name}
               >
                 {lora.display_name}
@@ -102,18 +79,18 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
         </details>
       )}
 
-      {/* Languages - compact */}
+      {/* Languages */}
       {hasLanguages && (
         <details className="group">
           <summary className="flex items-center gap-1 text-[9px] text-zinc-500 cursor-pointer hover:text-zinc-400">
             <ChevronRight className="w-2 h-2 transition-transform group-open:rotate-90" />
             {model.languages!.length} languages
           </summary>
-          <div className="mt-1 flex flex-wrap gap-0.5">
+          <div className="mt-1 flex flex-wrap gap-1">
             {model.languages!.map((lang) => (
               <span
                 key={lang.slug}
-                className="text-[8px] px-1 py-0.5 bg-blue-500/10 text-blue-400 rounded"
+                className="text-[9px] px-1.5 py-0.5 bg-blue-500/10 text-blue-400 rounded"
                 title={`${lang.voices.length} voices`}
               >
                 {lang.name}
@@ -124,4 +101,65 @@ export function ModelInfo({ model, isLoading }: ModelInfoProps) {
       )}
     </div>
   );
+}
+
+function renderLimitPairs(limits: ModelLimits) {
+  const pairs: { label: string; min?: number; max?: number }[] = [];
+
+  if (limits.min_steps !== undefined || limits.max_steps !== undefined) {
+    pairs.push({ label: 'Steps', min: limits.min_steps, max: limits.max_steps });
+  }
+  if (limits.min_width !== undefined || limits.max_width !== undefined) {
+    pairs.push({ label: 'Width', min: limits.min_width, max: limits.max_width });
+  }
+  if (limits.min_height !== undefined || limits.max_height !== undefined) {
+    pairs.push({ label: 'Height', min: limits.min_height, max: limits.max_height });
+  }
+  if (limits.min_frames !== undefined || limits.max_frames !== undefined) {
+    pairs.push({ label: 'Frames', min: limits.min_frames, max: limits.max_frames });
+  }
+  if (limits.min_fps !== undefined || limits.max_fps !== undefined) {
+    pairs.push({ label: 'FPS', min: limits.min_fps, max: limits.max_fps });
+  }
+  if (limits.min_text !== undefined || limits.max_text !== undefined) {
+    pairs.push({ label: 'Text', min: limits.min_text, max: limits.max_text });
+  }
+  if (limits.min_speed !== undefined || limits.max_speed !== undefined) {
+    pairs.push({ label: 'Speed', min: limits.min_speed, max: limits.max_speed });
+  }
+
+  const elements: React.ReactNode[] = [];
+
+  pairs.forEach((pair) => {
+    const rangeStr =
+      pair.min !== undefined && pair.max !== undefined
+        ? `${pair.min} - ${pair.max}`
+        : pair.min !== undefined
+        ? `min ${pair.min}`
+        : `max ${pair.max}`;
+
+    elements.push(
+      <div key={`${pair.label}-label`} className="text-zinc-500">
+        {pair.label}:
+      </div>,
+      <div key={`${pair.label}-value`} className="text-zinc-400 font-mono">
+        {rangeStr}
+      </div>
+    );
+  });
+
+  if (limits.resolution_step !== undefined) {
+    elements.push(
+      <div key="res-step-label" className="text-zinc-500">Res step:</div>,
+      <div key="res-step-value" className="text-zinc-400 font-mono">{limits.resolution_step}px</div>
+    );
+  }
+  if (limits.max_input_tokens !== undefined) {
+    elements.push(
+      <div key="input-tokens-label" className="text-zinc-500">Max tokens:</div>,
+      <div key="input-tokens-value" className="text-zinc-400 font-mono">{limits.max_input_tokens.toLocaleString()}</div>
+    );
+  }
+
+  return elements;
 }
