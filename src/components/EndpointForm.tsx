@@ -17,6 +17,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
+  const [imagePreviews, setImagePreviews] = useState<Record<string, { url: string; width: number; height: number; format: string; size: number }[]>>({});
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
   const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
@@ -50,6 +51,11 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setNullableDisabled(nullableDefaults);
     setMultiFileMode(multiFileModeDefaults);
     setPriceResult(null);
+    // Cleanup old preview URLs
+    setImagePreviews(prev => {
+      Object.values(prev).flat().forEach(p => URL.revokeObjectURL(p.url));
+      return {};
+    });
   }, [endpoint.id, endpoint.params]);
 
   // Reset model selection when dynamic models change (e.g., profile switch)
@@ -82,8 +88,55 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   }, []);
 
   const handleFileChange = useCallback((name: string, file: File | File[] | null) => {
+    // Cleanup old preview URLs
+    setImagePreviews((prev) => {
+      const oldPreviews = prev[name];
+      if (oldPreviews) {
+        oldPreviews.forEach(p => URL.revokeObjectURL(p.url));
+      }
+      const newPreviews = { ...prev };
+      delete newPreviews[name];
+      return newPreviews;
+    });
+
     if (file) {
       setFiles((prev) => ({ ...prev, [name]: file }));
+
+      // Generate previews for image files
+      const fileArray = Array.isArray(file) ? file : [file];
+      const imageFiles = fileArray.filter(f => f.type.startsWith('image/'));
+
+      if (imageFiles.length > 0) {
+        const previewPromises = imageFiles.map(f => {
+          return new Promise<{ url: string; width: number; height: number; format: string; size: number }>((resolve) => {
+            const url = URL.createObjectURL(f);
+            const img = new Image();
+            img.onload = () => {
+              resolve({
+                url,
+                width: img.naturalWidth,
+                height: img.naturalHeight,
+                format: f.name.split('.').pop()?.toUpperCase() || f.type.split('/')[1]?.toUpperCase() || 'IMG',
+                size: f.size,
+              });
+            };
+            img.onerror = () => {
+              resolve({
+                url,
+                width: 0,
+                height: 0,
+                format: f.name.split('.').pop()?.toUpperCase() || 'IMG',
+                size: f.size,
+              });
+            };
+            img.src = url;
+          });
+        });
+
+        Promise.all(previewPromises).then(previews => {
+          setImagePreviews(prev => ({ ...prev, [name]: previews }));
+        });
+      }
     } else {
       setFiles((prev) => {
         const newFiles = { ...prev };
@@ -323,12 +376,19 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           : fileCount === 1
             ? fileArray[0].name
             : `${fileCount} files selected`;
+        const previews = imagePreviews[param.name] || [];
+
+        const formatFileSize = (bytes: number) => {
+          if (bytes < 1024) return `${bytes}B`;
+          if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)}KB`;
+          return `${(bytes / (1024 * 1024)).toFixed(1)}MB`;
+        };
 
         return (
-          <div className="flex flex-col gap-1">
+          <div className="flex flex-col gap-2">
             {/* Mode switch for fields with multiFieldName */}
             {param.multiFieldName && (
-              <div className="flex items-center gap-2 mb-1">
+              <div className="flex items-center gap-2">
                 <button
                   type="button"
                   onClick={() => {
@@ -361,6 +421,26 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 </button>
               </div>
             )}
+
+            {/* Image previews */}
+            {previews.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {previews.map((preview, idx) => (
+                  <div key={idx} className="relative group">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={preview.url}
+                      alt=""
+                      className="h-20 w-auto rounded border border-[var(--border)] object-contain bg-zinc-900"
+                    />
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 px-1 py-0.5 text-[9px] font-mono text-zinc-300 rounded-b">
+                      {preview.format} · {preview.width}×{preview.height} · {formatFileSize(preview.size)}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
               <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-500 flex-shrink-0">
                 <path d="M8 12V4M4 8l4-4 4 4" strokeLinecap="round" strokeLinejoin="round" />
@@ -392,15 +472,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 required={param.required && fileCount === 0}
               />
             </label>
-            {isMultiMode && fileCount > 0 && (
-              <div className="flex flex-wrap gap-1 mt-1">
-                {fileArray.map((file, idx) => (
-                  <span key={idx} className="text-[10px] px-1.5 py-0.5 bg-zinc-800 text-zinc-400 rounded truncate max-w-[150px]" title={file.name}>
-                    {file.name}
-                  </span>
-                ))}
-              </div>
-            )}
           </div>
         );
 
