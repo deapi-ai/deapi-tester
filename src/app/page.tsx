@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useRef } from 'react';
+import Image from 'next/image';
 import { Settings, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeContext';
 import { ConfigDrawer } from '@/components/ConfigDrawer';
@@ -59,9 +60,9 @@ export default function Home() {
     <main className="h-screen flex flex-col bg-[var(--background)]">
       {/* Header Bar */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold text-[var(--text-emphasis)] tracking-tight">deAPI Tester</h1>
-          <span className="text-[10px] text-[var(--text-faint)] font-mono">v0.1</span>
+        <div className="flex items-center gap-2">
+          <Image src="/logo-deapi.svg" alt="deAPI" width={83} height={32} priority />
+          <span className="text-xs text-[var(--text-faint)]">Tester</span>
         </div>
 
         <div className="flex items-center gap-3">
