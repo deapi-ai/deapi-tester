@@ -34,13 +34,13 @@ interface DownloadState {
 }
 
 interface JobsPanelProps {
-  onRerun?: (job: Job) => void;
+  // Empty for now - can add props later if needed
 }
 
 type ViewMode = 'list' | 'logs';
 
 export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
-  function JobsPanel({ onRerun }, ref) {
+  function JobsPanel(_props, ref) {
     const { showError, showSuccess } = useToast();
     const { refreshBalance } = useBalance();
     const [jobs, setJobs] = useState<Job[]>([]);
@@ -697,18 +697,6 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                                 </svg>
                               </button>
                             </>
-                          )}
-
-                          {onRerun && (
-                            <button
-                              onClick={() => onRerun(job)}
-                              className="p-1.5 text-zinc-500 hover:text-zinc-300 transition-colors"
-                              title="Rerun"
-                            >
-                              <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2">
-                                <path d="M3 2v12l10-6-10-6z" strokeLinecap="round" strokeLinejoin="round" />
-                              </svg>
-                            </button>
                           )}
 
                           <button
