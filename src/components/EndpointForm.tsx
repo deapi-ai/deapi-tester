@@ -153,6 +153,35 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     }
   }, []);
 
+  const removeFile = useCallback((name: string, index: number) => {
+    const currentFiles = files[name];
+    if (!currentFiles) return;
+
+    const fileArray = Array.isArray(currentFiles) ? currentFiles : [currentFiles];
+
+    // If only one file, clear everything
+    if (fileArray.length <= 1) {
+      handleFileChange(name, null);
+      return;
+    }
+
+    // Remove file at index
+    const newFiles = fileArray.filter((_, i) => i !== index);
+    setFiles(prev => ({ ...prev, [name]: newFiles }));
+
+    // Remove preview at index and revoke URL
+    setImagePreviews(prev => {
+      const prevPreviews = prev[name] || [];
+      if (prevPreviews[index]) {
+        URL.revokeObjectURL(prevPreviews[index].url);
+      }
+      return {
+        ...prev,
+        [name]: prevPreviews.filter((_, i) => i !== index),
+      };
+    });
+  }, [files, handleFileChange]);
+
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
 
@@ -427,6 +456,17 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
               <div className="flex flex-wrap gap-2">
                 {previews.map((preview, idx) => (
                   <div key={idx} className="relative group">
+                    {/* Delete button */}
+                    <button
+                      type="button"
+                      onClick={() => removeFile(param.name, idx)}
+                      className="absolute -top-1.5 -right-1.5 w-5 h-5 bg-red-600 hover:bg-red-500 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10"
+                      title="Remove"
+                    >
+                      <svg width="10" height="10" viewBox="0 0 16 16" fill="none" stroke="white" strokeWidth="2">
+                        <path d="M4 4l8 8M12 4l-8 8" strokeLinecap="round" />
+                      </svg>
+                    </button>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img
                       src={preview.url}
