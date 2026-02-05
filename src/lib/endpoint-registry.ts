@@ -724,11 +724,11 @@ export const ENDPOINTS: EndpointDefinition[] = [
   },
 
   {
-    id: 'result',
+    id: 'request-status',
     name: 'Get Job Result',
     group: 'utility',
     method: 'GET',
-    path: '/result',
+    path: '/request-status/{request_id}',
     description: 'Retrieve job status and results by request_id',
     contentType: 'json',
     isAsync: false,
@@ -739,6 +739,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         label: 'Request ID',
         type: 'text',
         required: true,
+        isPathParam: true,
         placeholder: 'c08a339c-73e5-4d67-a4d5-231302fbff9a',
         description: 'The request_id returned when job was submitted',
       },

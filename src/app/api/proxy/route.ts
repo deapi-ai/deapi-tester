@@ -64,7 +64,19 @@ export async function POST(request: Request) {
     }
 
     // Build request - use priceCalcPath if price calculation mode
-    const targetPath = isPriceCalc ? endpoint.priceCalcPath! : endpoint.path;
+    let targetPath = isPriceCalc ? endpoint.priceCalcPath! : endpoint.path;
+
+    // Handle path parameters (e.g. /request-status/{request_id})
+    const pathParams: Record<string, JsonValue> = {};
+    targetPath = targetPath.replace(/\{(\w+)\}/g, (_, paramName) => {
+      const value = params[paramName];
+      if (value !== undefined && value !== null) {
+        pathParams[paramName] = value;
+        delete params[paramName]; // Remove from params so it doesn't go in query/body
+      }
+      return value !== undefined && value !== null ? String(value) : '';
+    });
+
     const url = config.apiUrl.replace(/\/$/, '') + targetPath;
     const headers: Record<string, string> = {
       'Authorization': `Bearer ${config.apiToken}`,
@@ -156,9 +168,9 @@ export async function POST(request: Request) {
       id: jobId,
       requestId: '', // Will be updated after response
       endpointId: jobEndpointId,
-      params,
+      params: { ...pathParams, ...params }, // Include path params in logged params
       rawRequest: {
-        method: 'POST', // Price calc is always POST
+        method: endpoint.method,
         url: finalUrl,
         headers: { ...headers, Authorization: 'Bearer ***' }, // Mask token in logs
         body: bodyForLog,

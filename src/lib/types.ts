@@ -17,6 +17,7 @@ export interface EndpointParam {
   nullable?: boolean;  // allows field to be disabled/set to null via toggle
   multiple?: boolean;  // for file: allows multiple file selection (array)
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
+  isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
 }
 
 export interface EndpointDefinition {
