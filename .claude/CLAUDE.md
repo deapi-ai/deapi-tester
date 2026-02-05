@@ -38,6 +38,10 @@ deapi-tester/
 │   │   ├── format-utils.ts             # Formatting utilities (time, cost, file size)
 │   │   └── form-utils.ts               # Form field utilities and categorization
 │   ├── components/
+│   │   ├── Providers.tsx               # Root providers wrapper (Contexts + Toast)
+│   │   ├── BalanceContext.tsx          # Global balance state (useBalance hook)
+│   │   ├── ModelsContext.tsx           # Global models cache (useModelsContext hook)
+│   │   ├── Toast.tsx                   # Toast notifications (useToast hook)
 │   │   ├── ConfigPanel.tsx             # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx            # Full settings drawer (profiles CRUD)
 │   │   ├── EndpointSelector.tsx        # Endpoint selection from groups
@@ -131,6 +135,26 @@ The app supports multiple configuration profiles for different API keys/environm
 - Global settings (outputDir, polling) are shared across profiles
 - UI allows: add profile, edit profile, delete profile, switch active profile
 - Old config format (flat) is auto-migrated to new format on first load
+
+## React Contexts
+The app uses three React contexts, all wrapped in `Providers.tsx`:
+
+**BalanceContext** (`useBalance` hook):
+- Fetches and caches user's credit balance from `/api/balance`
+- Auto-refreshes on mount if token exists
+- Use `refreshBalance()` after operations that change balance
+
+**ModelsContext** (`useModelsContext` hook):
+- Fetches and caches all available models from `/api/models`
+- Provides `getModelBySlug(slug)` for quick model lookup
+- Used by ModelInfo and EndpointForm for model metadata
+
+**ToastContext** (`useToast` hook):
+- Global toast notifications (error, success, info, warning)
+- `showError(msg)` — red toast for errors
+- `showSuccess(msg)` — green toast for success
+- `showToast(msg, type)` — generic toast
+- Auto-dismisses after 5 seconds
 
 ## Notes
 - App runs ONLY locally (no need for token security in localStorage)
