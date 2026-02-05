@@ -558,8 +558,36 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                             </button>
                           )}
 
-                          {/* Status badge */}
-                          <span className={`status-badge status-${job.status}`}>{job.status}</span>
+                          {/* Status badge - show polling API status or REQUEST FAILURE */}
+                          {(() => {
+                            // Determine what status to display
+                            let displayStatus: string;
+                            let statusClass: string;
+
+                            if (activeJob?.error) {
+                              // SSE connection error
+                              displayStatus = 'CONNECTION LOST';
+                              statusClass = 'failed';
+                            } else if (lastUpdate?.status) {
+                              // Use status directly from polling API
+                              displayStatus = lastUpdate.status.toUpperCase();
+                              statusClass = lastUpdate.status === 'done' ? 'completed' :
+                                           lastUpdate.status === 'error' ? 'failed' :
+                                           lastUpdate.status;
+                            } else if (job.status === 'failed' && !activeJob?.pollUpdates?.length) {
+                              // Request failed before polling started
+                              displayStatus = 'REQUEST FAILURE';
+                              statusClass = 'failed';
+                            } else {
+                              // Fallback to job status (uppercase)
+                              displayStatus = job.status.toUpperCase();
+                              statusClass = job.status;
+                            }
+
+                            return (
+                              <span className={`status-badge status-${statusClass}`}>{displayStatus}</span>
+                            );
+                          })()}
 
                           {/* Error message for failed jobs */}
                           {job.status === 'failed' && job.error && (
