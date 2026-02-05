@@ -638,15 +638,41 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(
                             />
                           )}
 
-                          {/* Processing placeholder */}
-                          {activeJob?.isPolling && !resultUrl && (resultType === 'image' || resultType === 'video' || resultType === 'audio') && (
-                            <div className="w-12 h-12 rounded bg-zinc-900 flex items-center justify-center flex-shrink-0">
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 animate-spin">
-                                <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
-                                <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
-                              </svg>
-                            </div>
-                          )}
+                          {/* Processing placeholder with preview */}
+                          {activeJob?.isPolling && !resultUrl && (resultType === 'image' || resultType === 'video' || resultType === 'audio') && (() => {
+                            // Check for base64 preview in polling data
+                            const lastPoll = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
+                            const pollApiData = (lastPoll?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
+                            const previewBase64 = pollApiData?.preview as string | undefined;
+
+                            if (previewBase64 && resultType === 'image') {
+                              return (
+                                <div className="w-12 h-12 rounded bg-zinc-900 overflow-hidden flex-shrink-0 relative">
+                                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                                  <img
+                                    src={`data:image/jpeg;base64,${previewBase64}`}
+                                    alt="Preview"
+                                    className="w-full h-full object-cover opacity-70"
+                                  />
+                                  <div className="absolute inset-0 flex items-center justify-center">
+                                    <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-white/70 animate-spin">
+                                      <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
+                                      <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
+                                    </svg>
+                                  </div>
+                                </div>
+                              );
+                            }
+
+                            return (
+                              <div className="w-12 h-12 rounded bg-zinc-900 flex items-center justify-center flex-shrink-0">
+                                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" className="text-zinc-700 animate-spin">
+                                  <circle cx="8" cy="8" r="6" strokeOpacity="0.3" />
+                                  <path d="M8 2a6 6 0 0 1 6 6" strokeLinecap="round" />
+                                </svg>
+                              </div>
+                            );
+                          })()}
 
                           {/* Action buttons */}
                           {resultUrl && job.status === 'completed' && (
