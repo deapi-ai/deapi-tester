@@ -5,6 +5,7 @@ export interface CategorizedParams {
   promptParams: EndpointParam[];
   fileParams: EndpointParam[];
   selectParams: EndpointParam[];
+  booleanParams: EndpointParam[];
   compactParams: EndpointParam[];
   otherParams: EndpointParam[];
 }
@@ -19,6 +20,7 @@ export function categorizeParams(
   const promptParams: EndpointParam[] = [];
   const fileParams: EndpointParam[] = [];
   const selectParams: EndpointParam[] = [];
+  const booleanParams: EndpointParam[] = [];
   const compactParams: EndpointParam[] = [];
   const otherParams: EndpointParam[] = [];
 
@@ -26,20 +28,22 @@ export function categorizeParams(
     if (skipParams.includes(param.name)) {
       return;
     }
-    if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea') {
+    if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea' || param.name === 'video_url' || param.name === 'audio_url') {
       promptParams.push(param);
     } else if (param.type === 'file') {
       fileParams.push(param);
+    } else if (COMPACT_FORM_FIELDS.includes(param.name)) {
+      compactParams.push(param);
     } else if (param.type === 'select' || param.name === 'model') {
       selectParams.push(param);
-    } else if (param.type === 'number' && COMPACT_FORM_FIELDS.includes(param.name)) {
-      compactParams.push(param);
+    } else if (param.type === 'boolean') {
+      booleanParams.push(param);
     } else {
       otherParams.push(param);
     }
   });
 
-  return { promptParams, fileParams, selectParams, compactParams, otherParams };
+  return { promptParams, fileParams, selectParams, booleanParams, compactParams, otherParams };
 }
 
 /**

@@ -337,15 +337,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
         description: 'Voice to use for TTS',
       },
       {
-        name: 'speed',
-        label: 'Speed',
-        type: 'number',
-        required: false,
-        nullable: true,
-        step: 0.1,
-        description: 'Speech speed multiplier',
-      },
-      {
         name: 'format',
         label: 'Format',
         type: 'select',
@@ -355,6 +346,15 @@ export const ENDPOINTS: EndpointDefinition[] = [
           { value: 'mp3', label: 'MP3' },
           { value: 'wav', label: 'WAV' },
         ],
+      },
+      {
+        name: 'speed',
+        label: 'Speed',
+        type: 'number',
+        required: false,
+        nullable: true,
+        step: 0.1,
+        description: 'Speech speed multiplier',
       },
       {
         name: 'sample_rate',

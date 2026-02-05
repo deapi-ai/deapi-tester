@@ -54,4 +54,8 @@ export const COMPACT_FORM_FIELDS = [
   'speed',
   'cfg_scale',
   'num_inference_steps',
+  'lang',
+  'voice',
+  'format',
+  'sample_rate',
 ];

@@ -455,7 +455,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   };
 
   // Categorize params for layout
-  const { promptParams, fileParams, selectParams, compactParams, otherParams } = useMemo(
+  const { promptParams, fileParams, selectParams, booleanParams, compactParams, otherParams } = useMemo(
     () => {
       const skip = isRequestStatusEndpoint ? ['request_id'] : [];
       return categorizeParams(endpoint.params, skip);
@@ -613,6 +613,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                       value={values[param.name]}
                       compact
                       isNullableDisabled={nullableDisabled[param.name]}
+                      selectOptions={getDynamicSelectOptions(param.name)}
                       onValueChange={handleChange}
                       onNullableToggle={toggleNullable}
                     />
@@ -657,6 +658,22 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                   <ModelInfo model={selectedModel} isLoading={modelsLoading && !selectedModel} />
                 </>
               )}
+            </div>
+          ))}
+
+          {booleanParams.map((param) => (
+            <div key={param.name}>
+              <label className="flex items-baseline gap-1 text-[10px] text-[var(--muted)] mb-1">
+                {param.label}
+              </label>
+              <FormField
+                param={getEffectiveParam(param)}
+                value={values[param.name]}
+                compact
+                isNullableDisabled={nullableDisabled[param.name]}
+                onValueChange={handleChange}
+                onNullableToggle={toggleNullable}
+              />
             </div>
           ))}
 
