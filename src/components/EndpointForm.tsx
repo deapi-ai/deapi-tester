@@ -194,13 +194,13 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     return { min, max };
   };
 
-  const modelSupportsField = (fieldName: string): boolean => {
+  const modelSupportsField = useCallback((fieldName: string): boolean => {
     if (!modelFeatures) return true;
     const features = modelFeatures as Record<string, boolean | undefined>;
     const featureName = FIELD_TO_FEATURE_MAP[fieldName];
     if (!featureName) return true;
     return features[featureName] !== false;
-  };
+  }, [modelFeatures]);
 
   const handleSetDefaults = useCallback(() => {
     const defaults = (modelDefaults || {}) as Record<string, unknown>;
@@ -229,7 +229,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       });
       return newDisabled;
     });
-  }, [modelDefaults, modelFeatures]);
+  }, [modelDefaults, modelSupportsField]);
 
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;

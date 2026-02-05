@@ -127,6 +127,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
     } finally {
       setIsLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useImperativeHandle(
@@ -246,12 +247,13 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
       loadJobs();
     }, 5000);
 
+    const eventSources = eventSourcesRef.current;
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
-      eventSourcesRef.current.forEach((es) => es.close());
-      eventSourcesRef.current.clear();
+      eventSources.forEach((es) => es.close());
+      eventSources.clear();
     };
   }, [loadJobs]);
 
