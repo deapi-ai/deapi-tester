@@ -74,7 +74,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
   return (
     <div className="h-full flex flex-col bg-[var(--surface)]">
       {/* Search */}
-      <div className="p-2 border-b border-[var(--border)]">
+      <div className="p-2">
         <div className="relative">
           <Search className="absolute left-2 top-1/2 -translate-y-1/2 text-[var(--muted)] w-3.5 h-3.5" />
           <input
@@ -82,7 +82,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search endpoints..."
-            className="w-full pl-7 pr-2 py-1.5 text-xs rounded"
+            className="w-full pl-7 pr-2 py-1.5 text-sm rounded"
           />
         </div>
       </div>
@@ -113,8 +113,8 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
                       onClick={() => onSelect(endpoint)}
                       className={`w-full flex items-center gap-2 pl-7 pr-2 py-1.5 text-left transition-colors ${
                         selectedEndpoint?.id === endpoint.id
-                          ? 'bg-blue-600/10 text-blue-400 border-l-2 border-blue-500'
-                          : 'text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--text-primary)] border-l-2 border-transparent'
+                          ? 'bg-blue-600/10 text-blue-400'
+                          : 'text-[var(--muted)] hover:bg-[var(--hover)] hover:text-[var(--text-primary)]'
                       }`}
                     >
                       <span className="flex-1 text-xs truncate">{endpoint.name}</span>
