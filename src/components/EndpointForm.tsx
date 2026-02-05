@@ -369,7 +369,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             onChange={(e) => handleChange(param.name, e.target.value)}
             placeholder={param.placeholder}
             className={baseClass}
-            required={param.required}
           />
         );
 
@@ -381,7 +380,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             placeholder={param.placeholder}
             rows={2}
             className={`${baseClass} resize-y min-h-[50px]`}
-            required={param.required}
           />
         );
 
@@ -416,7 +414,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
               max={param.max}
               step={param.step}
               className={`${baseClass} font-mono flex-1 ${isNullableDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-              required={param.required && !param.nullable}
               disabled={isNullableDisabled}
             />
             {isSeedField && (
@@ -469,7 +466,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
               value={isSelectDisabled ? '' : String(value ?? '')}
               onChange={(e) => handleChange(param.name, e.target.value)}
               className={`${baseClass} flex-1 ${isSelectDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
-              required={param.required && !param.nullable}
               disabled={isSelectDisabled || (param.name === 'model' && modelsLoading)}
             >
               <option value="">{param.name === 'model' && modelsLoading ? 'Loading models...' : 'Select...'}</option>
@@ -604,8 +600,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                   }
                 }}
                 className="hidden"
-                required={param.required && fileCount === 0}
-              />
+                />
             </label>
           </div>
         );
@@ -619,7 +614,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
             placeholder={param.type === 'lora-array' ? '[{"name": "...", "weight": 0.8}]' : '{}'}
             rows={2}
             className={`${baseClass} font-mono resize-y`}
-            required={param.required}
           />
         );
 
@@ -738,7 +732,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 onChange={(e) => handleChange('request_id', e.target.value)}
                 placeholder="c08a339c-73e5-4d67-a4d5-231302fbff9a"
                 className="w-full rounded px-3 py-2 text-sm font-mono bg-zinc-900 border border-[var(--border)] focus:border-blue-500 focus:outline-none"
-                required
               />
             </div>
           )}
@@ -754,8 +747,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
                 onChange={(e) => handleChange(param.name, e.target.value)}
                 placeholder={param.placeholder}
                 className="w-full rounded px-2 py-1.5 text-sm resize-none min-h-[50px] flex-1"
-                required={param.required}
-              />
+                  />
             </div>
           ))}
 
