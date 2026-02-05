@@ -463,7 +463,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         {/* Price result display */}
         {priceResult && (
           <span className={`text-xs font-mono ${priceResult.error ? 'text-red-400' : 'text-green-400'}`}>
-            {priceResult.error ? priceResult.error : `~$${priceResult.credits.toFixed(6)}`}
+            {priceResult.error ? priceResult.error : `~$${priceResult.credits}`}
           </span>
         )}
 

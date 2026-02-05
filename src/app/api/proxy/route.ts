@@ -150,7 +150,8 @@ export async function POST(request: Request) {
 
     // Create job entry before making request
     const jobId = generateJobId();
-    const jobEndpointId = isPriceCalc ? `${endpointId}/price` : endpointId;
+    // Store the actual API path (without leading slash) as endpointId
+    const jobEndpointId = targetPath.replace(/^\//, '');
     const job: Job = {
       id: jobId,
       requestId: '', // Will be updated after response
@@ -225,8 +226,13 @@ export async function POST(request: Request) {
       completedAt: new Date().toISOString(),
       resultUrl: rawResponse.data?.result_url,
     };
+    // Check for cost_credits (regular response), price (price-calculation), or balance (balance check)
     if (rawResponse.data?.cost_credits !== undefined) {
       syncUpdateData.costCredits = rawResponse.data.cost_credits;
+    } else if (rawResponse.data?.price !== undefined) {
+      syncUpdateData.costCredits = rawResponse.data.price;
+    } else if (rawResponse.data?.balance !== undefined) {
+      syncUpdateData.costCredits = rawResponse.data.balance;
     }
     updateJob(jobId, syncUpdateData);
 

@@ -71,7 +71,7 @@ export function PriceCalculator({ endpoint, params }: PriceCalculatorProps) {
 
       {price && (
         <span className="text-sm text-green-400">
-          ~{price.estimated_credits?.toFixed(4) || '?'} credits
+          ~{price.estimated_credits ?? '?'} credits
           {price.details && (
             <span className="text-zinc-500 ml-2">({price.details})</span>
           )}
