@@ -72,7 +72,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
   }, [groups, searchQuery, filteredEndpoints]);
 
   return (
-    <div className="h-full flex flex-col bg-[var(--surface)] border-r border-[var(--border)]">
+    <div className="h-full flex flex-col bg-[var(--surface)]">
       {/* Search */}
       <div className="p-2 border-b border-[var(--border)]">
         <div className="relative">

@@ -82,47 +82,50 @@ export default function Home() {
         </div>
       </header>
 
-      {/* Row 1: Endpoint Selector + Form */}
-      <div className="flex border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0" style={{ height: '340px' }}>
-        {/* Endpoint Selector */}
-        <div className="w-64 flex-shrink-0 border-r border-[var(--border)]">
+      {/* Main content area */}
+      <div className="flex-1 flex min-h-0 overflow-hidden">
+        {/* Endpoint Selector - full height */}
+        <div className="w-56 flex-shrink-0 border-r border-[var(--border)] bg-[var(--surface)]">
           <EndpointSelector
             selectedEndpoint={selectedEndpoint}
             onSelect={setSelectedEndpoint}
           />
         </div>
 
-        {/* Form Area */}
-        <div className="flex-1 overflow-hidden">
-          {selectedEndpoint ? (
-            <EndpointForm
-              endpoint={selectedEndpoint}
-              onSubmit={handleSubmit}
-              onPriceCheck={() => jobsPanelRef.current?.refresh()}
-              isSubmitting={isSubmitting}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-center">
-                <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mx-auto mb-3 text-zinc-800">
-                  <path d="M12 8h24v6H12z" stroke="currentColor" strokeWidth="2" />
-                  <path d="M8 18h32v22H8z" stroke="currentColor" strokeWidth="2" />
-                  <circle cx="16" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
-                  <circle cx="32" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
-                  <path d="M24 14v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                </svg>
-                <p className="text-sm text-zinc-500">Select an endpoint to begin</p>
+        {/* Center: Form + Jobs stacked */}
+        <div className="flex-1 flex flex-col min-w-0">
+          {/* Form Area */}
+          <div className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)]" style={{ minHeight: '200px', maxHeight: '45vh' }}>
+            {selectedEndpoint ? (
+              <EndpointForm
+                endpoint={selectedEndpoint}
+                onSubmit={handleSubmit}
+                onPriceCheck={() => jobsPanelRef.current?.refresh()}
+                isSubmitting={isSubmitting}
+              />
+            ) : (
+              <div className="h-[200px] flex items-center justify-center">
+                <div className="text-center">
+                  <svg width="48" height="48" viewBox="0 0 48 48" fill="none" className="mx-auto mb-3 text-zinc-800">
+                    <path d="M12 8h24v6H12z" stroke="currentColor" strokeWidth="2" />
+                    <path d="M8 18h32v22H8z" stroke="currentColor" strokeWidth="2" />
+                    <circle cx="16" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
+                    <circle cx="32" cy="29" r="2" stroke="currentColor" strokeWidth="2" />
+                    <path d="M24 14v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  <p className="text-sm text-zinc-500">Select an endpoint to begin</p>
+                </div>
               </div>
-            </div>
-          )}
-        </div>
-      </div>
+            )}
+          </div>
 
-      {/* Row 2: Jobs Panel */}
-      <div className="flex-1 min-h-0 overflow-hidden">
-        <JobsPanel
-          ref={jobsPanelRef}
-        />
+          {/* Jobs Panel - takes remaining space */}
+          <div className="flex-1 min-h-0 overflow-hidden">
+            <JobsPanel
+              ref={jobsPanelRef}
+            />
+          </div>
+        </div>
       </div>
 
       {/* Config Drawer */}

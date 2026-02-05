@@ -676,7 +676,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         </div>
 
         {/* Right: Settings */}
-        <div className="w-56 flex-shrink-0 space-y-2 overflow-y-auto">
+        <div className="w-48 flex-shrink-0 space-y-2 overflow-y-auto">
           {/* Model/Select params */}
           {selectParams.map((param) => (
             <div key={param.name}>
