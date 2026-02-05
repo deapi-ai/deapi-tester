@@ -49,6 +49,8 @@ export const FIELD_TO_FEATURE_MAP: Record<string, string> = {
   steps: 'supports_steps',
   guidance: 'supports_guidance',
   negative_prompt: 'supports_negative_prompt',
+  width: 'supports_custom_output_size',
+  height: 'supports_custom_output_size',
 };
 
 /**

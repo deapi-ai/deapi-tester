@@ -240,6 +240,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
       modelSelectParam(),
       widthParam(),
       heightParam(),
+      guidanceParam(),
       stepsParam(),
       {
         name: 'frames',
@@ -278,6 +279,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
       modelSelectParam(),
       widthParam(),
       heightParam(),
+      guidanceParam(),
       stepsParam(),
       {
         name: 'frames',

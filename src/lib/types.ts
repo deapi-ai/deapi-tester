@@ -125,6 +125,7 @@ export interface ModelFeatures {
   supports_guidance?: boolean;
   supports_negative_prompt?: boolean;
   supports_last_frame?: boolean;
+  supports_custom_output_size?: boolean;
 }
 
 export interface ModelLimits {
@@ -146,6 +147,7 @@ export interface ModelLimits {
   max_total_tokens?: number;
   resolution_step?: number;
   available_ratios?: number[];
+  max_input_images?: number;
 }
 
 export interface ModelDefaults {
