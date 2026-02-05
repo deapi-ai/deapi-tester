@@ -117,11 +117,20 @@ deapi-tester/
 │   │   ├── EndpointForm.tsx      # Dynamic form generator
 │   │   ├── JobsPanel.tsx         # Job tracking & history
 │   │   ├── ConfigDrawer.tsx      # Settings panel
+│   │   ├── form/                 # Form field components
+│   │   │   ├── FormField.tsx     # Generic form field renderer
+│   │   │   └── FileUploadField.tsx # File upload with preview
+│   │   ├── jobs/                 # Job-related components
+│   │   │   ├── JobRow.tsx        # Single job row
+│   │   │   └── JobLogsView.tsx   # Logs view
 │   │   └── ...
 │   └── lib/
 │       ├── endpoint-registry.ts  # All endpoint definitions
 │       ├── storage.ts            # JSON file operations
-│       └── types.ts              # TypeScript types
+│       ├── types.ts              # TypeScript types
+│       ├── constants.ts          # Shared constants
+│       ├── format-utils.ts       # Formatting utilities
+│       └── form-utils.ts         # Form utilities
 ├── data/                         # Local storage (auto-created)
 │   ├── config.json              # User configuration
 │   └── history.json             # Job history

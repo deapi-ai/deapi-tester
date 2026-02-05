@@ -33,17 +33,28 @@ deapi-tester/
 │   │   ├── storage.ts                  # JSON file operations
 │   │   ├── deapi-client.ts             # HTTP client for deAPI
 │   │   ├── config.ts                   # Configuration management
-│   │   └── types.ts                    # Shared types
+│   │   ├── types.ts                    # Shared types
+│   │   ├── constants.ts                # Shared constants (status colors, icons)
+│   │   ├── format-utils.ts             # Formatting utilities (time, cost, file size)
+│   │   └── form-utils.ts               # Form field utilities and categorization
 │   ├── components/
 │   │   ├── ConfigPanel.tsx             # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx            # Full settings drawer (profiles CRUD)
 │   │   ├── EndpointSelector.tsx        # Endpoint selection from groups
-│   │   ├── EndpointForm.tsx            # Dynamic form from registry
+│   │   ├── EndpointForm.tsx            # Dynamic form from registry (orchestrator)
 │   │   ├── RequestInspector.tsx        # Raw JSON request/response
 │   │   ├── JobTracker.tsx              # Polling status, progress bar
+│   │   ├── JobsPanel.tsx               # Main jobs panel (list/logs views)
 │   │   ├── ResultViewer.tsx            # Preview img/video/audio/text
 │   │   ├── HistoryPanel.tsx            # Previous jobs list
-│   │   └── PriceCalculator.tsx         # Pre-calc costs
+│   │   ├── ModelInfo.tsx               # Model metadata display
+│   │   ├── PriceCalculator.tsx         # Pre-calc costs
+│   │   ├── form/                       # Form field components
+│   │   │   ├── FormField.tsx           # Generic form field renderer
+│   │   │   └── FileUploadField.tsx     # File upload with preview
+│   │   └── jobs/                       # Job-related components
+│   │       ├── JobRow.tsx              # Single job row component
+│   │       └── JobLogsView.tsx         # Logs view for jobs
 │   └── hooks/
 │       ├── useDeApi.ts                 # Main API hook
 │       ├── usePolling.ts               # SSE/polling hook
@@ -67,6 +78,14 @@ deapi-tester/
 - Imports: absolute paths via `@/` alias
 - Error handling: try/catch with user-friendly messages
 - API routes: always validate input, always proper HTTP status codes
+
+## Component Organization
+- Large components are split into smaller, focused sub-components
+- Related components are grouped in subdirectories (e.g., `form/`, `jobs/`)
+- Shared constants go to `lib/constants.ts` (status colors, icons)
+- Shared formatting utilities go to `lib/format-utils.ts`
+- Form-specific utilities go to `lib/form-utils.ts`
+- Keep components under ~300 lines; split if larger
 
 ## Architecture Rules
 - Frontend NEVER communicates directly with deAPI — always through backend proxy

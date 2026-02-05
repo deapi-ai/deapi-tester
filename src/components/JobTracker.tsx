@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { JsonValue } from '@/lib/types';
+import { STATUS_TEXT_COLORS, STATUS_ICONS } from '@/lib/constants';
 
 export interface JobResult {
   status: string;
@@ -105,35 +106,13 @@ export function JobTracker({ requestId, onComplete, onError }: JobTrackerProps) 
 
   const progress = maxAttempts > 0 ? (attempt / maxAttempts) * 100 : 0;
 
-  const statusColors: Record<string, string> = {
-    idle: 'text-zinc-500',
-    polling: 'text-blue-400',
-    processing: 'text-yellow-400',
-    pending: 'text-yellow-400',
-    completed: 'text-green-400',
-    failed: 'text-red-400',
-    timeout: 'text-orange-400',
-    error: 'text-red-400',
-  };
-
-  const statusIcons: Record<string, string> = {
-    idle: '⏸️',
-    polling: '🔄',
-    processing: '⏳',
-    pending: '⏳',
-    completed: '✅',
-    failed: '❌',
-    timeout: '⏰',
-    error: '⚠️',
-  };
-
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
       <div className="flex items-center justify-between mb-3">
         <h3 className="text-sm font-semibold text-zinc-300 flex items-center gap-2">
-          <span>{statusIcons[status] || '🔄'}</span> Job Status
+          <span>{STATUS_ICONS[status] || '🔄'}</span> Job Status
         </h3>
-        <span className={`text-sm font-medium ${statusColors[status] || 'text-zinc-400'}`}>
+        <span className={`text-sm font-medium ${STATUS_TEXT_COLORS[status] || 'text-zinc-400'}`}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
         </span>
       </div>

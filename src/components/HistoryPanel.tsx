@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { Job } from '@/lib/types';
+import { STATUS_TEXT_COLORS, STATUS_ICONS } from '@/lib/constants';
+import { formatRelativeTime } from '@/lib/format-utils';
 
 interface HistoryPanelProps {
   onRerun: (job: Job) => void;
@@ -52,34 +54,6 @@ export function HistoryPanel({ onRerun, refreshTrigger }: HistoryPanelProps) {
     }
   };
 
-  const formatTime = (isoString: string) => {
-    const date = new Date(isoString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-
-    if (diffMins < 1) return 'Just now';
-    if (diffMins < 60) return `${diffMins}m ago`;
-    if (diffMins < 1440) return `${Math.floor(diffMins / 60)}h ago`;
-    return date.toLocaleDateString();
-  };
-
-  const statusIcons: Record<string, string> = {
-    pending: '⏳',
-    processing: '🔄',
-    completed: '✅',
-    failed: '❌',
-    cancelled: '🚫',
-  };
-
-  const statusColors: Record<string, string> = {
-    pending: 'text-yellow-400',
-    processing: 'text-blue-400',
-    completed: 'text-green-400',
-    failed: 'text-red-400',
-    cancelled: 'text-zinc-500',
-  };
-
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
       <button
@@ -117,7 +91,7 @@ export function HistoryPanel({ onRerun, refreshTrigger }: HistoryPanelProps) {
                     key={job.id}
                     className="flex items-center gap-3 px-4 py-3 border-b border-zinc-800 last:border-0 hover:bg-zinc-800/30"
                   >
-                    <span className="text-lg">{statusIcons[job.status] || '❓'}</span>
+                    <span className="text-lg">{STATUS_ICONS[job.status] || '❓'}</span>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-zinc-300 truncate">
                         {job.endpointId}
@@ -128,11 +102,11 @@ export function HistoryPanel({ onRerun, refreshTrigger }: HistoryPanelProps) {
                           : job.requestId || 'No prompt'}
                       </p>
                     </div>
-                    <span className={`text-xs ${statusColors[job.status]}`}>
+                    <span className={`text-xs ${STATUS_TEXT_COLORS[job.status] || 'text-zinc-500'}`}>
                       {job.status}
                     </span>
                     <span className="text-xs text-zinc-600 w-16 text-right">
-                      {formatTime(job.createdAt)}
+                      {formatRelativeTime(job.createdAt)}
                     </span>
                     <div className="flex gap-1">
                       <button
