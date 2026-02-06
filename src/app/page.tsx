@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Settings } from 'lucide-react';
 import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
@@ -25,6 +25,23 @@ export default function Home() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Auto-open settings drawer when no API token is configured
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        const activeProfile = data.profiles?.find(
+          (p: { id: string; hasToken: boolean }) => p.id === data.activeProfileId
+        );
+        if (activeProfile && !activeProfile.hasToken) {
+          setIsConfigOpen(true);
+        }
+      })
+      .catch(() => {
+        // Silently fail — config might not be ready yet
+      });
+  }, []);
 
   const handleSubmit = async (params: Record<string, JsonValue>, formData?: FormData) => {
     setIsSubmitting(true);
@@ -58,7 +75,9 @@ export default function Home() {
       {/* Header Bar */}
       <header className="flex items-center justify-between px-4 py-2 border-b border-[var(--border)] bg-[var(--surface)] flex-shrink-0">
         <div className="flex items-center gap-3">
-          <h1 className="text-sm font-semibold text-zinc-200 tracking-tight">deAPI Tester</h1>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/deapi-logo.png" alt="deAPI" className="h-8 w-auto" />
+          <span className="text-xs font-medium text-zinc-400 tracking-wide uppercase">tester</span>
           <span className="text-[10px] text-zinc-600 font-mono">v0.1</span>
         </div>
 

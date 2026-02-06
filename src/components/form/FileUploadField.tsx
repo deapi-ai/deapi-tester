@@ -1,7 +1,9 @@
 'use client';
 
-import { Upload, X } from 'lucide-react';
+import { useState } from 'react';
+import { Upload, X, FolderOpen } from 'lucide-react';
 import { formatFileSize } from '@/lib/format-utils';
+import { OutputPicker } from './OutputPicker';
 
 interface ImagePreview {
   url: string;
@@ -38,6 +40,9 @@ export function FileUploadField({
   onRemoveFile,
   onModeChange,
 }: FileUploadFieldProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const isImageAccept = accept?.includes('image/') ?? false;
+
   const fileArray = files ? (Array.isArray(files) ? files : [files]) : [];
   const fileCount = fileArray.length;
   const fileLabel =
@@ -113,31 +118,52 @@ export function FileUploadField({
         </div>
       )}
 
-      <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors">
-        <Upload className="w-3 h-3 text-zinc-500 flex-shrink-0" />
-        <span className="text-xs text-zinc-400 truncate flex-1">{fileLabel}</span>
-        {isMultiMode && fileCount > 0 && (
-          <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
-            {fileCount}
-          </span>
+      <div className="flex items-center gap-1">
+        <label className="flex items-center gap-2 px-2 py-1.5 bg-[var(--surface-2)] border border-[var(--border)] rounded cursor-pointer hover:border-zinc-600 transition-colors flex-1 min-w-0">
+          <Upload className="w-3 h-3 text-zinc-500 flex-shrink-0" />
+          <span className="text-xs text-zinc-400 truncate flex-1">{fileLabel}</span>
+          {isMultiMode && fileCount > 0 && (
+            <span className="text-[10px] px-1.5 py-0.5 bg-blue-500/20 text-blue-400 rounded">
+              {fileCount}
+            </span>
+          )}
+          <input
+            type="file"
+            accept={accept}
+            multiple={isMultiMode}
+            onChange={(e) => {
+              const selectedFiles = e.target.files;
+              if (!selectedFiles || selectedFiles.length === 0) {
+                onFileChange(name, null);
+              } else if (isMultiMode) {
+                onFileChange(name, Array.from(selectedFiles));
+              } else {
+                onFileChange(name, selectedFiles[0]);
+              }
+            }}
+            className="hidden"
+          />
+        </label>
+
+        {isImageAccept && (
+          <button
+            type="button"
+            onClick={() => setPickerOpen(true)}
+            className="flex items-center justify-center w-8 h-8 bg-[var(--surface-2)] border border-[var(--border)] rounded hover:border-zinc-600 hover:bg-zinc-700 transition-colors flex-shrink-0"
+            title="Pick from output"
+          >
+            <FolderOpen className="w-3.5 h-3.5 text-zinc-400" />
+          </button>
         )}
-        <input
-          type="file"
-          accept={accept}
-          multiple={isMultiMode}
-          onChange={(e) => {
-            const selectedFiles = e.target.files;
-            if (!selectedFiles || selectedFiles.length === 0) {
-              onFileChange(name, null);
-            } else if (isMultiMode) {
-              onFileChange(name, Array.from(selectedFiles));
-            } else {
-              onFileChange(name, selectedFiles[0]);
-            }
-          }}
-          className="hidden"
+      </div>
+
+      {isImageAccept && (
+        <OutputPicker
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          onPick={(file) => onFileChange(name, file)}
         />
-      </label>
+      )}
     </div>
   );
 }

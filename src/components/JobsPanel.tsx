@@ -53,6 +53,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
 
   const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const startPollingRef = useRef<(job: Job) => void>(() => {});
 
   // Timer for real-time elapsed time updates
   useEffect(() => {
@@ -119,7 +120,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
 
       jobList.forEach((job: Job) => {
         if ((job.status === 'pending' || job.status === 'processing') && job.requestId) {
-          startPollingForJob(job);
+          startPollingRef.current(job);
         }
       });
     } catch (err) {
@@ -239,6 +240,8 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
     [refreshBalance, loadJobs]
   );
 
+  startPollingRef.current = startPollingForJob;
+
   useEffect(() => {
     loadJobs();
 
@@ -246,12 +249,13 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
       loadJobs();
     }, 5000);
 
+    const currentEventSources = eventSourcesRef.current;
     return () => {
       if (pollIntervalRef.current) {
         clearInterval(pollIntervalRef.current);
       }
-      eventSourcesRef.current.forEach((es) => es.close());
-      eventSourcesRef.current.clear();
+      currentEventSources.forEach((es) => es.close());
+      currentEventSources.clear();
     };
   }, [loadJobs]);
 

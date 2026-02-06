@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
 import { EndpointDefinition, JsonValue } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
@@ -13,6 +13,7 @@ import {
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
+import { getRandomPrompt } from '@/lib/sample-prompts';
 
 interface ImagePreview {
   url: string;
@@ -42,6 +43,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const isRequestStatusEndpoint = endpoint.id === 'request-status';
   const selectedModelSlug = values['model'] as string | undefined;
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
+  const savedModelsRef = useRef<Record<string, string>>({});
+
+  // Save model selection when it changes
+  useEffect(() => {
+    if (selectedModelSlug) {
+      savedModelsRef.current[endpoint.id] = selectedModelSlug;
+    }
+  }, [selectedModelSlug, endpoint.id]);
 
   // Initialize form state when endpoint changes
   useEffect(() => {
@@ -60,6 +69,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         multiFileModeDefaults[param.name] = false;
       }
     });
+
+    // Restore previously selected model for this endpoint
+    const savedModel = savedModelsRef.current[endpoint.id];
+    if (savedModel && endpoint.params.some((p) => p.name === 'model')) {
+      defaults['model'] = savedModel;
+    }
 
     setValues(defaults);
     setFiles({});
@@ -194,13 +209,13 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     return { min, max };
   };
 
-  const modelSupportsField = (fieldName: string): boolean => {
+  const modelSupportsField = useCallback((fieldName: string): boolean => {
     if (!modelFeatures) return true;
     const features = modelFeatures as Record<string, boolean | undefined>;
     const featureName = FIELD_TO_FEATURE_MAP[fieldName];
     if (!featureName) return true;
     return features[featureName] !== false;
-  };
+  }, [modelFeatures]);
 
   const handleSetDefaults = useCallback(() => {
     const defaults = (modelDefaults || {}) as Record<string, unknown>;
@@ -229,7 +244,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       });
       return newDisabled;
     });
-  }, [modelDefaults, modelFeatures]);
+  }, [modelDefaults, modelSupportsField]);
+
+  // Auto-apply model defaults when model changes
+  useEffect(() => {
+    if (selectedModel) {
+      handleSetDefaults();
+    }
+  }, [selectedModel, handleSetDefaults]);
 
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
@@ -410,10 +432,22 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
           {promptParams.map((param) => (
             <div key={param.name} className="flex flex-col min-h-0">
-              <label className="flex items-baseline gap-1 text-xs text-zinc-400 mb-1 flex-shrink-0">
-                {param.label}
-                {param.required && <span className="text-red-500">*</span>}
-              </label>
+              <div className="flex items-center gap-1 mb-1 flex-shrink-0">
+                <label className="flex items-baseline gap-1 text-xs text-zinc-400">
+                  {param.label}
+                  {param.required && <span className="text-red-500">*</span>}
+                </label>
+                {param.name === 'prompt' && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange(param.name, getRandomPrompt())}
+                    className="p-1 text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700 rounded transition-colors flex-shrink-0"
+                    title="Random prompt"
+                  >
+                    <Dices className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
               <textarea
                 value={String(values[param.name] ?? '')}
                 onChange={(e) => handleChange(param.name, e.target.value)}

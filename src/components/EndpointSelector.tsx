@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Search, ChevronRight } from 'lucide-react';
 import { EndpointDefinition, EndpointGroupMeta } from '@/lib/types';
 
@@ -50,9 +50,9 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
     );
   }, [endpoints, searchQuery]);
 
-  const getEndpointsByGroup = (groupId: string) => {
+  const getEndpointsByGroup = useCallback((groupId: string) => {
     return filteredEndpoints.filter((e) => e.group === groupId);
-  };
+  }, [filteredEndpoints]);
 
   const toggleGroup = (groupId: string) => {
     setExpandedGroups(prev => {
@@ -69,7 +69,7 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
   const visibleGroups = useMemo(() => {
     if (!searchQuery.trim()) return groups;
     return groups.filter(g => getEndpointsByGroup(g.id).length > 0);
-  }, [groups, searchQuery, filteredEndpoints]);
+  }, [groups, searchQuery, getEndpointsByGroup]);
 
   return (
     <div className="h-full flex flex-col bg-[var(--surface)]">
