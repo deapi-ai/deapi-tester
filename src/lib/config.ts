@@ -80,7 +80,7 @@ export function loadFullConfig(): AppConfigFull {
     if (config.profiles.length > 0) {
       const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
       if (activeProfile) {
-        if (process.env.DEAPI_API_TOKEN) {
+        if (process.env.DEAPI_API_TOKEN && process.env.DEAPI_API_TOKEN !== 'your_token_here') {
           activeProfile.apiToken = process.env.DEAPI_API_TOKEN;
         }
         if (process.env.DEAPI_API_URL) {

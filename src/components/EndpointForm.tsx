@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw } from 'lucide-react';
+import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
 import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
@@ -13,6 +13,7 @@ import {
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
+import { getRandomPrompt } from '@/lib/sample-prompts';
 
 interface ImagePreview {
   url: string;
@@ -44,6 +45,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const selectedModelSlug = values['model'] as string | undefined;
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
   const prevModelSlugRef = useRef<string | undefined>(undefined);
+  const savedModelsRef = useRef<Record<string, string>>({});
 
   // Get model defaults/limits/features from API data
   const modelDefaults =
@@ -52,6 +54,13 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.limits : undefined;
   const modelFeatures =
     selectedModel?.info && !Array.isArray(selectedModel.info) ? selectedModel.info.features : undefined;
+
+  // Save model selection when it changes
+  useEffect(() => {
+    if (selectedModelSlug) {
+      savedModelsRef.current[endpoint.id] = selectedModelSlug;
+    }
+  }, [selectedModelSlug, endpoint.id]);
 
   // Initialize form state when endpoint changes
   useEffect(() => {
@@ -70,6 +79,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
         multiFileModeDefaults[param.name] = false;
       }
     });
+
+    // Restore previously selected model for this endpoint
+    const savedModel = savedModelsRef.current[endpoint.id];
+    if (savedModel && endpoint.params.some((p) => p.name === 'model')) {
+      defaults['model'] = savedModel;
+    }
 
     setValues(defaults);
     setFiles({});
@@ -551,16 +566,26 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
           {promptParams.map((param) => (
             <div key={param.name} className="flex flex-col min-h-0">
-              <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
+              <div className="flex items-center gap-1 mb-1 flex-shrink-0">
                 <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)]">
                   {param.label}
                   {param.required && <span className="text-red-500">*</span>}
                 </label>
+                {param.name === 'prompt' && (
+                  <button
+                    type="button"
+                    onClick={() => handleChange(param.name, getRandomPrompt())}
+                    className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded transition-colors flex-shrink-0"
+                    title="Random prompt"
+                  >
+                    <Dices className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 {param.supportsArray && (
                   <button
                     type="button"
                     onClick={() => setArrayMode(prev => ({ ...prev, [param.name]: !prev[param.name] }))}
-                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ${
+                    className={`text-[10px] px-1.5 py-0.5 rounded transition-colors ml-auto ${
                       arrayMode[param.name]
                         ? 'bg-blue-600 text-white'
                         : 'bg-[var(--surface-2)] text-[var(--text-secondary)] hover:text-[var(--text-emphasis)]'

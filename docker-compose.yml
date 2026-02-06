@@ -1,0 +1,11 @@
+services:
+  deapi-tester:
+    build: .
+    container_name: deapi-tester
+    ports:
+      - "1337:3000"
+    volumes:
+      - ./data:/app/data
+      - ./output:/app/output
+      - ./.env.local:/app/.env.local:ro
+    restart: unless-stopped
