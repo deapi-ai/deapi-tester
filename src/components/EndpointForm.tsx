@@ -122,9 +122,9 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   // Auto-apply model defaults when model selection changes
   useEffect(() => {
     if (!selectedModelSlug || selectedModelSlug === prevModelSlugRef.current) return;
-    prevModelSlugRef.current = selectedModelSlug;
-
     if (!selectedModel?.info || Array.isArray(selectedModel.info)) return;
+
+    prevModelSlugRef.current = selectedModelSlug;
 
     const defaults = (selectedModel.info.defaults || {}) as Record<string, unknown>;
     const features = (selectedModel.info.features || {}) as Record<string, boolean | undefined>;
