@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
-import { Settings, Sun, Moon } from 'lucide-react';
+import { Settings, Sun, Moon, RefreshCw } from 'lucide-react';
 import { useTheme } from '@/components/ThemeContext';
 import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
@@ -10,6 +10,7 @@ import { EndpointForm } from '@/components/EndpointForm';
 import { JobsPanel, JobsPanelRef } from '@/components/JobsPanel';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
+import { useModelsContext } from '@/components/ModelsContext';
 import { EndpointDefinition, JsonValue } from '@/lib/types';
 
 interface ProxyResponse {
@@ -24,6 +25,7 @@ export default function Home() {
   const { showError } = useToast();
   const { balance } = useBalance();
   const { resolvedTheme, toggleTheme } = useTheme();
+  const { refreshModels, isLoading: modelsLoading } = useModelsContext();
   const jobsPanelRef = useRef<JobsPanelRef>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -90,6 +92,16 @@ export default function Home() {
               <span className="text-sm font-mono font-medium text-green-400">${balance}</span>
             </div>
           )}
+
+          {/* Refresh models */}
+          <button
+            onClick={() => refreshModels()}
+            disabled={modelsLoading}
+            className="p-1.5 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded transition-colors"
+            title="Refresh models"
+          >
+            <RefreshCw className={`w-4 h-4 ${modelsLoading ? 'animate-spin' : ''}`} />
+          </button>
 
           {/* Theme toggle */}
           <button

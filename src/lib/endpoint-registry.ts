@@ -379,6 +379,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
     isAsync: true,
     hasPriceCalc: true,
     priceCalcPath: '/vid2txt/price-calculation',
+    inferenceType: 'video2text',
     params: [
       {
         name: 'video_url',
@@ -410,6 +411,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
     isAsync: true,
     hasPriceCalc: true,
     priceCalcPath: '/videofile2txt/price-calculation',
+    inferenceType: 'video_file2text',
     params: [
       {
         name: 'video',
@@ -440,6 +442,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
     isAsync: true,
     hasPriceCalc: true,
     priceCalcPath: '/aud2txt/price-calculation',
+    inferenceType: 'audio2text',
     params: [
       {
         name: 'audio_url',
@@ -471,6 +474,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
     isAsync: true,
     hasPriceCalc: true,
     priceCalcPath: '/audiofile2txt/price-calculation',
+    inferenceType: 'audio_file2text',
     params: [
       {
         name: 'audio',

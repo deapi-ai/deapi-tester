@@ -32,6 +32,7 @@ export interface EndpointDefinition {
   isAsync: boolean;                // returns request_id for polling
   hasPriceCalc: boolean;           // has price-calculation endpoint
   priceCalcPath?: string;          // e.g. "/txt2img/price-calculation"
+  inferenceType?: string;          // maps to model inference_types when different from id (e.g. "audio2text" for id "aud2txt")
   params: EndpointParam[];
 }
 

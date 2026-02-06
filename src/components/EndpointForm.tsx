@@ -106,7 +106,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     const modelParam = endpoint.params.find((p) => p.name === 'model');
     if (!modelParam) return;
 
-    const inferenceType = endpoint.id;
+    const inferenceType = endpoint.inferenceType ?? endpoint.id;
     const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
 
     setValues((prev) => {
@@ -117,7 +117,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       }
       return prev;
     });
-  }, [models, endpoint.id, endpoint.params]);
+  }, [models, endpoint.id, endpoint.inferenceType, endpoint.params]);
 
   // Auto-apply model defaults when model selection changes
   useEffect(() => {
@@ -341,7 +341,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   // Get dynamic select options from model data
   const getDynamicSelectOptions = useCallback((paramName: string): { value: string; label: string }[] | undefined => {
     if (paramName === 'model') {
-      const inferenceType = endpoint.id;
+      const inferenceType = endpoint.inferenceType ?? endpoint.id;
       const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
       if (filteredModels.length > 0) {
         return filteredModels.map((m) => ({ value: m.slug, label: m.name }));
@@ -374,7 +374,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     }
 
     return undefined;
-  }, [endpoint.id, models, selectedModel, values]);
+  }, [endpoint.id, endpoint.inferenceType, models, selectedModel, values]);
 
   const buildFilteredValues = useCallback((): Record<string, JsonValue> => {
     const filteredValues: Record<string, JsonValue> = {};
