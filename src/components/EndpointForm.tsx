@@ -139,12 +139,8 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           }
         }
       });
-      if (defaults.negative_prompt !== undefined) {
-        const supportsNeg = features['supports_negative_prompt'] !== false;
-        if (supportsNeg) {
-          newValues['negative_prompt'] = defaults.negative_prompt as string;
-        }
-      }
+      // Skip negative_prompt defaults — API returns placeholder text like "Negative prompt"
+      // which is not a useful default value. Users should fill this in themselves.
       // Auto-set lang/voice defaults for TTS
       if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
       if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
@@ -287,9 +283,6 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           newValues[field] = defaults[field] as number;
         }
       });
-      if (defaults.negative_prompt !== undefined && modelSupportsField('negative_prompt')) {
-        newValues['negative_prompt'] = defaults.negative_prompt as string;
-      }
       if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
       if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
       if (defaults.format !== undefined) newValues['format'] = defaults.format as string;
