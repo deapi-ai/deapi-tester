@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import Image from 'next/image';
 import { Settings, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/components/ThemeContext';
@@ -28,6 +28,23 @@ export default function Home() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Auto-open settings drawer when no API token is configured
+  useEffect(() => {
+    fetch('/api/config')
+      .then(res => res.json())
+      .then(data => {
+        const activeProfile = data.profiles?.find(
+          (p: { id: string; hasToken: boolean }) => p.id === data.activeProfileId
+        );
+        if (activeProfile && !activeProfile.hasToken) {
+          setIsConfigOpen(true);
+        }
+      })
+      .catch(() => {
+        // Silently fail — config might not be ready yet
+      });
+  }, []);
 
   const handleSubmit = async (params: Record<string, JsonValue>, formData?: FormData) => {
     setIsSubmitting(true);

@@ -12,6 +12,8 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unif
 - **Job History** - Persistent history of all requests with status, cost, and results
 - **Result Preview** - Inline previews for images, videos, and audio
 - **Download Manager** - Save generated results to local directory
+- **Output Picker** - Reuse previously downloaded images as input (e.g. use txt2img result in img2img)
+- **Random Prompts** - Dice button fills in creative prompts for quick testing
 - **Balance Display** - Track your deAPI credit balance
 - **Multi-Profile Config** - Multiple API profiles for different environments (production, staging, etc.)
 - **Light/Dark Theme** - Toggle between light and dark mode with system preference support
@@ -36,10 +38,21 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unif
 
 ```bash
 # Clone the repository
-git clone <repo-url>
-cd deapi-tester
+git clone https://github.com/deapi-ai/deapi-develop-tester.git
+cd deapi-develop-tester
+```
 
-# Install dependencies
+### Docker (recommended)
+
+```bash
+docker compose up -d
+```
+
+Open [http://localhost:1337](http://localhost:1337) — enter your API token in the settings drawer that opens automatically.
+
+### Manual
+
+```bash
 npm install
 
 # Start development server
@@ -111,6 +124,7 @@ deapi-tester/
 │   │   │   ├── config/           # Configuration management
 │   │   │   ├── models/           # Proxy to deAPI /models
 │   │   │   ├── balance/          # Proxy to deAPI /balance
+│   │   │   ├── files/            # List/serve files from output dir
 │   │   │   └── download/         # Download results
 │   ├── components/
 │   │   ├── Providers.tsx         # Root providers (Contexts + Toast)
@@ -131,7 +145,8 @@ deapi-tester/
 │   │   ├── PriceCalculator.tsx   # Cost pre-calculator
 │   │   ├── form/                 # Form field components
 │   │   │   ├── FormField.tsx     # Generic form field renderer
-│   │   │   └── FileUploadField.tsx # File upload with preview
+│   │   │   ├── FileUploadField.tsx # File upload with preview
+│   │   │   └── OutputPicker.tsx  # Pick images from output directory
 │   │   └── jobs/                 # Job-related components
 │   │       ├── JobRow.tsx        # Single job row
 │   │       └── JobLogsView.tsx   # Logs view
@@ -147,7 +162,8 @@ deapi-tester/
 │       ├── types.ts              # TypeScript types
 │       ├── constants.ts          # Shared constants
 │       ├── format-utils.ts       # Formatting utilities
-│       └── form-utils.ts         # Form utilities
+│       ├── form-utils.ts         # Form utilities
+│       └── sample-prompts.ts     # Random prompt data
 ├── data/                         # Local storage (auto-created, git-ignored)
 ├── output/                       # Downloaded results (git-ignored)
 └── ...

@@ -210,8 +210,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
         body: JSON.stringify({ outputDir: config.outputDir }),
       });
       if (!res.ok) throw new Error('Failed to save settings');
-      setSuccess(true);
-      setTimeout(() => setSuccess(false), 2000);
+      onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to save settings');
     } finally {
