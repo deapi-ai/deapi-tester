@@ -1,6 +1,31 @@
 {
   "name": "deapi-tester",
   "version": "0.1.0",
+  "description": "Local developer testing app for deAPI.ai — unified AI inference API for image generation, video creation, audio synthesis and more",
+  "author": {
+    "name": "deAPI",
+    "url": "https://deapi.ai"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deapi-ai/deapi-develop-tester.git"
+  },
+  "homepage": "https://github.com/deapi-ai/deapi-develop-tester",
+  "bugs": {
+    "url": "https://github.com/deapi-ai/deapi-develop-tester/issues"
+  },
+  "keywords": [
+    "deapi",
+    "ai",
+    "inference",
+    "api-tester",
+    "image-generation",
+    "video-generation",
+    "text-to-speech",
+    "developer-tool",
+    "nextjs"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",

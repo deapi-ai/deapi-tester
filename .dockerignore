@@ -1,0 +1,16 @@
+node_modules
+.next
+.git
+.github
+.claude
+.vscode
+.env*.local
+data/config.json
+data/history.json
+output
+*.md
+!README.md
+LICENSE
+.DS_Store
+nul
+npm-debug.log*

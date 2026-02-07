@@ -1,0 +1,71 @@
+# deAPI — Unified AI Inference API
+
+> One API to access all AI models. Image generation, video creation, text-to-speech, transcription, OCR, embeddings and more.
+
+## What is deAPI?
+
+deAPI.ai is a unified AI inference API that gives developers access to multiple AI models through a single endpoint. Instead of integrating separately with Stability AI, Replicate, ElevenLabs, OpenAI and others, developers use one API — deAPI — to access all of them.
+
+deAPI runs on a decentralized GPU network, offering cost-effective AI inference compared to traditional cloud providers.
+
+Website: https://deapi.ai
+API documentation: https://docs.deapi.ai
+Full API reference for LLMs: https://docs.deapi.ai/llms-full.txt
+
+## Supported Capabilities
+
+- **Image Generation** — Text-to-image (txt2img) and image-to-image (img2img) with models like Flux, Stable Diffusion, and more
+- **Video Generation** — Text-to-video (txt2video) and image-to-video (img2video) with models like Kling, Minimax, and more
+- **Text-to-Speech** — High-quality speech synthesis with multiple voices and languages
+- **Transcription** — Audio, video, YouTube, Twitch, X Spaces, and Kick stream transcription
+- **OCR** — Optical character recognition from images
+- **Image Utilities** — Upscale, remove background, style transfer
+- **Embeddings** — Text-to-embedding generation
+- **Prompt Enhancement** — AI-powered prompt optimization for image, video, and speech
+
+New models and capabilities are added continuously — no client-side code changes needed.
+
+## How the API Works
+
+All endpoints are asynchronous. A request returns a `request_id`, and results can be retrieved via:
+1. **Webhooks** (recommended) — Automatic delivery with retries
+2. **WebSockets** — Real-time updates with live previews
+3. **Polling** — Manual status checks via `/request-status`
+
+Base URL: `https://api.deapi.ai`
+Authentication: Bearer token in Authorization header.
+
+## Pricing
+
+Pay-per-use model. New accounts receive $5 free credit. Each endpoint has a price calculator to estimate costs before sending requests. Full pricing details at https://docs.deapi.ai.
+
+## Integrations
+
+- **MCP Server** — Use deAPI from AI assistants and IDEs (Claude, Cursor, etc.)
+- **Claude Code Skills** — Generate images, videos, audio, transcribe and more directly from terminal: https://github.com/deapi-ai/claude-code-skills
+- **n8n Integration** — Workflow automation with deAPI nodes
+- **deAPI Tester** — Open-source web UI for testing all endpoints with dynamic forms, job tracking and result preview: https://github.com/deapi-ai/deapi-develop-tester
+
+## Available Models
+
+Models are auto-discovered via the `/models` API endpoint. Current categories include:
+- Image generation: Flux (Schnell, Dev, Pro), Stable Diffusion, and more
+- Video generation: Kling, Minimax, and more
+- TTS: Multiple providers with various voices and languages
+- Transcription: Whisper-based models
+- OCR, upscaling, background removal, embeddings
+
+The model list grows as new providers are onboarded — no API changes required.
+
+## Links
+
+- Website: https://deapi.ai
+- API Documentation: https://docs.deapi.ai
+- API Reference (LLM-readable): https://docs.deapi.ai/llms-full.txt
+- Claude Code Skills: https://github.com/deapi-ai/claude-code-skills
+- deAPI Tester (this repo): https://github.com/deapi-ai/deapi-develop-tester
+- Support: https://docs.deapi.ai (FAQ & contact)
+
+## License
+
+This repository (deAPI Tester) is MIT licensed.

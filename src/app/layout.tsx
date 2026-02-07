@@ -3,8 +3,37 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
-  title: 'deAPI Tester',
-  description: 'Local developer testing app for deAPI.ai endpoints',
+  title: 'deAPI Tester — Test AI Inference Endpoints',
+  description:
+    'Local developer tool for testing deAPI.ai endpoints. Generate images, videos, audio and more with dynamic forms, async job tracking, and result preview.',
+  keywords: [
+    'deapi',
+    'ai inference',
+    'api tester',
+    'image generation',
+    'video generation',
+    'text to speech',
+    'developer tool',
+  ],
+  authors: [{ name: 'deAPI', url: 'https://deapi.ai' }],
+  openGraph: {
+    title: 'deAPI Tester — Test AI Inference Endpoints',
+    description:
+      'Test deAPI.ai endpoints locally with dynamic forms, async job tracking, price calculator and result preview.',
+    type: 'website',
+    url: 'https://github.com/deapi-ai/deapi-develop-tester',
+    siteName: 'deAPI Tester',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'deAPI Tester — Test AI Inference Endpoints',
+    description:
+      'Test deAPI.ai endpoints locally with dynamic forms, async job tracking, price calculator and result preview.',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/apple-touch-icon.png',
+  },
 };
 
 export default function RootLayout({
