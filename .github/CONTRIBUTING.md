@@ -5,8 +5,8 @@ Thanks for your interest in contributing!
 ## Development Setup
 
 ```bash
-git clone https://github.com/deapi-ai/deapi-develop-tester.git
-cd deapi-develop-tester
+git clone https://github.com/deapi-ai/deapi-tester.git
+cd deapi-tester
 npm install
 npm run dev
 ```
@@ -35,7 +35,7 @@ See the [Adding New Endpoints](../README.md#adding-new-endpoints) section in the
 
 ## Reporting Bugs
 
-Use [GitHub Issues](https://github.com/deapi-ai/deapi-develop-tester/issues) and include:
+Use [GitHub Issues](https://github.com/deapi-ai/deapi-tester/issues) and include:
 - Description of the bug
 - Steps to reproduce
 - Expected vs actual behavior

@@ -44,7 +44,7 @@ Pay-per-use model. New accounts receive $5 free credit. Each endpoint has a pric
 - **MCP Server** — Use deAPI from AI assistants and IDEs (Claude, Cursor, etc.)
 - **Claude Code Skills** — Generate images, videos, audio, transcribe and more directly from terminal: https://github.com/deapi-ai/claude-code-skills
 - **n8n Integration** — Workflow automation with deAPI nodes
-- **deAPI Tester** — Open-source web UI for testing all endpoints with dynamic forms, job tracking and result preview: https://github.com/deapi-ai/deapi-develop-tester
+- **deAPI Tester** — Open-source web UI for testing all endpoints with dynamic forms, job tracking and result preview: https://github.com/deapi-ai/deapi-tester
 
 ## Available Models
 
@@ -63,7 +63,7 @@ The model list grows as new providers are onboarded — no API changes required.
 - API Documentation: https://docs.deapi.ai
 - API Reference (LLM-readable): https://docs.deapi.ai/llms-full.txt
 - Claude Code Skills: https://github.com/deapi-ai/claude-code-skills
-- deAPI Tester (this repo): https://github.com/deapi-ai/deapi-develop-tester
+- deAPI Tester (this repo): https://github.com/deapi-ai/deapi-tester
 - Support: https://docs.deapi.ai (FAQ & contact)
 
 ## License
