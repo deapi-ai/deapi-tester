@@ -3,6 +3,9 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
+  ),
   title: 'deAPI Tester — Test AI Inference Endpoints',
   description:
     'Local developer tool for testing deAPI.ai endpoints. Generate images, videos, audio and more with dynamic forms, async job tracking, and result preview.',
