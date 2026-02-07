@@ -4,7 +4,7 @@ import { Providers } from '@/components/Providers';
 
 export const metadata: Metadata = {
   metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'https://github.com/deapi-ai/deapi-tester'
+    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
   ),
   title: 'deAPI Tester — Test AI Inference Endpoints',
   description:
