@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     description:
       'Test deAPI.ai endpoints locally with dynamic forms, async job tracking, price calculator and result preview.',
     type: 'website',
-    url: 'https://github.com/deapi-ai/deapi-develop-tester',
+    url: 'https://github.com/deapi-ai/deapi-tester',
     siteName: 'deAPI Tester',
   },
   twitter: {

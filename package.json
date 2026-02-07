@@ -9,11 +9,11 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/deapi-ai/deapi-develop-tester.git"
+    "url": "https://github.com/deapi-ai/deapi-tester.git"
   },
-  "homepage": "https://github.com/deapi-ai/deapi-develop-tester",
+  "homepage": "https://github.com/deapi-ai/deapi-tester",
   "bugs": {
-    "url": "https://github.com/deapi-ai/deapi-develop-tester/issues"
+    "url": "https://github.com/deapi-ai/deapi-tester/issues"
   },
   "keywords": [
     "deapi",

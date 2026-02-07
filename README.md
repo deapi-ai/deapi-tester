@@ -49,8 +49,8 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints — un
 
 ```bash
 # Clone the repository
-git clone https://github.com/deapi-ai/deapi-develop-tester.git
-cd deapi-develop-tester
+git clone https://github.com/deapi-ai/deapi-tester.git
+cd deapi-tester
 ```
 
 ### Docker (recommended)
@@ -233,4 +233,4 @@ Contributions are welcome! Please read the [Contributing Guide](.github/CONTRIBU
 - [deAPI.ai](https://deapi.ai) — Unified AI inference API
 - [API Documentation](https://docs.deapi.ai) — Full endpoint reference, auth, webhooks, WebSockets
 - [Claude Code Skills](https://github.com/deapi-ai/claude-code-skills) — Use deAPI directly from Claude Code terminal (generate images, videos, audio, transcribe and more)
-- [Report a Bug](https://github.com/deapi-ai/deapi-develop-tester/issues)
+- [Report a Bug](https://github.com/deapi-ai/deapi-tester/issues)
