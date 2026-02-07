@@ -10,7 +10,6 @@ data/history.json
 output
 *.md
 !README.md
-LICENSE
 .DS_Store
 nul
 npm-debug.log*
