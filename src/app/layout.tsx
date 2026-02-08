@@ -2,10 +2,23 @@ import type { Metadata } from 'next';
 import './globals.css';
 import { Providers } from '@/components/Providers';
 
+function getMetadataBaseUrl(): string {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+  if (!siteUrl) {
+    return 'http://localhost:3000';
+  }
+  // Ensure URL has a protocol
+  if (!/^https?:\/\//i.test(siteUrl)) {
+    console.warn(
+      `NEXT_PUBLIC_SITE_URL missing protocol, defaulting to localhost: ${siteUrl}`
+    );
+    return 'http://localhost:3000';
+  }
+  return siteUrl;
+}
+
 export const metadata: Metadata = {
-  metadataBase: new URL(
-    process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'
-  ),
+  metadataBase: new URL(getMetadataBaseUrl()),
   title: 'deAPI Tester — Test AI Inference Endpoints',
   description:
     'Local developer tool for testing deAPI.ai endpoints. Generate images, videos, audio and more with dynamic forms, async job tracking, and result preview.',
@@ -24,7 +37,6 @@ export const metadata: Metadata = {
     description:
       'Test deAPI.ai endpoints locally with dynamic forms, async job tracking, price calculator and result preview.',
     type: 'website',
-    url: 'https://github.com/deapi-ai/deapi-tester',
     siteName: 'deAPI Tester',
     images: ['/og-image.png'],
   },
