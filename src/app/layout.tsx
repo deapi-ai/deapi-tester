@@ -3,18 +3,33 @@ import './globals.css';
 import { Providers } from '@/components/Providers';
 
 function getMetadataBaseUrl(): string {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!siteUrl) {
-    return 'http://localhost:3000';
+  const fallback = 'http://localhost:3000';
+  const rawSiteUrl = process.env.NEXT_PUBLIC_SITE_URL;
+
+  if (!rawSiteUrl) {
+    return fallback;
   }
-  // Ensure URL has a protocol
-  if (!/^https?:\/\//i.test(siteUrl)) {
+
+  let normalized = rawSiteUrl.trim();
+
+  // Ensure URL has a protocol; default to https, or http for localhost/127.0.0.1
+  if (!/^https?:\/\//i.test(normalized)) {
+    const isLocalHostLike = /^localhost(:\d+)?$/i.test(normalized) || /^127\.0\.0\.1(:\d+)?$/i.test(normalized);
+    const protocol = isLocalHostLike ? 'http://' : 'https://';
+    normalized = protocol + normalized;
+  }
+
+  try {
+    // Validate that the resulting string is a proper URL
+    // eslint-disable-next-line no-new
+    new URL(normalized);
+    return normalized;
+  } catch {
     console.warn(
-      `NEXT_PUBLIC_SITE_URL ('${siteUrl}') missing protocol. Using default: http://localhost:3000`
+      `Invalid NEXT_PUBLIC_SITE_URL ('${rawSiteUrl}'). Falling back to ${fallback}`
     );
-    return 'http://localhost:3000';
+    return fallback;
   }
-  return siteUrl;
 }
 
 export const metadata: Metadata = {
