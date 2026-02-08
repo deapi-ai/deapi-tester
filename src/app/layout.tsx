@@ -10,7 +10,7 @@ function getMetadataBaseUrl(): string {
   // Ensure URL has a protocol
   if (!/^https?:\/\//i.test(siteUrl)) {
     console.warn(
-      `NEXT_PUBLIC_SITE_URL missing protocol, defaulting to localhost: ${siteUrl}`
+      `NEXT_PUBLIC_SITE_URL ('${siteUrl}') missing protocol. Using default: http://localhost:3000`
     );
     return 'http://localhost:3000';
   }
