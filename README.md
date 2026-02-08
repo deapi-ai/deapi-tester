@@ -1,6 +1,17 @@
 # deAPI Tester
 
-A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unified AI inference API for image generation, video creation, audio synthesis, and more.
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js 18.18.0+](https://img.shields.io/badge/Node.js-18.18.0%2B-green.svg)](https://nodejs.org/)
+[![Next.js 15](https://img.shields.io/badge/Next.js-15-black.svg)](https://nextjs.org/)
+[![Docker](https://img.shields.io/badge/Docker-ready-blue.svg)](https://www.docker.com/)
+
+A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints — unified AI inference API for image generation, video creation, audio synthesis, and more.
+
+> **What is deAPI?** A single API to access multiple AI models (Stable Diffusion, Flux, Kling, Minimax, etc.) for image generation, video creation, text-to-speech, transcription and more. Learn more at [deapi.ai](https://deapi.ai).
+
+## Screenshot
+
+![deAPI Tester — Dark Mode](docs/screenshot-dark.png)
 
 ## Features
 
@@ -38,8 +49,8 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints - unif
 
 ```bash
 # Clone the repository
-git clone https://github.com/deapi-ai/deapi-develop-tester.git
-cd deapi-develop-tester
+git clone https://github.com/deapi-ai/deapi-tester.git
+cd deapi-tester
 ```
 
 ### Docker (recommended)
@@ -204,11 +215,22 @@ The form is automatically generated. Model options, limits, and defaults are loa
 - Adding a new model to deAPI requires **zero code changes** — it auto-appears in the UI
 - Configuration and history are stored in local JSON files
 
+## Contributing
+
+Contributions are welcome! Please read the [Contributing Guide](.github/CONTRIBUTING.md) before submitting a PR.
+
+1. Fork the repository
+2. Create your branch: `git checkout -b feature/my-feature`
+3. Commit your changes
+4. Push and open a Pull Request
+
 ## License
 
-MIT
+[MIT](LICENSE)
 
-## Links
+## deAPI Ecosystem
 
-- [deAPI.ai](https://deapi.ai) - AI inference API
-- [deAPI Documentation](https://docs.deapi.ai) - API documentation
+- [deAPI.ai](https://deapi.ai) — Unified AI inference API
+- [API Documentation](https://docs.deapi.ai) — Full endpoint reference, auth, webhooks, WebSockets
+- [Claude Code Skills](https://github.com/deapi-ai/claude-code-skills) — Use deAPI directly from Claude Code terminal (generate images, videos, audio, transcribe and more)
+- [Report a Bug](https://github.com/deapi-ai/deapi-tester/issues)

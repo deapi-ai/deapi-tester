@@ -1,6 +1,34 @@
 {
   "name": "deapi-tester",
   "version": "0.1.0",
+  "description": "Local developer testing app for deAPI.ai — unified AI inference API for image generation, video creation, audio synthesis and more",
+  "author": {
+    "name": "deAPI",
+    "url": "https://deapi.ai"
+  },
+  "license": "MIT",
+  "engines": {
+    "node": ">=18.18.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/deapi-ai/deapi-tester.git"
+  },
+  "homepage": "https://github.com/deapi-ai/deapi-tester",
+  "bugs": {
+    "url": "https://github.com/deapi-ai/deapi-tester/issues"
+  },
+  "keywords": [
+    "deapi",
+    "ai",
+    "inference",
+    "api-tester",
+    "image-generation",
+    "video-generation",
+    "text-to-speech",
+    "developer-tool",
+    "nextjs"
+  ],
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -20,7 +48,7 @@
     "@types/react-dom": "^19.2.3",
     "autoprefixer": "^10.4.17",
     "eslint": "^8.56.0",
-    "eslint-config-next": "^14.2.0",
+    "eslint-config-next": "^15.5.12",
     "postcss": "^8.4.35",
     "tailwindcss": "^3.4.1",
     "typescript": "^5.3.3"
