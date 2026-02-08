@@ -7,6 +7,9 @@
     "url": "https://deapi.ai"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/deapi-ai/deapi-tester.git"
