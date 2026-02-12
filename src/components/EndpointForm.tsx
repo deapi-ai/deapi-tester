@@ -181,34 +181,50 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   }, [models]);
 
   const handleFileChange = useCallback(async (name: string, file: File | File[] | null) => {
-    setImagePreviews((prev) => {
-      const oldPreviews = prev[name];
-      if (oldPreviews) {
-        oldPreviews.forEach((p) => URL.revokeObjectURL(p.url));
-      }
-      const newPreviews = { ...prev };
-      delete newPreviews[name];
-      return newPreviews;
-    });
-
     if (file) {
-      setFiles((prev) => ({ ...prev, [name]: file }));
+      const incomingFiles = Array.isArray(file) ? file : [file];
+      const isMulti = Array.isArray(file);
 
-      const fileArray = Array.isArray(file) ? file : [file];
-      const imageFiles = fileArray.filter((f) => f.type.startsWith('image/'));
+      // In multi mode, append to existing files
+      const mergedFiles = isMulti
+        ? [...(Array.isArray(files[name]) ? files[name] as File[] : files[name] ? [files[name] as File] : []), ...incomingFiles]
+        : incomingFiles;
 
+      setFiles((prev) => ({ ...prev, [name]: isMulti ? mergedFiles : mergedFiles[0] }));
+
+      const imageFiles = incomingFiles.filter((f) => f.type.startsWith('image/'));
       if (imageFiles.length > 0) {
-        const previews = await Promise.all(imageFiles.map(generateImagePreview));
-        setImagePreviews((prev) => ({ ...prev, [name]: previews }));
+        const newPreviews = await Promise.all(imageFiles.map(generateImagePreview));
+        setImagePreviews((prev) => ({
+          ...prev,
+          [name]: isMulti ? [...(prev[name] || []), ...newPreviews] : newPreviews,
+        }));
+      } else if (!isMulti) {
+        // Single mode non-image: clear old previews
+        setImagePreviews((prev) => {
+          const old = prev[name];
+          if (old) old.forEach((p) => URL.revokeObjectURL(p.url));
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
       }
     } else {
+      // Clear all
+      setImagePreviews((prev) => {
+        const old = prev[name];
+        if (old) old.forEach((p) => URL.revokeObjectURL(p.url));
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      });
       setFiles((prev) => {
         const newFiles = { ...prev };
         delete newFiles[name];
         return newFiles;
       });
     }
-  }, []);
+  }, [files]);
 
   const toggleNullable = useCallback((name: string, disabled: boolean) => {
     setNullableDisabled((prev) => ({ ...prev, [name]: disabled }));
