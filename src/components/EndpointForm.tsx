@@ -12,6 +12,7 @@ import {
   generateImagePreview,
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
+  UNSUPPORTED_FIELD_FALLBACKS,
 } from '@/lib/form-utils';
 import { getRandomPrompt } from '@/lib/sample-prompts';
 
@@ -132,11 +133,12 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setValues((prev) => {
       const newValues = { ...prev };
       DEFAULTABLE_FIELDS.forEach((field) => {
-        if (defaults[field] !== undefined) {
-          const featureName = FIELD_TO_FEATURE_MAP[field];
-          if (!featureName || features[featureName] !== false) {
-            newValues[field] = defaults[field] as number;
-          }
+        const featureName = FIELD_TO_FEATURE_MAP[field];
+        if (featureName && features[featureName] === false) {
+          // Feature not supported — use model default or field-specific fallback
+          newValues[field] = (defaults[field] as number) ?? UNSUPPORTED_FIELD_FALLBACKS[field] ?? 0;
+        } else if (defaults[field] !== undefined) {
+          newValues[field] = defaults[field] as number;
         }
       });
       // Skip negative_prompt defaults — API returns placeholder text like "Negative prompt"
@@ -154,7 +156,8 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       DEFAULTABLE_FIELDS.forEach((field) => {
         const featureName = FIELD_TO_FEATURE_MAP[field];
         if (featureName && features[featureName] === false) {
-          newDisabled[field] = true;
+          // Don't disable — value is set to a valid fallback, keep field visible
+          newDisabled[field] = false;
         } else if (defaults[field] !== undefined) {
           newDisabled[field] = false;
         }
@@ -295,7 +298,10 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     setValues((prev) => {
       const newValues = { ...prev };
       DEFAULTABLE_FIELDS.forEach((field) => {
-        if (defaults[field] !== undefined && modelSupportsField(field)) {
+        if (!modelSupportsField(field)) {
+          // Feature not supported — use model default or field-specific fallback
+          newValues[field] = (defaults[field] as number) ?? UNSUPPORTED_FIELD_FALLBACKS[field] ?? 0;
+        } else if (defaults[field] !== undefined) {
           newValues[field] = defaults[field] as number;
         }
       });
@@ -310,7 +316,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       const newDisabled = { ...prev };
       DEFAULTABLE_FIELDS.forEach((field) => {
         if (!modelSupportsField(field)) {
-          newDisabled[field] = true;
+          newDisabled[field] = false;
         } else if (defaults[field] !== undefined) {
           newDisabled[field] = false;
         }

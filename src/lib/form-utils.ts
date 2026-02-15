@@ -58,6 +58,16 @@ export const FIELD_TO_FEATURE_MAP: Record<string, string> = {
 };
 
 /**
+ * Fallback values for unsupported fields when model provides no default.
+ * guidance=0: API requires guidance but unsupported models need 0.
+ * steps=8: some distilled models require fixed steps (e.g. LTX2 needs exactly 8).
+ */
+export const UNSUPPORTED_FIELD_FALLBACKS: Record<string, number> = {
+  guidance: 1,
+  steps: 8,
+};
+
+/**
  * Fields that can have model defaults
  */
 export const DEFAULTABLE_FIELDS = [
