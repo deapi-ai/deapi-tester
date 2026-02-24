@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
-import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
+import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
@@ -46,6 +46,29 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
   const prevModelSlugRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
+
+  // Resolve lang/voice default values (API returns names, selects use slugs)
+  const resolveLangSlug = useCallback((value: string, model: DeApiModel | undefined): string => {
+    if (!model?.languages) return value;
+    const match = model.languages.find((l) => l.slug === value || l.name === value);
+    return match ? match.slug : value;
+  }, []);
+
+  const resolveVoiceSlug = useCallback((value: string, langSlug: string, model: DeApiModel | undefined): string => {
+    if (!model?.languages) return value;
+    const normalizedLangSlug = resolveLangSlug(langSlug, model);
+    const lang = model.languages.find((l) => l.slug === normalizedLangSlug);
+    if (lang) {
+      const match = lang.voices.find((v) => v.slug === value || v.name === value);
+      return match ? match.slug : value;
+    }
+    // Search all languages as fallback
+    for (const l of model.languages) {
+      const match = l.voices.find((v) => v.slug === value || v.name === value);
+      if (match) return match.slug;
+    }
+    return value;
+  }, [resolveLangSlug]);
 
   // Get model defaults/limits/features from API data
   const modelDefaults =
@@ -141,9 +164,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       });
       // Skip negative_prompt defaults — API returns placeholder text like "Negative prompt"
       // which is not a useful default value. Users should fill this in themselves.
-      // Auto-set lang/voice defaults for TTS
-      if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
-      if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
+      // Auto-set lang/voice defaults for TTS (resolve names to slugs)
+      if (defaults.lang !== undefined) {
+        newValues['lang'] = resolveLangSlug(defaults.lang as string, selectedModel);
+      }
+      if (defaults.voice !== undefined) {
+        const langSlug = (newValues['lang'] ?? '') as string;
+        newValues['voice'] = resolveVoiceSlug(defaults.voice as string, langSlug, selectedModel);
+      }
       if (defaults.format !== undefined) newValues['format'] = defaults.format as string;
       if (defaults.sample_rate !== undefined) newValues['sample_rate'] = defaults.sample_rate as number;
       return newValues;
@@ -161,7 +189,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       });
       return newDisabled;
     });
-  }, [selectedModelSlug, selectedModel]);
+  }, [selectedModelSlug, selectedModel, resolveLangSlug, resolveVoiceSlug]);
 
   const handleChange = useCallback((name: string, value: JsonValue) => {
     setValues((prev) => {
@@ -299,8 +327,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
           newValues[field] = defaults[field] as number;
         }
       });
-      if (defaults.lang !== undefined) newValues['lang'] = defaults.lang as string;
-      if (defaults.voice !== undefined) newValues['voice'] = defaults.voice as string;
+      // Resolve names to slugs for TTS defaults
+      if (defaults.lang !== undefined) {
+        newValues['lang'] = resolveLangSlug(defaults.lang as string, selectedModel);
+      }
+      if (defaults.voice !== undefined) {
+        const langSlug = (newValues['lang'] ?? '') as string;
+        newValues['voice'] = resolveVoiceSlug(defaults.voice as string, langSlug, selectedModel);
+      }
       if (defaults.format !== undefined) newValues['format'] = defaults.format as string;
       if (defaults.sample_rate !== undefined) newValues['sample_rate'] = defaults.sample_rate as number;
       return newValues;
@@ -317,7 +351,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       });
       return newDisabled;
     });
-  }, [modelDefaults, modelSupportsField]);
+  }, [modelDefaults, modelSupportsField, selectedModel, resolveLangSlug, resolveVoiceSlug]);
 
   // Get effective param with model limits/defaults applied
   const getEffectiveParam = useCallback((param: EndpointParam): EndpointParam => {
@@ -366,20 +400,18 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
     if (paramName === 'voice' && selectedModel.languages) {
       const selectedLang = values['lang'] as string;
-      const language = selectedModel.languages.find((l) => l.slug === selectedLang);
+      // Also try matching by name (API defaults may use name instead of slug)
+      const language = selectedModel.languages.find(
+        (l) => l.slug === selectedLang || l.name === selectedLang
+      );
       if (language) {
         return language.voices.map((v) => ({
           value: v.slug,
           label: `${v.name} (${v.gender === 'female' ? 'F' : 'M'})`,
         }));
       }
-      // Fallback: show all voices grouped by language
-      return selectedModel.languages.flatMap((l) =>
-        l.voices.map((v) => ({
-          value: v.slug,
-          label: `${v.name} (${l.slug.toUpperCase()}, ${v.gender === 'female' ? 'F' : 'M'})`,
-        }))
-      );
+      // No language selected yet — return empty (defaults effect will set lang shortly)
+      return [];
     }
 
     return undefined;
