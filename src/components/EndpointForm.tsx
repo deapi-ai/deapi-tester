@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
-import { EndpointDefinition, EndpointParam, JsonValue } from '@/lib/types';
+import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
@@ -48,15 +48,16 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const savedModelsRef = useRef<Record<string, string>>({});
 
   // Resolve lang/voice default values (API returns names, selects use slugs)
-  const resolveLangSlug = useCallback((value: string, model: typeof selectedModel): string => {
+  const resolveLangSlug = useCallback((value: string, model: DeApiModel | undefined): string => {
     if (!model?.languages) return value;
     const match = model.languages.find((l) => l.slug === value || l.name === value);
     return match ? match.slug : value;
   }, []);
 
-  const resolveVoiceSlug = useCallback((value: string, langSlug: string, model: typeof selectedModel): string => {
+  const resolveVoiceSlug = useCallback((value: string, langSlug: string, model: DeApiModel | undefined): string => {
     if (!model?.languages) return value;
-    const lang = model.languages.find((l) => l.slug === langSlug);
+    const normalizedLangSlug = resolveLangSlug(langSlug, model);
+    const lang = model.languages.find((l) => l.slug === normalizedLangSlug);
     if (lang) {
       const match = lang.voices.find((v) => v.slug === value || v.name === value);
       return match ? match.slug : value;
@@ -67,7 +68,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       if (match) return match.slug;
     }
     return value;
-  }, []);
+  }, [resolveLangSlug]);
 
   // Get model defaults/limits/features from API data
   const modelDefaults =
