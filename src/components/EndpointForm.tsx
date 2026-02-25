@@ -417,19 +417,32 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     return undefined;
   }, [endpoint.id, endpoint.inferenceType, models, selectedModel, values]);
 
+  // Check if a field should be visible based on visibleWhen condition
+  const isFieldVisible = useCallback((param: EndpointParam): boolean => {
+    if (!param.visibleWhen) return true;
+    const currentValue = values[param.visibleWhen.field];
+    return param.visibleWhen.values.includes(currentValue as string);
+  }, [values]);
+
   const buildFilteredValues = useCallback((): Record<string, JsonValue> => {
     const filteredValues: Record<string, JsonValue> = {};
     Object.entries(values).forEach(([key, value]) => {
+      // Exclude hidden fields from payload
+      const param = endpoint.params.find(p => p.name === key);
+      if (param?.visibleWhen && !isFieldVisible(param)) return;
+
       if (value !== null) {
         // Split into array if arrayMode is on for this field
         if (arrayMode[key] && typeof value === 'string') {
           filteredValues[key] = value.split('\n').map(s => s.trim()).filter(Boolean);
+        } else if (param?.valueType === 'number' && typeof value === 'string' && value !== '') {
+          // Convert string select values to numbers when valueType requires it
+          filteredValues[key] = Number(value);
         } else {
           filteredValues[key] = value;
         }
       } else {
         // For disabled nullable fields, send model default or param default
-        const param = endpoint.params.find(p => p.name === key);
         // Try model default first, then param default
         if (modelDefaults) {
           const defaults = modelDefaults as Record<string, unknown>;
@@ -444,7 +457,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       }
     });
     return filteredValues;
-  }, [values, endpoint.params, modelDefaults, arrayMode]);
+  }, [values, endpoint.params, modelDefaults, arrayMode, isFieldVisible]);
 
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
@@ -499,6 +512,8 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
 
       Object.entries(files).forEach(([key, fileOrFiles]) => {
         const param = endpoint.params.find((p) => p.name === key);
+        // Skip hidden file fields
+        if (param?.visibleWhen && !isFieldVisible(param)) return;
         const isMultiMode = param?.multiFieldName && multiFileMode[key];
         const fieldName = isMultiMode && param?.multiFieldName ? param.multiFieldName : key;
 
@@ -517,13 +532,14 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     }
   };
 
-  // Categorize params for layout
+  // Categorize params for layout (excluding hidden fields)
   const { promptParams, fileParams, selectParams, booleanParams, compactParams, otherParams } = useMemo(
     () => {
       const skip = isRequestStatusEndpoint ? ['request_id'] : [];
-      return categorizeParams(endpoint.params, skip);
+      const visibleParams = endpoint.params.filter((p) => isFieldVisible(p));
+      return categorizeParams(visibleParams, skip);
     },
-    [endpoint.params, isRequestStatusEndpoint]
+    [endpoint.params, isRequestStatusEndpoint, isFieldVisible]
   );
 
   return (

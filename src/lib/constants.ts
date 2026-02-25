@@ -58,4 +58,9 @@ export const COMPACT_FORM_FIELDS = [
   'voice',
   'format',
   'sample_rate',
+  // txt2music
+  'duration',
+  'bpm',
+  'inference_steps',
+  'guidance_scale',
 ];
