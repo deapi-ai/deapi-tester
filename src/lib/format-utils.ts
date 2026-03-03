@@ -59,7 +59,7 @@ export function getResultType(endpointId: string): 'image' | 'video' | 'audio' |
   if (endpointId.includes('video')) {
     return 'video';
   }
-  if (endpointId.includes('audio') || endpointId.includes('txt2audio')) {
+  if (endpointId.includes('audio') || endpointId.includes('txt2audio') || endpointId.includes('music')) {
     return 'audio';
   }
   return 'other';
