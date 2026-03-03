@@ -19,7 +19,7 @@ export interface EndpointParam {
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
-  visibleWhen?: { field: string; values: string[] };  // conditional visibility based on another field's value
+  visibleWhen?: { field: string; values: string[]; matchEmpty?: boolean };  // conditional visibility based on another field's value
   valueType?: 'number';  // for select fields: convert string value to number in payload
 }
 

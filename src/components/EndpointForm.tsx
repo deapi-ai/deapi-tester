@@ -421,6 +421,9 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const isFieldVisible = useCallback((param: EndpointParam): boolean => {
     if (!param.visibleWhen) return true;
     const currentValue = values[param.visibleWhen.field];
+    if (param.visibleWhen.matchEmpty && (currentValue === null || currentValue === undefined || currentValue === '')) {
+      return true;
+    }
     return param.visibleWhen.values.includes(currentValue as string);
   }, [values]);
 
