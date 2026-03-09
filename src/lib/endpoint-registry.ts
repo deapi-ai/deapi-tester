@@ -269,7 +269,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
   },
 
   {
-    id: 'aud2video',
+    id: 'audio2video',
     name: 'Audio to Video',
     group: 'video-generation',
     method: 'POST',
