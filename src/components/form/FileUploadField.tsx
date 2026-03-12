@@ -202,6 +202,17 @@ export function FileUploadField({
             />
           </label>
 
+          {fileCount > 0 && !isImageAccept && (
+            <button
+              type="button"
+              onClick={() => onFileChange(name, null)}
+              className="flex items-center justify-center w-8 h-8 bg-[var(--surface-2)] border border-[var(--border)] rounded hover:border-red-500 hover:bg-red-500/10 transition-colors flex-shrink-0"
+              title="Remove file"
+            >
+              <X className="w-3.5 h-3.5 text-[var(--muted)]" />
+            </button>
+          )}
+
           {isImageAccept && (
             <button
               type="button"
