@@ -416,13 +416,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
       },
       stepsParam(),
       seedParam(),
-      {
-        name: 'duration',
-        label: 'Duration (s)',
-        type: 'number',
-        required: false,
-        description: 'Input video duration in seconds (for price calculation)',
-      },
     ],
   },
 

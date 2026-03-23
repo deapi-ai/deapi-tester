@@ -471,15 +471,43 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
     try {
       const filteredValues = buildFilteredValues();
 
-      const res = await fetch('/api/proxy', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...filteredValues,
-          _endpointId: endpoint.id,
-          _priceCalc: true,
-        }),
-      });
+      let res: Response;
+
+      // For multipart endpoints with files, send as FormData (includes files for price calc)
+      const hasFiles = Object.keys(files).length > 0;
+      if (endpoint.contentType === 'multipart' && hasFiles) {
+        const formData = new FormData();
+        formData.append('_endpointId', endpoint.id);
+        formData.append('_priceCalc', 'true');
+
+        Object.entries(filteredValues).forEach(([key, value]) => {
+          if (value !== undefined && value !== '') {
+            formData.append(key, String(value));
+          }
+        });
+
+        Object.entries(files).forEach(([key, fileOrFiles]) => {
+          const param = endpoint.params.find((p) => p.name === key);
+          if (param?.visibleWhen && !isFieldVisible(param)) return;
+          if (Array.isArray(fileOrFiles)) {
+            fileOrFiles.forEach((file) => formData.append(key, file));
+          } else {
+            formData.append(key, fileOrFiles);
+          }
+        });
+
+        res = await fetch('/api/proxy', { method: 'POST', body: formData });
+      } else {
+        res = await fetch('/api/proxy', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            ...filteredValues,
+            _endpointId: endpoint.id,
+            _priceCalc: true,
+          }),
+        });
+      }
 
       const data = await res.json();
 
