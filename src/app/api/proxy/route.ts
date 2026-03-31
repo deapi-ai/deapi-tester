@@ -86,8 +86,9 @@ export async function POST(request: Request) {
     let bodyForLog: JsonValue;
 
     if (endpoint.contentType === 'multipart' && formData) {
-      // Remove our internal field
+      // Remove our internal fields
       formData.delete('_endpointId');
+      formData.delete('_priceCalc');
       fetchOptions = {
         method: endpoint.method,
         headers,
