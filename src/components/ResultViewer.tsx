@@ -22,17 +22,17 @@ export function ResultViewer({ resultUrl, resultData, endpointId, jobId }: Resul
   }
 
   const getResultType = (): ResultType => {
+    if (endpointId.includes('2txt') || endpointId.includes('ocr')) {
+      return 'text';
+    }
+    if (endpointId.includes('video') || endpointId.startsWith('vid-')) {
+      return 'video';
+    }
     if (endpointId.includes('txt2img') || endpointId.includes('img2img') || endpointId.includes('rmbg') || endpointId.includes('upscale')) {
       return 'image';
     }
-    if (endpointId.includes('video')) {
-      return 'video';
-    }
     if (endpointId.includes('audio') || endpointId.includes('txt2audio')) {
       return 'audio';
-    }
-    if (endpointId.includes('2txt') || endpointId.includes('ocr')) {
-      return 'text';
     }
     return 'json';
   };

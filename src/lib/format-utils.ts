@@ -48,6 +48,14 @@ export function formatCost(cost: number): string {
  * Determine result type based on endpoint ID
  */
 export function getResultType(endpointId: string): 'image' | 'video' | 'audio' | 'other' {
+  // Transcription endpoints return text, not media
+  if (endpointId.includes('2txt') || endpointId.includes('2text')) {
+    return 'other';
+  }
+  // Video results - checked before 'upscale' so vid-upscale routes correctly
+  if (endpointId.includes('video') || endpointId.startsWith('vid-')) {
+    return 'video';
+  }
   if (
     endpointId.includes('txt2img') ||
     endpointId.includes('img2img') ||
@@ -55,9 +63,6 @@ export function getResultType(endpointId: string): 'image' | 'video' | 'audio' |
     endpointId.includes('upscale')
   ) {
     return 'image';
-  }
-  if (endpointId.includes('video')) {
-    return 'video';
   }
   if (endpointId.includes('audio') || endpointId.includes('txt2audio') || endpointId.includes('music')) {
     return 'audio';
