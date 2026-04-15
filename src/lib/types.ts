@@ -153,6 +153,9 @@ export interface ModelLimits {
   resolution_step?: number;
   available_ratios?: number[];
   max_input_images?: number;
+  min_scale?: number;
+  max_scale?: number;
+  max_video_duration_seconds?: number;
 }
 
 export interface ModelDefaults {

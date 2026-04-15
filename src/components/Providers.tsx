@@ -5,15 +5,18 @@ import { ThemeProvider } from './ThemeContext';
 import { ToastProvider } from './Toast';
 import { BalanceProvider } from './BalanceContext';
 import { ModelsProvider } from './ModelsContext';
+import { SettingsProvider } from './SettingsContext';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider>
-      <BalanceProvider>
-        <ModelsProvider>
-          <ToastProvider>{children}</ToastProvider>
-        </ModelsProvider>
-      </BalanceProvider>
+      <SettingsProvider>
+        <BalanceProvider>
+          <ModelsProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </ModelsProvider>
+        </BalanceProvider>
+      </SettingsProvider>
     </ThemeProvider>
   );
 }
