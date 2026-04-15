@@ -14,7 +14,7 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     id: 'video-generation',
     label: 'Video Generation',
     icon: '🎬',
-    description: 'Text-to-Video, Image-to-Video, Video Replace',
+    description: 'Text-to-Video, Image-to-Video, Video Replace, Video Upscale',
   },
   {
     id: 'audio-generation',
@@ -416,6 +416,38 @@ export const ENDPOINTS: EndpointDefinition[] = [
       },
       stepsParam(),
       seedParam(),
+    ],
+  },
+
+  {
+    id: 'vid-upscale',
+    name: 'Video Upscale',
+    group: 'video-generation',
+    method: 'POST',
+    path: '/vid-upscale',
+    description: 'Upscale video resolution',
+    contentType: 'multipart',
+    isAsync: true,
+    hasPriceCalc: true,
+    priceCalcPath: '/vid-upscale/price-calculation',
+    params: [
+      {
+        name: 'video',
+        label: 'Input Video',
+        type: 'file',
+        required: true,
+        accept: 'video/*,.mp4,.mpeg,.mov,.avi,.wmv,.ogg',
+        description: 'Input video file to upscale (MP4, MPEG, QuickTime, AVI, WMV, OGG)',
+      },
+      modelSelectParam(),
+      {
+        name: 'scale',
+        label: 'Scale',
+        type: 'number',
+        required: false,
+        nullable: true,
+        description: 'Upscale factor (e.g. 2 for 2x). Empty = model default.',
+      },
     ],
   },
 
