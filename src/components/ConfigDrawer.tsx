@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { X, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
+import { useSettings } from './SettingsContext';
 
 interface ProfileState {
   id: string;
@@ -27,6 +28,7 @@ interface ConfigDrawerProps {
 export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
   const { balance, refreshBalance, isLoading: isBalanceLoading } = useBalance();
   const { refreshModels } = useModelsContext();
+  const { strictValidation, setStrictValidation } = useSettings();
   const [config, setConfig] = useState<ConfigState>({
     activeProfileId: '',
     profiles: [],
@@ -465,6 +467,22 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                 />
                 <p className="mt-1 text-[11px] text-[var(--text-faint)]">
                   Where downloaded results will be saved
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={strictValidation}
+                    onChange={e => setStrictValidation(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
+                  />
+                  <span className="text-sm text-[var(--text-secondary)]">Strict form validation</span>
+                </label>
+                <p className="mt-1 text-[11px] text-[var(--text-faint)]">
+                  When on, enforces model min/max limits on numeric fields and file type restrictions.
+                  Turn off to send any value to the API for debugging.
                 </p>
               </div>
             </div>

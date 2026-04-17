@@ -4,6 +4,7 @@ import { useState, useRef, DragEvent } from 'react';
 import { Upload, X, FolderOpen } from 'lucide-react';
 import { formatFileSize } from '@/lib/format-utils';
 import { OutputPicker } from './OutputPicker';
+import { useSettings } from '../SettingsContext';
 
 interface ImagePreview {
   url: string;
@@ -40,6 +41,7 @@ export function FileUploadField({
   onRemoveFile,
   onModeChange,
 }: FileUploadFieldProps) {
+  const { strictValidation } = useSettings();
   const [pickerOpen, setPickerOpen] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
   const dragCounter = useRef(0);
@@ -186,7 +188,7 @@ export function FileUploadField({
             )}
             <input
               type="file"
-              accept={accept}
+              accept={strictValidation ? accept : undefined}
               multiple={isMultiMode}
               onChange={(e) => {
                 const selectedFiles = e.target.files;

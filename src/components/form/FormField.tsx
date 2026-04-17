@@ -2,6 +2,7 @@
 
 import { Dices } from 'lucide-react';
 import { EndpointParam, JsonValue } from '@/lib/types';
+import { useSettings } from '../SettingsContext';
 
 interface FormFieldProps {
   param: EndpointParam;
@@ -24,6 +25,7 @@ export function FormField({
   onValueChange,
   onNullableToggle,
 }: FormFieldProps) {
+  const { strictValidation } = useSettings();
   const baseClass = compact
     ? 'w-full rounded px-2 py-1 text-xs'
     : 'w-full rounded px-2 py-1.5 text-sm';
@@ -81,8 +83,8 @@ export function FormField({
             value={isNullableDisabled ? '' : value !== undefined && value !== null ? String(value) : ''}
             onChange={(e) => onValueChange(param.name, e.target.value ? Number(e.target.value) : null)}
             placeholder={isNullableDisabled ? 'disabled' : param.placeholder}
-            min={param.min}
-            max={param.max}
+            min={strictValidation ? param.min : undefined}
+            max={strictValidation ? param.max : undefined}
             step={param.step}
             className={`${baseClass} font-mono flex-1 ${isNullableDisabled ? 'opacity-40 cursor-not-allowed' : ''}`}
             disabled={isNullableDisabled}

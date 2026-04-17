@@ -16,7 +16,7 @@ export async function GET() {
       );
     }
 
-    const url = `${config.apiUrl.replace(/\/$/, '')}/models`;
+    const url = `${config.apiUrl.replace(/\/$/, '')}/models?limit=50`;
     const response = await fetch(url, {
       headers: {
         'Authorization': `Bearer ${config.apiToken}`,

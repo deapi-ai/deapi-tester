@@ -182,6 +182,9 @@ function renderLimitPairs(limits: ModelLimits) {
   if (limits.min_speed !== undefined || limits.max_speed !== undefined) {
     pairs.push({ label: 'Speed', min: limits.min_speed, max: limits.max_speed });
   }
+  if (limits.min_scale !== undefined || limits.max_scale !== undefined) {
+    pairs.push({ label: 'Scale', min: limits.min_scale, max: limits.max_scale });
+  }
 
   const elements: React.ReactNode[] = [];
 
@@ -225,6 +228,12 @@ function renderLimitPairs(limits: ModelLimits) {
     elements.push(
       <div key="input-images-label" className="text-[var(--muted)]">Max images:</div>,
       <div key="input-images-value" className="text-[var(--text-secondary)] font-mono">{limits.max_input_images}</div>
+    );
+  }
+  if (limits.max_video_duration_seconds !== undefined) {
+    elements.push(
+      <div key="video-duration-label" className="text-[var(--muted)]">Max duration:</div>,
+      <div key="video-duration-value" className="text-[var(--text-secondary)] font-mono">{limits.max_video_duration_seconds}s</div>
     );
   }
   if (limits.available_ratios && limits.available_ratios.length > 0) {
