@@ -23,14 +23,20 @@ interface ImagePreview {
   size: number;
 }
 
+interface FormPrefill {
+  params: Record<string, JsonValue>;
+  nonce: number;
+}
+
 interface EndpointFormProps {
   endpoint: EndpointDefinition;
+  prefill?: FormPrefill | null;
   onSubmit: (params: Record<string, JsonValue>, formData?: FormData) => void;
   onPriceCheck?: () => void;
   isSubmitting: boolean;
 }
 
-export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }: EndpointFormProps) {
+export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubmitting }: EndpointFormProps) {
   const [values, setValues] = useState<Record<string, JsonValue>>({});
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
@@ -46,6 +52,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
   const prevModelSlugRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
+  const appliedPrefillRef = useRef<number | undefined>(undefined);
 
   // Resolve lang/voice default values (API returns names, selects use slugs)
   const resolveLangSlug = useCallback((value: string, model: DeApiModel | undefined): string => {
@@ -190,6 +197,55 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       return newDisabled;
     });
   }, [selectedModelSlug, selectedModel, resolveLangSlug, resolveVoiceSlug]);
+
+  // Apply a "duplicate request" prefill — load params from a history job into the form.
+  // Declared after the init / auto-select / auto-default effects so it runs last and its
+  // values win. Keyed on a one-shot nonce so it never re-applies on later re-renders.
+  useEffect(() => {
+    if (!prefill || prefill.nonce === appliedPrefillRef.current) return;
+    appliedPrefillRef.current = prefill.nonce;
+
+    const source = prefill.params;
+    const newValues: Record<string, JsonValue> = {};
+    const newNullableDisabled: Record<string, boolean> = {};
+    const newArrayMode: Record<string, boolean> = {};
+
+    endpoint.params.forEach((param) => {
+      // Files can't be restored from history — user must re-upload them.
+      if (param.type === 'file') return;
+
+      let value: JsonValue | undefined = source[param.name];
+      // Skip file placeholder strings the proxy logs for multipart fields (e.g. "[File: x.png]").
+      if (typeof value === 'string' && value.startsWith('[File:')) value = undefined;
+
+      if (value !== undefined) {
+        if (param.supportsArray && Array.isArray(value)) {
+          // Array values came from "array mode" — restore them as newline-separated text.
+          newValues[param.name] = value.join('\n');
+          newArrayMode[param.name] = true;
+        } else {
+          newValues[param.name] = value;
+        }
+      } else if (param.default !== undefined) {
+        newValues[param.name] = param.default;
+      }
+
+      if (param.nullable) {
+        const v = newValues[param.name];
+        newNullableDisabled[param.name] = v === null || v === undefined;
+      }
+    });
+
+    setValues(newValues);
+    setFiles({});
+    setNullableDisabled(newNullableDisabled);
+    setArrayMode(newArrayMode);
+    setMultiFileMode({});
+    setPriceResult(null);
+    // Mark the prefilled model as "already applied" so the auto-default effect does not
+    // overwrite the restored numeric fields (steps/width/height/etc.).
+    prevModelSlugRef.current = (newValues['model'] as string | undefined) ?? undefined;
+  }, [prefill, endpoint.params]);
 
   const handleChange = useCallback((name: string, value: JsonValue) => {
     setValues((prev) => {

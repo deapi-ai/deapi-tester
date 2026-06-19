@@ -985,3 +985,15 @@ export function getEndpointsByGroup(group: string): EndpointDefinition[] {
 export function getEndpointById(id: string): EndpointDefinition | undefined {
   return ENDPOINTS.find(e => e.id === id);
 }
+
+// Helper: get endpoint by the value stored as Job.endpointId.
+// The proxy stores the API path without its leading slash (e.g. "aud2video",
+// "videos/replace"), which often differs from the registry id (e.g. "audio2video",
+// "video-replace"). Used to map a history job back to its endpoint definition.
+export function getEndpointByApiPath(apiPath: string): EndpointDefinition | undefined {
+  const normalized = apiPath.replace(/^\//, '');
+  const byPath = ENDPOINTS.find(e => e.path.replace(/^\//, '') === normalized);
+  if (byPath) return byPath;
+  // Fallback: some jobs may have been stored using the registry id directly
+  return ENDPOINTS.find(e => e.id === normalized);
+}
