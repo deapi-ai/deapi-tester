@@ -12,10 +12,11 @@ import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
 import { useModelsContext } from '@/components/ModelsContext';
 import { getEndpointByApiPath } from '@/lib/endpoint-registry';
-import { EndpointDefinition, Job, JsonValue } from '@/lib/types';
+import { EndpointDefinition, Job, JsonValue, UploadedFile } from '@/lib/types';
 
 interface FormPrefill {
   params: Record<string, JsonValue>;
+  uploadedFiles?: UploadedFile[];
   nonce: number;
 }
 
@@ -47,7 +48,7 @@ export default function Home() {
       return;
     }
     setSelectedEndpoint(endpoint);
-    setPrefill({ params: job.params, nonce: Date.now() });
+    setPrefill({ params: job.params, uploadedFiles: job.uploadedFiles, nonce: Date.now() });
     showSuccess(`Loaded "${endpoint.name}" request — review and execute`);
   };
 

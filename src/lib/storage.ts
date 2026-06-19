@@ -1,4 +1,5 @@
 import { Job } from './types';
+import { cleanupOrphanUploads, deleteAllUploads } from './upload-storage';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -94,14 +95,17 @@ export function deleteJob(id: string): boolean {
     return false;
   }
 
-  history.splice(index, 1);
+  const [removed] = history.splice(index, 1);
   saveHistory(history);
+  // Remove uploaded files this job referenced, unless another job still uses them
+  cleanupOrphanUploads(removed, history);
   return true;
 }
 
 // Clear all history
 export function clearHistory(): void {
   saveHistory([]);
+  deleteAllUploads();
 }
 
 // Get jobs filtered by status
