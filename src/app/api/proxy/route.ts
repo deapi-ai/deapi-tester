@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
 import { addJob, generateJobId, updateJob } from '@/lib/storage';
+import { saveUploadedFile } from '@/lib/upload-storage';
 import { getEndpointById } from '@/lib/endpoint-registry';
-import { Job, JsonValue } from '@/lib/types';
+import { Job, JsonValue, UploadedFile } from '@/lib/types';
 
 // POST /api/proxy - Proxy request to deAPI
 export async function POST(request: Request) {
@@ -11,6 +12,7 @@ export async function POST(request: Request) {
     let endpointId: string;
     let params: Record<string, JsonValue>;
     let formData: FormData | null = null;
+    const fileEntries: { field: string; file: File }[] = [];
 
     // Parse request based on content type
     if (contentType.includes('multipart/form-data')) {
@@ -24,6 +26,7 @@ export async function POST(request: Request) {
           params[key] = value;
         } else if (value instanceof File) {
           params[key] = `[File: ${value.name}]`;
+          fileEntries.push({ field: key, file: value });
         }
       });
     } else {
@@ -161,6 +164,18 @@ export async function POST(request: Request) {
       }
     }
 
+    // Persist uploaded files (content-addressed) so the request can be duplicated
+    // later with its files intact. Skip for price-only requests. Reading a File's
+    // bytes does not consume it, so formData is still sent to deAPI below.
+    let uploadedFiles: UploadedFile[] | undefined;
+    if (!isPriceCalc && fileEntries.length > 0) {
+      uploadedFiles = [];
+      for (const { field, file } of fileEntries) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        uploadedFiles.push(saveUploadedFile(buffer, file.name, file.type, field));
+      }
+    }
+
     // Create job entry before making request
     const jobId = generateJobId();
     // Store the actual API path (without leading slash) as endpointId
@@ -176,6 +191,7 @@ export async function POST(request: Request) {
         headers: { ...headers, Authorization: 'Bearer ***' }, // Mask token in logs
         body: bodyForLog,
       },
+      uploadedFiles,
       status: 'pending',
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,

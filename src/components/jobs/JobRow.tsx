@@ -1,6 +1,6 @@
 'use client';
 
-import { ChevronRight, ExternalLink, Download, Trash2, Loader2 } from 'lucide-react';
+import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
 import { formatTime, formatCost, getResultType } from '@/lib/format-utils';
@@ -40,6 +40,7 @@ interface JobRowProps {
   onOpenResult: (url: string) => void;
   onDownload: (job: Job, resultUrl: string) => void;
   onDelete: (jobId: string) => void;
+  onDuplicate: (job: Job) => void;
 }
 
 export function JobRow({
@@ -54,6 +55,7 @@ export function JobRow({
   onOpenResult,
   onDownload,
   onDelete,
+  onDuplicate,
 }: JobRowProps) {
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
   const resultType = getResultType(job.endpointId);
@@ -273,6 +275,14 @@ export function JobRow({
               </button>
             </>
           )}
+
+          <button
+            onClick={() => onDuplicate(job)}
+            className="p-1.5 text-[var(--muted)] hover:text-blue-400 transition-colors"
+            title="Duplicate request — load these parameters into the form"
+          >
+            <Copy className="w-3.5 h-3.5" />
+          </button>
 
           <button
             onClick={() => onDelete(job.id)}

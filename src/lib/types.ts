@@ -59,6 +59,16 @@ export interface EndpointGroupMeta {
 // Generic JSON type for API responses
 export type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
 
+// An uploaded file persisted to disk (content-addressed), so a multipart
+// request can be duplicated with its files intact. Stored on the Job.
+export interface UploadedFile {
+  field: string;        // form field name as sent (e.g. "image", "images[]", "ref_audio")
+  fileName: string;     // original file name
+  storedName: string;   // on-disk name: "<sha256>.<ext>" (dedup key for ref-counting)
+  mimeType: string;
+  size: number;         // bytes
+}
+
 // Job / history
 export interface Job {
   id: string;                      // uuid
@@ -72,6 +82,7 @@ export interface Job {
     body: JsonValue;
   };
   rawResponse?: JsonValue;         // raw HTTP response from deAPI
+  uploadedFiles?: UploadedFile[];  // persisted multipart uploads (for duplicate)
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   resultUrl?: string;              // result URL from deAPI
   localPath?: string;              // path to downloaded file

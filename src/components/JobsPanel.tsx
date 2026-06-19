@@ -13,6 +13,10 @@ export interface JobsPanelRef {
   selectJob: (jobId: string) => void;
 }
 
+interface JobsPanelProps {
+  onDuplicate: (job: Job) => void;
+}
+
 interface PollUpdate {
   timestamp: number;
   attempt: number;
@@ -38,7 +42,7 @@ interface DownloadState {
 
 type ViewMode = 'list' | 'logs';
 
-export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_props, ref) {
+export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsPanel({ onDuplicate }, ref) {
   const { showError, showSuccess } = useToast();
   const { refreshBalance } = useBalance();
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -408,6 +412,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, object>(function JobsPanel(_pr
                   onOpenResult={handleOpenResult}
                   onDownload={handleDownload}
                   onDelete={handleDelete}
+                  onDuplicate={onDuplicate}
                 />
               ))}
             </div>

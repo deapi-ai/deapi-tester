@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
-import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel } from '@/lib/types';
+import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel, UploadedFile } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
@@ -23,14 +23,21 @@ interface ImagePreview {
   size: number;
 }
 
+interface FormPrefill {
+  params: Record<string, JsonValue>;
+  uploadedFiles?: UploadedFile[];
+  nonce: number;
+}
+
 interface EndpointFormProps {
   endpoint: EndpointDefinition;
+  prefill?: FormPrefill | null;
   onSubmit: (params: Record<string, JsonValue>, formData?: FormData) => void;
   onPriceCheck?: () => void;
   isSubmitting: boolean;
 }
 
-export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }: EndpointFormProps) {
+export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubmitting }: EndpointFormProps) {
   const [values, setValues] = useState<Record<string, JsonValue>>({});
   const [files, setFiles] = useState<Record<string, File | File[]>>({});
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
@@ -46,6 +53,7 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
   const prevModelSlugRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
+  const appliedPrefillRef = useRef<number | undefined>(undefined);
 
   // Resolve lang/voice default values (API returns names, selects use slugs)
   const resolveLangSlug = useCallback((value: string, model: DeApiModel | undefined): string => {
@@ -190,6 +198,114 @@ export function EndpointForm({ endpoint, onSubmit, onPriceCheck, isSubmitting }:
       return newDisabled;
     });
   }, [selectedModelSlug, selectedModel, resolveLangSlug, resolveVoiceSlug]);
+
+  // Apply a "duplicate request" prefill — load params from a history job into the form.
+  // Declared after the init / auto-select / auto-default effects so it runs last and its
+  // values win. Keyed on a one-shot nonce so it never re-applies on later re-renders.
+  useEffect(() => {
+    if (!prefill || prefill.nonce === appliedPrefillRef.current) return;
+    appliedPrefillRef.current = prefill.nonce;
+
+    const source = prefill.params;
+    const newValues: Record<string, JsonValue> = {};
+    const newNullableDisabled: Record<string, boolean> = {};
+    const newArrayMode: Record<string, boolean> = {};
+
+    endpoint.params.forEach((param) => {
+      // Files can't be restored from history — user must re-upload them.
+      if (param.type === 'file') return;
+
+      let value: JsonValue | undefined = source[param.name];
+      // Skip file placeholder strings the proxy logs for multipart fields (e.g. "[File: x.png]").
+      if (typeof value === 'string' && value.startsWith('[File:')) value = undefined;
+
+      if (value !== undefined) {
+        if (param.supportsArray && Array.isArray(value)) {
+          // Array values came from "array mode" — restore them as newline-separated text.
+          newValues[param.name] = value.join('\n');
+          newArrayMode[param.name] = true;
+        } else {
+          newValues[param.name] = value;
+        }
+      } else if (param.default !== undefined) {
+        newValues[param.name] = param.default;
+      }
+
+      if (param.nullable) {
+        const v = newValues[param.name];
+        newNullableDisabled[param.name] = v === null || v === undefined;
+      }
+    });
+
+    setValues(newValues);
+    setFiles({});
+    setNullableDisabled(newNullableDisabled);
+    setArrayMode(newArrayMode);
+    setMultiFileMode({});
+    setPriceResult(null);
+    setImagePreviews((prev) => {
+      Object.values(prev).flat().forEach((p) => URL.revokeObjectURL(p.url));
+      return {};
+    });
+    // Mark the prefilled model as "already applied" so the auto-default effect does not
+    // overwrite the restored numeric fields (steps/width/height/etc.).
+    prevModelSlugRef.current = (newValues['model'] as string | undefined) ?? undefined;
+
+    // Restore persisted multipart files (async) so duplicated requests keep uploads.
+    const uploaded = prefill.uploadedFiles;
+    if (uploaded && uploaded.length > 0) {
+      const thisNonce = prefill.nonce;
+      const fileParamsList = endpoint.params.filter((p) => p.type === 'file');
+      (async () => {
+        const restoredFiles: Record<string, File | File[]> = {};
+        const restoredPreviews: Record<string, ImagePreview[]> = {};
+        const restoredMultiMode: Record<string, boolean> = {};
+
+        for (const param of fileParamsList) {
+          const matches = uploaded.filter(
+            (u) => u.field === param.name || (!!param.multiFieldName && u.field === param.multiFieldName)
+          );
+          if (matches.length === 0) continue;
+
+          const isMulti =
+            matches.length > 1 ||
+            (!!param.multiFieldName && matches.some((m) => m.field === param.multiFieldName));
+
+          const fetched: File[] = [];
+          for (const m of matches) {
+            try {
+              const res = await fetch(`/api/uploads/${encodeURIComponent(m.storedName)}`);
+              if (!res.ok) continue;
+              const blob = await res.blob();
+              fetched.push(new File([blob], m.fileName, { type: m.mimeType }));
+            } catch {
+              // skip files that can't be restored
+            }
+          }
+          if (fetched.length === 0) continue;
+          // A newer prefill superseded this one mid-fetch — abandon stale work
+          if (appliedPrefillRef.current !== thisNonce) return;
+
+          restoredFiles[param.name] = isMulti ? fetched : fetched[0];
+          if (isMulti && param.multiFieldName) restoredMultiMode[param.name] = true;
+
+          const images = fetched.filter((f) => f.type.startsWith('image/'));
+          if (images.length > 0) {
+            restoredPreviews[param.name] = await Promise.all(images.map(generateImagePreview));
+          }
+        }
+
+        if (appliedPrefillRef.current !== thisNonce) return;
+        if (Object.keys(restoredFiles).length > 0) setFiles(restoredFiles);
+        if (Object.keys(restoredPreviews).length > 0) {
+          setImagePreviews((prev) => ({ ...prev, ...restoredPreviews }));
+        }
+        if (Object.keys(restoredMultiMode).length > 0) {
+          setMultiFileMode((prev) => ({ ...prev, ...restoredMultiMode }));
+        }
+      })();
+    }
+  }, [prefill, endpoint.params]);
 
   const handleChange = useCallback((name: string, value: JsonValue) => {
     setValues((prev) => {

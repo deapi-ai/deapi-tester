@@ -11,7 +11,14 @@ import { JobsPanel, JobsPanelRef } from '@/components/JobsPanel';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
 import { useModelsContext } from '@/components/ModelsContext';
-import { EndpointDefinition, JsonValue } from '@/lib/types';
+import { getEndpointByApiPath } from '@/lib/endpoint-registry';
+import { EndpointDefinition, Job, JsonValue, UploadedFile } from '@/lib/types';
+
+interface FormPrefill {
+  params: Record<string, JsonValue>;
+  uploadedFiles?: UploadedFile[];
+  nonce: number;
+}
 
 interface ProxyResponse {
   success: boolean;
@@ -22,14 +29,28 @@ interface ProxyResponse {
 }
 
 export default function Home() {
-  const { showError } = useToast();
+  const { showError, showSuccess } = useToast();
   const { balance } = useBalance();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { refreshModels, isLoading: modelsLoading } = useModelsContext();
   const jobsPanelRef = useRef<JobsPanelRef>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
+  const [prefill, setPrefill] = useState<FormPrefill | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Duplicate a request from history: select its endpoint and preload its params
+  // into the form so the user can tweak and re-run without rebuilding from scratch.
+  const handleDuplicate = (job: Job) => {
+    const endpoint = getEndpointByApiPath(job.endpointId);
+    if (!endpoint) {
+      showError(`Cannot duplicate: unknown endpoint "${job.endpointId}"`);
+      return;
+    }
+    setSelectedEndpoint(endpoint);
+    setPrefill({ params: job.params, uploadedFiles: job.uploadedFiles, nonce: Date.now() });
+    showSuccess(`Loaded "${endpoint.name}" request — review and execute`);
+  };
 
   // Auto-open settings drawer when no API token is configured
   useEffect(() => {
@@ -140,6 +161,7 @@ export default function Home() {
             {selectedEndpoint ? (
               <EndpointForm
                 endpoint={selectedEndpoint}
+                prefill={prefill}
                 onSubmit={handleSubmit}
                 onPriceCheck={() => jobsPanelRef.current?.refresh()}
                 isSubmitting={isSubmitting}
@@ -164,6 +186,7 @@ export default function Home() {
           <div className="flex-1 min-h-0 overflow-hidden">
             <JobsPanel
               ref={jobsPanelRef}
+              onDuplicate={handleDuplicate}
             />
           </div>
         </div>

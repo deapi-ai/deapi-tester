@@ -43,6 +43,7 @@ next-env.d.ts
 # local data files (contain sensitive keys and user history)
 /data/config.json
 /data/history.json
+/data/uploads
 
 # local vscode settings
 .vscode/settings.json
