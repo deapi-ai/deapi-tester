@@ -103,7 +103,7 @@ deapi-tester/
 - Adding new model to deAPI = ZERO code changes (auto-discovered via /models API)
 
 ## deAPI Base URL
-- Production: https://api.deapi.ai/api/v1/client/
+- Production: https://api.deapi.ai/api/v2 (API v2)
 - Dev: configurable in settings (via profiles)
 
 ## Configuration (Multi-Profile)
@@ -117,7 +117,7 @@ The app supports multiple configuration profiles for different API keys/environm
     {
       "id": "default",
       "name": "Production",
-      "apiUrl": "https://api.deapi.ai/api/v1/client",
+      "apiUrl": "https://api.deapi.ai/api/v2",
       "apiToken": "xxx"
     },
     {

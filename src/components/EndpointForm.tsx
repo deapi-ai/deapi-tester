@@ -10,6 +10,7 @@ import { FileUploadField } from '@/components/form/FileUploadField';
 import {
   categorizeParams,
   generateImagePreview,
+  modelMatchesInferenceType,
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
@@ -138,7 +139,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     if (!modelParam) return;
 
     const inferenceType = endpoint.inferenceType ?? endpoint.id;
-    const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
+    const filteredModels = models.filter((m) => modelMatchesInferenceType(m, inferenceType));
 
     setValues((prev) => {
       const currentModel = prev['model'] as string | undefined;
@@ -501,7 +502,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
   const getDynamicSelectOptions = useCallback((paramName: string): { value: string; label: string }[] | undefined => {
     if (paramName === 'model') {
       const inferenceType = endpoint.inferenceType ?? endpoint.id;
-      const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
+      const filteredModels = models.filter((m) => modelMatchesInferenceType(m, inferenceType));
       if (filteredModels.length > 0) {
         return filteredModels.map((m) => ({ value: m.slug, label: m.name }));
       }

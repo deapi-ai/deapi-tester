@@ -28,13 +28,13 @@ export interface EndpointDefinition {
   name: string;
   group: EndpointGroup;
   method: 'GET' | 'POST';
-  path: string;                    // e.g. "/txt2img"
+  path: string;                    // e.g. "/images/generations"
   description: string;
   contentType: 'json' | 'multipart';
   isAsync: boolean;                // returns request_id for polling
   hasPriceCalc: boolean;           // has price-calculation endpoint
-  priceCalcPath?: string;          // e.g. "/txt2img/price-calculation"
-  inferenceType?: string;          // maps to model inference_types when different from id (e.g. "audio2text" for id "aud2txt")
+  priceCalcPath?: string;          // e.g. "/images/generations/price"
+  inferenceType?: string;          // maps to model inference_types when different from id (e.g. "vid_upscale" for id "vid-upscale")
   params: EndpointParam[];
 }
 
@@ -193,7 +193,8 @@ export interface ModelInfo {
 export interface DeApiModel {
   name: string;
   slug: string;
-  inference_types: string[];
+  // v2 returns this as an object keyed by inference type; v1 returned a string array.
+  inference_types: string[] | Record<string, unknown>;
   info: ModelInfo | [];
   loras?: ModelLora[];
   languages?: ModelLanguage[];

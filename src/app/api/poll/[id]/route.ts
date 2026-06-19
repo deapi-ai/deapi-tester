@@ -33,7 +33,7 @@ export async function GET(
           attempts++;
 
           // Fetch status from deAPI
-          const resultUrl = `${config.apiUrl.replace(/\/$/, '')}/request-status/${requestId}`;
+          const resultUrl = `${config.apiUrl.replace(/\/$/, '')}/jobs/${requestId}`;
           const response = await fetch(resultUrl, {
             headers: {
               'Authorization': `Bearer ${config.apiToken}`,

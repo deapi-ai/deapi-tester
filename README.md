@@ -93,7 +93,7 @@ Edit `.env.local`:
 
 ```env
 DEAPI_API_TOKEN=your_token_here
-DEAPI_API_URL=https://api.deapi.ai/api/v1/client
+DEAPI_API_URL=https://api.deapi.ai/api/v2
 DEAPI_OUTPUT_DIR=./output
 DEAPI_POLLING_INTERVAL_MS=2000
 DEAPI_MAX_POLLING_ATTEMPTS=120

@@ -13,7 +13,7 @@ function generateProfileId(): string {
 const DEFAULT_PROFILE: ConfigProfile = {
   id: 'default',
   name: 'Default',
-  apiUrl: 'https://api.deapi.ai/api/v1/client',
+  apiUrl: 'https://api.deapi.ai/api/v2',
   apiToken: '',
 };
 

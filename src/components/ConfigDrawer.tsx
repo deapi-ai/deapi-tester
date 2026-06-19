@@ -37,7 +37,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState({ name: '', apiUrl: '', apiToken: '' });
   const [isAddingProfile, setIsAddingProfile] = useState(false);
-  const [newProfileForm, setNewProfileForm] = useState({ name: '', apiUrl: 'https://api.deapi.ai/api/v1/client', apiToken: '' });
+  const [newProfileForm, setNewProfileForm] = useState({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -159,7 +159,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
         outputDir: data.config.outputDir,
       });
       setIsAddingProfile(false);
-      setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v1/client', apiToken: '' });
+      setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch (err) {
@@ -435,7 +435,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                     <button
                       onClick={() => {
                         setIsAddingProfile(false);
-                        setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v1/client', apiToken: '' });
+                        setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
                       }}
                       className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-xs"
                     >

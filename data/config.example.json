@@ -1,5 +1,5 @@
 {
-  "apiUrl": "https://api.deapi.ai/api/v1/client",
+  "apiUrl": "https://api.deapi.ai/api/v2",
   "apiToken": "your-token-here",
   "outputDir": "./output",
   "pollingIntervalMs": 2000,

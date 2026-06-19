@@ -83,7 +83,7 @@ export async function PUT(request: Request) {
           }
           const newProfile = addProfile({
             name,
-            apiUrl: apiUrl || 'https://api.deapi.ai/api/v1/client',
+            apiUrl: apiUrl || 'https://api.deapi.ai/api/v2',
             apiToken: apiToken || '',
           });
           const config = loadFullConfig();
