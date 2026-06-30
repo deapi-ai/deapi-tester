@@ -85,7 +85,10 @@ export interface Job {
   rawResponse?: JsonValue;         // raw HTTP response from deAPI
   rawResponseHeaders?: Record<string, string>; // response HTTP headers from deAPI (submit response)
   uploadedFiles?: UploadedFile[];  // persisted multipart uploads (for duplicate)
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  // 'sending' is a tester-internal status: the job is persisted the moment the
+  // user clicks Execute and stays 'sending' until the proxy responds (the API's
+  // request_id / 'pending'/'processing' status is not known yet).
+  status: 'sending' | 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   resultUrl?: string;              // result URL from deAPI
   localPath?: string;              // path to downloaded file
   error?: string;

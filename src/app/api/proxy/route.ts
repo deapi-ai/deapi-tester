@@ -40,6 +40,11 @@ export async function POST(request: Request) {
     const isPriceCalc = params._priceCalc === true || params._priceCalc === 'true';
     delete params._priceCalc;
 
+    // Optional tester job id: when the client pre-created a 'sending' stub, reuse
+    // it so the job updates in place instead of creating a duplicate row.
+    const providedJobId = typeof params._jobId === 'string' ? params._jobId : undefined;
+    delete params._jobId;
+
     // Validate endpoint
     const endpoint = getEndpointById(endpointId);
     if (!endpoint) {
@@ -92,6 +97,7 @@ export async function POST(request: Request) {
       // Remove our internal fields
       formData.delete('_endpointId');
       formData.delete('_priceCalc');
+      formData.delete('_jobId');
       fetchOptions = {
         method: endpoint.method,
         headers,
@@ -206,8 +212,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create job entry before making request
-    const jobId = generateJobId();
+    // Create or reuse the job entry before making the request. When the client
+    // pre-created a 'sending' stub (providedJobId), update it in place so the row
+    // transitions sending -> pending without duplicating.
+    const jobId = providedJobId || generateJobId();
     // Store the actual API path (without leading slash) as endpointId
     const jobEndpointId = targetPath.replace(/^\//, '');
     const job: Job = {
@@ -226,7 +234,16 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
     };
-    addJob(job);
+    if (providedJobId) {
+      // Preserve the stub's original createdAt (set when the user clicked Execute).
+      const jobUpdate: Partial<Job> = { ...job };
+      delete jobUpdate.createdAt;
+      const updated = updateJob(jobId, jobUpdate);
+      // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
+      if (!updated) addJob(job);
+    } else {
+      addJob(job);
+    }
 
     // Make request to deAPI
     const controller = new AbortController();

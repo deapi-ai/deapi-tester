@@ -423,7 +423,9 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
     });
   };
 
-  const activeCount = jobs.filter((j) => j.status === 'pending' || j.status === 'processing').length;
+  const activeCount = jobs.filter(
+    (j) => j.status === 'sending' || j.status === 'pending' || j.status === 'processing'
+  ).length;
 
   // Get all logs from all jobs for logs view
   const allLogs = Array.from(activeJobs.values())
@@ -471,7 +473,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
             </button>
           </div>
           <button
-            onClick={loadJobs}
+            onClick={() => loadJobs()}
             className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] transition-colors"
             title="Refresh"
           >
