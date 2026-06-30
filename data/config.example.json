@@ -1,7 +1,23 @@
 {
-  "apiUrl": "https://api.deapi.ai/api/v1/client",
-  "apiToken": "your-token-here",
+  "activeProfileId": "default",
+  "profiles": [
+    {
+      "id": "default",
+      "name": "Production",
+      "apiUrl": "https://api.deapi.ai/api/v2",
+      "apiToken": "your-token-here",
+      "wsEnabled": true,
+      "wsKey": "depin-api-prod-key",
+      "wsHost": "soketi.deapi.ai",
+      "wsPort": 443,
+      "wsForceTLS": true,
+      "wsCluster": "mt1",
+      "wsClientId": "",
+      "wsAuthUrl": ""
+    }
+  ],
   "outputDir": "./output",
   "pollingIntervalMs": 2000,
-  "maxPollingAttempts": 120
+  "maxPollingAttempts": 120,
+  "fallbackPollIntervalMs": 10000
 }

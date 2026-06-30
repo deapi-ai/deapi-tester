@@ -28,13 +28,13 @@ export interface EndpointDefinition {
   name: string;
   group: EndpointGroup;
   method: 'GET' | 'POST';
-  path: string;                    // e.g. "/txt2img"
+  path: string;                    // e.g. "/images/generations"
   description: string;
   contentType: 'json' | 'multipart';
   isAsync: boolean;                // returns request_id for polling
   hasPriceCalc: boolean;           // has price-calculation endpoint
-  priceCalcPath?: string;          // e.g. "/txt2img/price-calculation"
-  inferenceType?: string;          // maps to model inference_types when different from id (e.g. "audio2text" for id "aud2txt")
+  priceCalcPath?: string;          // e.g. "/images/generations/price"
+  inferenceType?: string;          // maps to model inference_types when different from id (e.g. "vid_upscale" for id "vid-upscale")
   params: EndpointParam[];
 }
 
@@ -47,6 +47,7 @@ export type EndpointGroup =
   | 'ocr'
   | 'image-utils'
   | 'embeddings'
+  | 'prompt-enhancement'
   | 'utility';
 
 export interface EndpointGroupMeta {
@@ -82,8 +83,12 @@ export interface Job {
     body: JsonValue;
   };
   rawResponse?: JsonValue;         // raw HTTP response from deAPI
+  rawResponseHeaders?: Record<string, string>; // response HTTP headers from deAPI (submit response)
   uploadedFiles?: UploadedFile[];  // persisted multipart uploads (for duplicate)
-  status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
+  // 'sending' is a tester-internal status: the job is persisted the moment the
+  // user clicks Execute and stays 'sending' until the proxy responds (the API's
+  // request_id / 'pending'/'processing' status is not known yet).
+  status: 'sending' | 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   resultUrl?: string;              // result URL from deAPI
   localPath?: string;              // path to downloaded file
   error?: string;
@@ -98,6 +103,16 @@ export interface ConfigProfile {
   name: string;                    // user-friendly name (e.g. "Production", "Dev")
   apiUrl: string;
   apiToken: string;
+  // WebSocket (Pusher/soketi) realtime config — per environment. Non-secret,
+  // so these are safe to expose to the client (the API token is NOT).
+  wsEnabled?: boolean;             // use WebSocket as the primary status source
+  wsKey?: string;                  // Pusher app key, e.g. "depin-api-prod-key"
+  wsHost?: string;                 // e.g. "soketi.deapi.ai"
+  wsPort?: number;                 // e.g. 443
+  wsForceTLS?: boolean;            // wss
+  wsCluster?: string;              // Pusher cluster (cosmetic for self-hosted), e.g. "mt1"
+  wsClientId?: string;             // private channel id: private-client.{id} (from dashboard)
+  wsAuthUrl?: string;              // broadcasting/auth URL; blank = derive from apiUrl origin
 }
 
 // Full configuration with multiple profiles
@@ -105,8 +120,9 @@ export interface AppConfigFull {
   activeProfileId: string;
   profiles: ConfigProfile[];
   outputDir: string;
-  pollingIntervalMs: number;       // default 2000
-  maxPollingAttempts: number;      // default 120 (4 minutes)
+  pollingIntervalMs: number;       // default 2000 (legacy; submit-time price/poll spacing)
+  maxPollingAttempts: number;      // default 120 — caps reconciliation ticks per job
+  fallbackPollIntervalMs: number;  // default 10000 — reconciliation poll cadence (WS is primary)
 }
 
 // Flat configuration (for backward compatibility with existing code)
@@ -193,7 +209,8 @@ export interface ModelInfo {
 export interface DeApiModel {
   name: string;
   slug: string;
-  inference_types: string[];
+  // v2 returns this as an object keyed by inference type; v1 returned a string array.
+  inference_types: string[] | Record<string, unknown>;
   info: ModelInfo | [];
   loras?: ModelLora[];
   languages?: ModelLanguage[];

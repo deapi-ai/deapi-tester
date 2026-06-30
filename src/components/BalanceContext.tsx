@@ -28,7 +28,8 @@ export function BalanceProvider({ children }: { children: ReactNode }) {
       const res = await fetch('/api/balance', { cache: 'no-store' });
       if (res.ok) {
         const data = await res.json();
-        setBalance(data.data?.balance ?? null);
+        // v2 returns balance at top level; v1 wrapped it in `data`
+        setBalance(data.data?.balance ?? data.balance ?? null);
       }
     } catch (err) {
       console.error('[deapi-tester] Failed to fetch balance:', err);

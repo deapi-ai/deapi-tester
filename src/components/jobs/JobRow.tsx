@@ -1,9 +1,11 @@
 'use client';
 
-import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy, ClipboardCopy, ClipboardCheck } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
-import { formatTime, formatCost, getResultType } from '@/lib/format-utils';
+import { formatTime, formatCost, getResultType, getResultText } from '@/lib/format-utils';
+import { useSettings } from '@/components/SettingsContext';
 
 interface PollUpdate {
   timestamp: number;
@@ -11,6 +13,7 @@ interface PollUpdate {
   maxAttempts: number;
   status: string;
   data: JsonValue;
+  source: 'ws' | 'poll';
 }
 
 interface ActiveJob {
@@ -57,8 +60,20 @@ export function JobRow({
   onDelete,
   onDuplicate,
 }: JobRowProps) {
+  const { showResponseHeaders } = useSettings();
+  const [copiedOutput, setCopiedOutput] = useState(false);
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
-  const resultType = getResultType(job.endpointId);
+  const hasResponseHeaders =
+    !!job.rawResponseHeaders && Object.keys(job.rawResponseHeaders).length > 0;
+  // Text output (OCR, transcription, prompt booster) — offer a one-click copy.
+  const resultText = getResultText(job);
+
+  const handleCopyOutput = () => {
+    if (!resultText) return;
+    navigator.clipboard.writeText(resultText);
+    setCopiedOutput(true);
+    setTimeout(() => setCopiedOutput(false), 1500);
+  };
 
   const getResultUrl = (): string | null => {
     if (job.resultUrl) return job.resultUrl;
@@ -90,6 +105,9 @@ export function JobRow({
 
   const resultUrl = getResultUrl();
   const cost = getCost();
+  // Derived from the result URL extension (most reliable) with the endpoint's
+  // group as fallback — robust to the v2 path stored in job.endpointId.
+  const resultType = getResultType(job.endpointId, resultUrl);
 
   return (
     <div className="hover:bg-[var(--hover)]">
@@ -99,7 +117,7 @@ export function JobRow({
         <div className="col-span-5 flex items-center gap-3 min-w-0">
           <span
             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_BG_COLORS[job.status] || 'bg-[var(--muted)]'} ${
-              activeJob?.isPolling ? 'status-pulse' : ''
+              activeJob?.isPolling || job.status === 'sending' ? 'status-pulse' : ''
             }`}
           />
           <div className="min-w-0 flex-1">
@@ -276,6 +294,22 @@ export function JobRow({
             </>
           )}
 
+          {resultText && (
+            <button
+              onClick={handleCopyOutput}
+              className={`p-1.5 transition-colors ${
+                copiedOutput ? 'text-green-400' : 'text-[var(--muted)] hover:text-blue-400'
+              }`}
+              title="Copy text output to clipboard"
+            >
+              {copiedOutput ? (
+                <ClipboardCheck className="w-3.5 h-3.5" />
+              ) : (
+                <ClipboardCopy className="w-3.5 h-3.5" />
+              )}
+            </button>
+          )}
+
           <button
             onClick={() => onDuplicate(job)}
             className="p-1.5 text-[var(--muted)] hover:text-blue-400 transition-colors"
@@ -295,7 +329,7 @@ export function JobRow({
       </div>
 
       {/* Expanded Raw Request & Response */}
-      {isRawExpanded && (job.rawRequest || job.rawResponse) && (
+      {isRawExpanded && (job.rawRequest || job.rawResponse || (showResponseHeaders && hasResponseHeaders)) && (
         <div className="px-4 pb-3 space-y-2">
           {job.rawRequest && (
             <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
@@ -310,6 +344,24 @@ export function JobRow({
               </div>
               <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
                 {JSON.stringify(job.rawRequest, null, 2)}
+              </pre>
+            </div>
+          )}
+          {showResponseHeaders && hasResponseHeaders && (
+            <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Response Headers</span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawResponseHeaders, null, 2))}
+                  className="text-[10px] text-[var(--muted)] hover:text-[var(--text-primary)]"
+                >
+                  Copy
+                </button>
+              </div>
+              <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
+                {Object.entries(job.rawResponseHeaders!)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join('\n')}
               </pre>
             </div>
           )}
@@ -368,6 +420,16 @@ export function JobRow({
                         <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--hover)] cursor-pointer text-xs">
                           <ChevronRight className="w-2 h-2 text-[var(--text-faint)] transition-transform group-open:rotate-90 flex-shrink-0" />
                           <span className="text-[var(--text-faint)] font-mono w-8">#{update.attempt}</span>
+                          <span
+                            className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                              update.source === 'ws'
+                                ? 'bg-blue-500/15 text-blue-400'
+                                : 'bg-[var(--surface-2)] text-[var(--muted)]'
+                            }`}
+                            title={update.source === 'ws' ? 'Received over WebSocket' : 'Received via polling'}
+                          >
+                            {update.source === 'ws' ? 'WS' : 'POLL'}
+                          </span>
                           <span
                             className={`font-medium ${
                               update.status === 'done'

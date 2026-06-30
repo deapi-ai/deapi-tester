@@ -83,7 +83,7 @@ export async function PUT(request: Request) {
           }
           const newProfile = addProfile({
             name,
-            apiUrl: apiUrl || 'https://api.deapi.ai/api/v1/client',
+            apiUrl: apiUrl || 'https://api.deapi.ai/api/v2',
             apiToken: apiToken || '',
           });
           const config = loadFullConfig();
@@ -182,6 +182,17 @@ export async function PUT(request: Request) {
         );
       }
       config.maxPollingAttempts = body.maxPollingAttempts;
+    }
+
+    if (body.fallbackPollIntervalMs !== undefined) {
+      if (typeof body.fallbackPollIntervalMs !== 'number') {
+        return NextResponse.json(
+          { error: 'fallbackPollIntervalMs must be a number' },
+          { status: 400 }
+        );
+      }
+      // Guard against a runaway-fast poll; floor at 1s.
+      config.fallbackPollIntervalMs = Math.max(1000, body.fallbackPollIntervalMs);
     }
 
     // Backward compatibility: if apiUrl/apiToken sent, update active profile

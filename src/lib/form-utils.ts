@@ -28,7 +28,7 @@ export function categorizeParams(
     if (skipParams.includes(param.name)) {
       return;
     }
-    if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea' || param.name === 'video_url' || param.name === 'audio_url') {
+    if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea' || param.name === 'source_url') {
       promptParams.push(param);
     } else if (param.type === 'file') {
       fileParams.push(param);
@@ -44,6 +44,21 @@ export function categorizeParams(
   });
 
   return { promptParams, fileParams, selectParams, booleanParams, compactParams, otherParams };
+}
+
+/**
+ * Check whether a model supports a given inference type.
+ * deAPI v2 returns `inference_types` as an object keyed by type; v1 returned a
+ * string array. This handles both shapes so model dropdowns stay populated.
+ */
+export function modelMatchesInferenceType(
+  model: { inference_types: string[] | Record<string, unknown> },
+  inferenceType: string
+): boolean {
+  const types = model.inference_types;
+  if (Array.isArray(types)) return types.includes(inferenceType);
+  if (types && typeof types === 'object') return inferenceType in types;
+  return false;
 }
 
 /**

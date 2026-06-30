@@ -5,6 +5,7 @@ import { RefreshCw, Trash2 } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { useToast } from './Toast';
 import { useBalance } from './BalanceContext';
+import { useJobSocket } from './JobSocketContext';
 import { JobRow } from './jobs/JobRow';
 import { JobLogsView } from './jobs/JobLogsView';
 
@@ -23,6 +24,7 @@ interface PollUpdate {
   maxAttempts: number;
   status: string;
   data: JsonValue;
+  source: 'ws' | 'poll';
 }
 
 interface ActiveJob {
@@ -42,9 +44,12 @@ interface DownloadState {
 
 type ViewMode = 'list' | 'logs';
 
+const TERMINAL_STATUSES: Job['status'][] = ['completed', 'failed', 'cancelled'];
+
 export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsPanel({ onDuplicate }, ref) {
   const { showError, showSuccess } = useToast();
   const { refreshBalance } = useBalance();
+  const { addListener, isConnected } = useJobSocket();
   const [jobs, setJobs] = useState<Job[]>([]);
   const [activeJobs, setActiveJobs] = useState<Map<string, ActiveJob>>(new Map());
   const [expandedPollings, setExpandedPollings] = useState<Set<string>>(new Set());
@@ -55,9 +60,20 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
   const [autoScroll, setAutoScroll] = useState(true);
   const [now, setNow] = useState(Date.now());
 
-  const eventSourcesRef = useRef<Map<string, EventSource>>(new Map());
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const startPollingRef = useRef<(job: Job) => void>(() => {});
+  // Refs so the reconciliation interval and WS listener always see fresh values
+  // without re-subscribing.
+  const jobsRef = useRef<Job[]>([]);
+  const attemptsRef = useRef<Map<string, number>>(new Map());
+  const inFlightRef = useRef<Set<string>>(new Set());
+  const stoppedRef = useRef<Set<string>>(new Set());
+  const lastWsAtRef = useRef<Map<string, number>>(new Map());
+  const fallbackIntervalRef = useRef<number>(10000);
+  const maxAttemptsRef = useRef<number>(120);
+  const reconcileRef = useRef<() => void>(() => {});
+  const pollOnceRef = useRef<(job: Job, opts?: { silent?: boolean }) => void>(() => {});
+  // Live mirror of the socket connection state for the reconciliation loop.
+  const isConnectedRef = useRef(false);
+  isConnectedRef.current = isConnected;
 
   // Timer for real-time elapsed time updates
   useEffect(() => {
@@ -120,19 +136,16 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
       const res = await fetch('/api/history');
       const data = await res.json();
       const jobList = Array.isArray(data) ? data : [];
+      jobsRef.current = jobList;
       setJobs(jobList);
-
-      jobList.forEach((job: Job) => {
-        if ((job.status === 'pending' || job.status === 'processing') && job.requestId) {
-          startPollingRef.current(job);
-        }
-      });
+      // Kick an immediate reconcile so freshly-loaded active jobs show status
+      // without waiting a full fallback interval.
+      reconcileRef.current();
     } catch (err) {
       console.error('[deapi-tester] Failed to load history:', err);
     } finally {
       setIsLoading(false);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useImperativeHandle(
@@ -146,134 +159,219 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
     [loadJobs]
   );
 
-  const startPollingForJob = useCallback(
-    (job: Job) => {
-      if (!job.requestId) return;
-      if (eventSourcesRef.current.has(job.id)) return;
+  // Record a status update (from WS or a reconciliation poll) into the per-job
+  // activeJobs entry and patch the job's top-level status. `deApiResponse` is the
+  // deAPI { data: {...} } shape; WS payloads are normalized to it by the caller.
+  const recordUpdate = useCallback(
+    (job: Job, deApiResponse: Record<string, unknown>, rawStatus: string, source: 'ws' | 'poll') => {
+      const jobStatus: Job['status'] =
+        rawStatus === 'done' ? 'completed' : rawStatus === 'error' ? 'failed' : 'processing';
+      const isTerminal = rawStatus === 'done' || rawStatus === 'error';
+
+      const attempt = (attemptsRef.current.get(job.id) || 0) + 1;
+      attemptsRef.current.set(job.id, attempt);
+
+      const update: PollUpdate = {
+        timestamp: Date.now(),
+        attempt,
+        maxAttempts: maxAttemptsRef.current,
+        status: rawStatus || 'unknown',
+        data: deApiResponse as JsonValue,
+        source,
+      };
 
       setActiveJobs((prev) => {
         const newMap = new Map(prev);
-        newMap.set(job.id, {
+        const existing = newMap.get(job.id) || {
           job,
           isPolling: true,
           pollUpdates: [],
           finalResult: null,
           error: null,
+        };
+        const updates = [...existing.pollUpdates, update].slice(-100);
+        const inner = (deApiResponse.data as JsonValue) ?? (deApiResponse as JsonValue);
+        newMap.set(job.id, {
+          ...existing,
+          job,
+          isPolling: !isTerminal,
+          pollUpdates: updates,
+          finalResult: rawStatus === 'done' ? inner : existing.finalResult,
+          error: null,
         });
         return newMap;
       });
 
-      const eventSource = new EventSource(`/api/poll/${job.requestId}`);
-      eventSourcesRef.current.set(job.id, eventSource);
-
-      eventSource.onmessage = (event) => {
-        try {
-          const data = JSON.parse(event.data);
-          const status = data.data?.status || data.status;
-
-          const update: PollUpdate = {
-            timestamp: Date.now(),
-            attempt: data.attempt || 0,
-            maxAttempts: data.maxAttempts || 120,
-            status: status || 'unknown',
-            data: data,
-          };
-
-          setActiveJobs((prev) => {
-            const newMap = new Map(prev);
-            const activeJob = newMap.get(job.id);
-            if (activeJob) {
-              const updates = [...activeJob.pollUpdates, update].slice(-100);
-              newMap.set(job.id, { ...activeJob, pollUpdates: updates });
-            }
-            return newMap;
-          });
-
-          setJobs((prev) =>
-            prev.map((j) =>
-              j.id === job.id
-                ? { ...j, status: status === 'done' ? 'completed' : status === 'error' ? 'failed' : 'processing' }
-                : j
-            )
-          );
-
-          if (status === 'done') {
-            const result = data.data || data;
-            setActiveJobs((prev) => {
-              const newMap = new Map(prev);
-              const activeJob = newMap.get(job.id);
-              if (activeJob) {
-                newMap.set(job.id, { ...activeJob, isPolling: false, finalResult: result });
-              }
-              return newMap;
-            });
-            eventSource.close();
-            eventSourcesRef.current.delete(job.id);
-            refreshBalance();
-            setTimeout(() => loadJobs(), 500);
-          } else if (status === 'error' || status === 'timeout') {
-            const errorMsg = data.data?.error || data.error || 'Job failed';
-            setActiveJobs((prev) => {
-              const newMap = new Map(prev);
-              const activeJob = newMap.get(job.id);
-              if (activeJob) {
-                newMap.set(job.id, { ...activeJob, isPolling: false, error: errorMsg });
-              }
-              return newMap;
-            });
-            eventSource.close();
-            eventSourcesRef.current.delete(job.id);
-          }
-        } catch (err) {
-          console.error('[deapi-tester] Failed to parse SSE data:', err);
-        }
-      };
-
-      eventSource.onerror = () => {
-        setActiveJobs((prev) => {
-          const newMap = new Map(prev);
-          const activeJob = newMap.get(job.id);
-          if (activeJob) {
-            newMap.set(job.id, { ...activeJob, isPolling: false, error: 'Connection lost' });
-          }
-          return newMap;
-        });
-        eventSource.close();
-        eventSourcesRef.current.delete(job.id);
-      };
+      setJobs((prev) => {
+        const next = prev.map((j) => (j.id === job.id ? { ...j, status: jobStatus } : j));
+        jobsRef.current = next;
+        return next;
+      });
     },
-    [refreshBalance, loadJobs]
+    []
   );
 
-  startPollingRef.current = startPollingForJob;
-
-  useEffect(() => {
-    loadJobs();
-
-    pollIntervalRef.current = setInterval(() => {
-      loadJobs();
-    }, 5000);
-
-    const eventSources = eventSourcesRef.current;
-    return () => {
-      if (pollIntervalRef.current) {
-        clearInterval(pollIntervalRef.current);
+  const setActiveError = useCallback((jobId: string, error: string) => {
+    setActiveJobs((prev) => {
+      const newMap = new Map(prev);
+      const existing = newMap.get(jobId);
+      if (existing) {
+        newMap.set(jobId, { ...existing, isPolling: false, error });
       }
-      eventSources.forEach((es) => es.close());
-      eventSources.clear();
+      return newMap;
+    });
+  }, []);
+
+  // Fetch one job's status from the server (persists to history) and apply it.
+  // No attempt cap here: this is also the WS-"done" persist path, which must
+  // always succeed. Runaway-stuck jobs are bounded by the wall-clock guard in
+  // reconcileActiveJobs instead.
+  const pollOnce = useCallback(
+    async (job: Job, opts?: { silent?: boolean }) => {
+      if (!job.requestId) return;
+      if (inFlightRef.current.has(job.id)) return;
+
+      inFlightRef.current.add(job.id);
+      try {
+        const res = await fetch(`/api/jobs/${job.requestId}`);
+        const data = await res.json();
+        if (!res.ok) {
+          // Leave the job active; the next tick retries.
+          console.error('[deapi-tester] Job status fetch failed:', data?.error || res.status);
+          return;
+        }
+
+        const status: string = data.data?.status || data.status || 'unknown';
+        // Silent calls (the WS-"done" finalize) persist + refresh but don't add a
+        // POLL entry to the updates list — the WS already recorded the event.
+        if (!opts?.silent) recordUpdate(job, data, status, 'poll');
+
+        if (status === 'done') {
+          refreshBalance();
+          loadJobs();
+        } else if (status === 'error') {
+          const errorMsg =
+            data.data?.error_message ||
+            data.data?.error ||
+            data.error ||
+            (data.data?.error_code ? `Error: ${data.data.error_code}` : null) ||
+            'Job failed';
+          setActiveError(job.id, errorMsg);
+          loadJobs();
+        }
+      } catch (err) {
+        // Network blip — keep the job active for the next reconciliation tick.
+        console.error('[deapi-tester] Job status fetch error:', err);
+      } finally {
+        inFlightRef.current.delete(job.id);
+      }
+    },
+    [recordUpdate, setActiveError, refreshBalance, loadJobs]
+  );
+  pollOnceRef.current = pollOnce;
+
+  // Reconciliation: poll every still-active job once. Runs on a slow interval
+  // (fallbackPollIntervalMs) regardless of WS state — it's how webhook-only
+  // `error` statuses and missed updates get surfaced, and the full fallback when
+  // the WebSocket is down. A wall-clock guard stops polling a job the server
+  // never resolves (default ~maxPollingAttempts × interval, e.g. 20 min).
+  const reconcileActiveJobs = useCallback(() => {
+    const now = Date.now();
+    const interval = fallbackIntervalRef.current;
+    const limitMs = maxAttemptsRef.current * interval;
+    jobsRef.current.forEach((job) => {
+      if ((job.status !== 'pending' && job.status !== 'processing') || !job.requestId) return;
+      if (stoppedRef.current.has(job.id)) return;
+
+      const elapsed = now - Date.parse(job.createdAt);
+      if (Number.isFinite(elapsed) && elapsed > limitMs) {
+        stoppedRef.current.add(job.id);
+        setActiveError(job.id, 'Stopped polling — job did not resolve in time');
+        return;
+      }
+
+      // When the socket is live it's the primary source: skip the poll while it's
+      // actively driving this job. "Active" = a WS update arrived within the last
+      // interval, OR the job is younger than one interval (grace for the socket to
+      // deliver its first event). The poll only re-engages once the socket goes
+      // quiet — which is what surfaces webhook-only `error` and socket gaps.
+      if (isConnectedRef.current) {
+        const lastWsAt = lastWsAtRef.current.get(job.id);
+        const ref = lastWsAt ?? Date.parse(job.createdAt);
+        if (Number.isFinite(ref) && now - ref < interval) return;
+      }
+      pollOnceRef.current(job);
+    });
+  }, [setActiveError]);
+  reconcileRef.current = reconcileActiveJobs;
+
+  // Bootstrap: load config (interval/cap) + history, then start the slow poll.
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval> | null = null;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        fallbackIntervalRef.current = data.fallbackPollIntervalMs || 10000;
+        maxAttemptsRef.current = data.maxPollingAttempts || 120;
+      } catch {
+        // keep defaults
+      }
+      if (cancelled) return;
+      await loadJobs();
+      timer = setInterval(() => reconcileRef.current(), fallbackIntervalRef.current);
+    })();
+
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
     };
   }, [loadJobs]);
 
+  // WebSocket: primary, real-time status/preview/progress. `error` never arrives
+  // here (webhook-only) — the reconciliation poll catches those.
+  useEffect(() => {
+    const unsubscribe = addListener((evt) => {
+      const job = jobsRef.current.find((j) => j.requestId === evt.request_id);
+      if (!job) return;
+      if (TERMINAL_STATUSES.includes(job.status)) return;
+
+      lastWsAtRef.current.set(job.id, Date.now());
+      const normalized = {
+        data: {
+          status: evt.status,
+          preview: evt.preview ?? undefined,
+          result_url: evt.result_url ?? undefined,
+          progress: evt.progress ?? undefined,
+        },
+      };
+      recordUpdate(job, normalized, evt.status, 'ws');
+
+      // On done, immediately fetch the authoritative result (result_url + cost)
+      // and persist once (silently — the WS already showed "done"), rather than
+      // waiting for the next slow reconciliation tick. After this the job is
+      // terminal and is no longer polled.
+      if (evt.status === 'done') {
+        pollOnceRef.current(job, { silent: true });
+      }
+    });
+    return unsubscribe;
+  }, [addListener, recordUpdate]);
+
   const handleDelete = async (id: string) => {
     try {
-      const es = eventSourcesRef.current.get(id);
-      if (es) {
-        es.close();
-        eventSourcesRef.current.delete(id);
-      }
-
       await fetch(`/api/history?id=${id}`, { method: 'DELETE' });
-      setJobs((prev) => prev.filter((j) => j.id !== id));
+      attemptsRef.current.delete(id);
+      inFlightRef.current.delete(id);
+      stoppedRef.current.delete(id);
+      lastWsAtRef.current.delete(id);
+      setJobs((prev) => {
+        const next = prev.filter((j) => j.id !== id);
+        jobsRef.current = next;
+        return next;
+      });
       setActiveJobs((prev) => {
         const newMap = new Map(prev);
         newMap.delete(id);
@@ -288,10 +386,12 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
     if (!confirm('Clear all job history?')) return;
 
     try {
-      eventSourcesRef.current.forEach((es) => es.close());
-      eventSourcesRef.current.clear();
-
       await fetch('/api/history?all=true', { method: 'DELETE' });
+      attemptsRef.current.clear();
+      inFlightRef.current.clear();
+      stoppedRef.current.clear();
+      lastWsAtRef.current.clear();
+      jobsRef.current = [];
       setJobs([]);
       setActiveJobs(new Map());
     } catch (err) {
@@ -323,7 +423,9 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
     });
   };
 
-  const activeCount = jobs.filter((j) => j.status === 'pending' || j.status === 'processing').length;
+  const activeCount = jobs.filter(
+    (j) => j.status === 'sending' || j.status === 'pending' || j.status === 'processing'
+  ).length;
 
   // Get all logs from all jobs for logs view
   const allLogs = Array.from(activeJobs.values())
@@ -371,7 +473,7 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
             </button>
           </div>
           <button
-            onClick={loadJobs}
+            onClick={() => loadJobs()}
             className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] transition-colors"
             title="Refresh"
           >

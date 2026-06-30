@@ -1,15 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices } from 'lucide-react';
+import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices, Sparkles } from 'lucide-react';
 import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel, UploadedFile } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
+import { useToast } from '@/components/Toast';
+import { enhancementTypeForPath, ENHANCEMENT_TYPES_REQUIRING_IMAGE } from '@/lib/prompt-enhancement';
+import { getEndpointByApiPath } from '@/lib/endpoint-registry';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
 import { FileUploadField } from '@/components/form/FileUploadField';
 import {
   categorizeParams,
   generateImagePreview,
+  modelMatchesInferenceType,
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
@@ -46,11 +50,23 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
   const [imagePreviews, setImagePreviews] = useState<Record<string, ImagePreview[]>>({});
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
+  const [isBoosting, setIsBoosting] = useState(false);
   const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
+  const { showError, showSuccess } = useToast();
 
   const isRequestStatusEndpoint = endpoint.id === 'request-status';
   const selectedModelSlug = values['model'] as string | undefined;
   const selectedModel = selectedModelSlug ? getModelBySlug(selectedModelSlug) : undefined;
+
+  // Prompt enhancement ("boost"): supported when this endpoint maps to a known
+  // enhancement type AND has a primary text field (prompt or caption).
+  const enhancementType = enhancementTypeForPath(endpoint.path);
+  const enhanceableField = endpoint.params.some((p) => p.name === 'prompt')
+    ? 'prompt'
+    : endpoint.params.some((p) => p.name === 'caption')
+      ? 'caption'
+      : null;
+  const canBoost = !!enhancementType && !!enhanceableField;
   const prevModelSlugRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
   const appliedPrefillRef = useRef<number | undefined>(undefined);
@@ -138,7 +154,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     if (!modelParam) return;
 
     const inferenceType = endpoint.inferenceType ?? endpoint.id;
-    const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
+    const filteredModels = models.filter((m) => modelMatchesInferenceType(m, inferenceType));
 
     setValues((prev) => {
       const currentModel = prev['model'] as string | undefined;
@@ -149,6 +165,35 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       return prev;
     });
   }, [models, endpoint.id, endpoint.inferenceType, endpoint.params]);
+
+  // Map a prompt-enhancement `type` (dot notation, e.g. "images.generations")
+  // to the model inference_type used for filtering (e.g. "txt2img").
+  const enhancementInferenceType = useCallback((dotType: string | undefined): string | undefined => {
+    if (!dotType) return undefined;
+    const ep = getEndpointByApiPath('/' + dotType.replace(/\./g, '/'));
+    return ep?.inferenceType ?? ep?.id;
+  }, []);
+
+  // Auto-select a valid model for the prompt-enhancement `model_slug` field.
+  // The pool is filtered by the chosen `type`, so changing `type` re-picks a
+  // model the API will accept.
+  const enhancementSelectedType = values['type'] as string | undefined;
+  useEffect(() => {
+    if (models.length === 0) return;
+    if (!endpoint.params.some((p) => p.name === 'model_slug')) return;
+
+    const inf = enhancementInferenceType(enhancementSelectedType);
+    const filtered = inf ? models.filter((m) => modelMatchesInferenceType(m, inf)) : [];
+    const pool = filtered.length > 0 ? filtered : models;
+
+    setValues((prev) => {
+      const current = prev['model_slug'] as string | undefined;
+      if (!current || !pool.some((m) => m.slug === current)) {
+        return { ...prev, model_slug: pool[0].slug };
+      }
+      return prev;
+    });
+  }, [models, endpoint.params, enhancementSelectedType, enhancementInferenceType]);
 
   // Auto-apply model defaults when model selection changes
   useEffect(() => {
@@ -501,11 +546,19 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
   const getDynamicSelectOptions = useCallback((paramName: string): { value: string; label: string }[] | undefined => {
     if (paramName === 'model') {
       const inferenceType = endpoint.inferenceType ?? endpoint.id;
-      const filteredModels = models.filter((m) => m.inference_types.includes(inferenceType));
+      const filteredModels = models.filter((m) => modelMatchesInferenceType(m, inferenceType));
       if (filteredModels.length > 0) {
         return filteredModels.map((m) => ({ value: m.slug, label: m.name }));
       }
       return undefined;
+    }
+
+    // Prompt-enhancement target model: filter by the selected `type` (the API
+    // rejects a model that doesn't support the chosen inference type).
+    if (paramName === 'model_slug') {
+      const inf = enhancementInferenceType(values['type'] as string | undefined);
+      const filtered = inf ? models.filter((m) => modelMatchesInferenceType(m, inf)) : [];
+      return (filtered.length > 0 ? filtered : models).map((m) => ({ value: m.slug, label: m.name }));
     }
 
     if (!selectedModel) return undefined;
@@ -531,7 +584,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     }
 
     return undefined;
-  }, [endpoint.id, endpoint.inferenceType, models, selectedModel, values]);
+  }, [endpoint.id, endpoint.inferenceType, models, selectedModel, values, enhancementInferenceType]);
 
   // Check if a field should be visible based on visibleWhen condition
   const isFieldVisible = useCallback((param: EndpointParam): boolean => {
@@ -578,6 +631,82 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     return filteredValues;
   }, [values, endpoint.params, modelDefaults, arrayMode, isFieldVisible]);
 
+  // Find the first uploaded image file (used as the reference image for
+  // enhancement types that require one, e.g. images.edits / videos.animations).
+  const findFirstImageFile = (): File | null => {
+    for (const value of Object.values(files)) {
+      const arr = Array.isArray(value) ? value : [value];
+      const img = arr.find((f) => f instanceof File && f.type.startsWith('image/'));
+      if (img) return img as File;
+    }
+    return null;
+  };
+
+  // Enhance the prompt/caption in place via the unified prompt-enhancement endpoint.
+  const handleBoost = async (fieldName: string) => {
+    if (!enhancementType) return;
+
+    const promptValue = String(values[fieldName] ?? '').trim();
+    if (promptValue.length < 3) {
+      showError('Enter a prompt (min 3 characters) to boost');
+      return;
+    }
+    if (!selectedModelSlug) {
+      showError('Select a model first');
+      return;
+    }
+
+    const formData = new FormData();
+    // Route through the proxy as the prompt-enhancement endpoint so the boost is
+    // logged as a job (with its cost), just like any other request.
+    formData.append('_endpointId', 'prompt-enhancement');
+    formData.append('prompt', promptValue);
+    formData.append('type', enhancementType);
+    formData.append('model_slug', selectedModelSlug);
+
+    const negativeValue = String(values['negative_prompt'] ?? '').trim();
+    if (negativeValue.length >= 3) {
+      formData.append('negative_prompt', negativeValue);
+    }
+
+    if (ENHANCEMENT_TYPES_REQUIRING_IMAGE.includes(enhancementType)) {
+      const image = findFirstImageFile();
+      if (!image) {
+        showError('Upload a reference image first to boost this prompt');
+        return;
+      }
+      formData.append('image', image);
+    }
+
+    setIsBoosting(true);
+    try {
+      const res = await fetch('/api/proxy', { method: 'POST', body: formData });
+      const data = await res.json();
+      if (!data.success) {
+        showError(data.error || 'Failed to enhance prompt');
+        return;
+      }
+      // Enhancement is synchronous: the rewritten prompt comes back in the
+      // (top-level) response body.
+      const enhanced = data.rawResponse?.prompt ?? data.rawResponse?.data?.prompt;
+      const enhancedNegative =
+        data.rawResponse?.negative_prompt ?? data.rawResponse?.data?.negative_prompt;
+      if (enhanced) {
+        handleChange(fieldName, enhanced);
+      }
+      if (enhancedNegative && endpoint.params.some((p) => p.name === 'negative_prompt')) {
+        handleChange('negative_prompt', enhancedNegative);
+      }
+      // Refresh the jobs panel so the new enhancement job (and its cost) shows up.
+      onPriceCheck?.();
+      showSuccess('Prompt enhanced');
+    } catch (err) {
+      showError(err instanceof Error ? err.message : 'Failed to enhance prompt');
+    } finally {
+      setIsBoosting(false);
+    }
+  };
+
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
 
@@ -589,9 +718,10 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
 
       let res: Response;
 
-      // For multipart endpoints with files, send as FormData (includes files for price calc)
-      const hasFiles = Object.keys(files).length > 0;
-      if (endpoint.contentType === 'multipart' && hasFiles) {
+      // Mirror the main request: multipart endpoints (with or without files) send
+      // FormData so the price endpoint validates the same payload it will receive.
+      // Sending JSON with "[File: …]" placeholders fails with 422.
+      if (endpoint.contentType === 'multipart') {
         const formData = new FormData();
         formData.append('_endpointId', endpoint.id);
         formData.append('_priceCalc', 'true');
@@ -632,7 +762,8 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         return;
       }
 
-      const price = data.rawResponse?.data?.price || 0;
+      // Most price endpoints return { data: { price } }; prompt-enhancement returns top-level { price }.
+      const price = data.rawResponse?.data?.price ?? data.rawResponse?.price ?? 0;
       setPriceResult({ credits: price });
       onPriceCheck?.();
     } catch (err) {
@@ -783,6 +914,22 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                     title="Random prompt"
                   >
                     <Dices className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {canBoost && param.name === enhanceableField && selectedModelSlug && (
+                  <button
+                    type="button"
+                    onClick={() => handleBoost(param.name)}
+                    disabled={isBoosting}
+                    className="flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 disabled:opacity-50 transition-colors flex-shrink-0"
+                    title="Enhance this prompt for the selected model"
+                  >
+                    {isBoosting ? (
+                      <Loader2 className="w-3 h-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="w-3 h-3" />
+                    )}
+                    Boost
                   </button>
                 )}
                 {param.supportsArray && (

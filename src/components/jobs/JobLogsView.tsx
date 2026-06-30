@@ -12,6 +12,7 @@ interface LogEntry {
   data: JsonValue;
   jobId: string;
   endpointId: string;
+  source: 'ws' | 'poll';
 }
 
 interface JobLogsViewProps {
@@ -56,6 +57,16 @@ export function JobLogsView({ logs, autoScroll, onAutoScrollChange }: JobLogsVie
                 <ChevronRight className="w-2 h-2 text-[var(--text-faint)] transition-transform group-open:rotate-90 flex-shrink-0" />
                 <span className="text-[var(--text-faint)] shrink-0">
                   {new Date(log.timestamp).toLocaleTimeString('en-US', { hour12: false })}
+                </span>
+                <span
+                  className={`shrink-0 text-[9px] px-1 py-0.5 rounded font-medium ${
+                    log.source === 'ws'
+                      ? 'bg-blue-500/15 text-blue-400'
+                      : 'bg-[var(--surface-2)] text-[var(--muted)]'
+                  }`}
+                  title={log.source === 'ws' ? 'Received over WebSocket' : 'Received via polling'}
+                >
+                  {log.source === 'ws' ? 'WS' : 'POLL'}
                 </span>
                 <span
                   className={`shrink-0 ${

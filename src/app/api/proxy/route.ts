@@ -40,6 +40,11 @@ export async function POST(request: Request) {
     const isPriceCalc = params._priceCalc === true || params._priceCalc === 'true';
     delete params._priceCalc;
 
+    // Optional tester job id: when the client pre-created a 'sending' stub, reuse
+    // it so the job updates in place instead of creating a duplicate row.
+    const providedJobId = typeof params._jobId === 'string' ? params._jobId : undefined;
+    delete params._jobId;
+
     // Validate endpoint
     const endpoint = getEndpointById(endpointId);
     if (!endpoint) {
@@ -92,6 +97,7 @@ export async function POST(request: Request) {
       // Remove our internal fields
       formData.delete('_endpointId');
       formData.delete('_priceCalc');
+      formData.delete('_jobId');
       fetchOptions = {
         method: endpoint.method,
         headers,
@@ -146,18 +152,48 @@ export async function POST(request: Request) {
       try {
         const priceUrl = config.apiUrl.replace(/\/$/, '') + endpoint.priceCalcPath;
         console.log('[deapi-tester] Fetching price from:', priceUrl);
-        const priceResponse = await fetch(priceUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.apiToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(params),
-        });
+
+        let priceResponse: Response;
+        if (endpoint.contentType === 'multipart') {
+          // The price endpoint validates the SAME payload as the main request,
+          // including uploaded file(s). Sending JSON with "[File: …]" placeholder
+          // strings fails with 422 ("The image field must be a file."), so mirror
+          // the real multipart payload (fields + actual files). Build a fresh
+          // FormData (the original is reused for the main request below) and let
+          // fetch set the multipart boundary — do not set Content-Type manually.
+          const priceForm = new FormData();
+          for (const [key, value] of Object.entries(params)) {
+            if (fileEntries.some((f) => f.field === key)) continue; // skip file placeholders
+            if (value !== undefined && value !== null) {
+              priceForm.append(key, String(value));
+            }
+          }
+          for (const { field, file } of fileEntries) {
+            priceForm.append(field, file);
+          }
+          priceResponse = await fetch(priceUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${config.apiToken}` },
+            body: priceForm,
+          });
+        } else {
+          priceResponse = await fetch(priceUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${config.apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params),
+          });
+        }
+
         const priceData = await priceResponse.json();
         console.log('[deapi-tester] Price response:', priceResponse.status, priceData);
-        if (priceResponse.ok && priceData.data?.price !== undefined) {
-          estimatedPrice = priceData.data.price;
+        // Most price endpoints return { data: { price } }; prompt-enhancement
+        // returns a top-level { price }.
+        const price = priceData?.data?.price ?? priceData?.price;
+        if (priceResponse.ok && price !== undefined) {
+          estimatedPrice = price;
         }
       } catch (priceErr) {
         console.error('[deapi-tester] Price calculation failed:', priceErr);
@@ -176,8 +212,10 @@ export async function POST(request: Request) {
       }
     }
 
-    // Create job entry before making request
-    const jobId = generateJobId();
+    // Create or reuse the job entry before making the request. When the client
+    // pre-created a 'sending' stub (providedJobId), update it in place so the row
+    // transitions sending -> pending without duplicating.
+    const jobId = providedJobId || generateJobId();
     // Store the actual API path (without leading slash) as endpointId
     const jobEndpointId = targetPath.replace(/^\//, '');
     const job: Job = {
@@ -196,7 +234,16 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
     };
-    addJob(job);
+    if (providedJobId) {
+      // Preserve the stub's original createdAt (set when the user clicked Execute).
+      const jobUpdate: Partial<Job> = { ...job };
+      delete jobUpdate.createdAt;
+      const updated = updateJob(jobId, jobUpdate);
+      // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
+      if (!updated) addJob(job);
+    } else {
+      addJob(job);
+    }
 
     // Make request to deAPI
     const controller = new AbortController();
@@ -211,10 +258,17 @@ export async function POST(request: Request) {
 
     const rawResponse = await response.json();
 
+    // Capture response headers so the UI can optionally display them
+    const rawResponseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      rawResponseHeaders[key] = value;
+    });
+
     // Update job with response
     if (!response.ok) {
       updateJob(jobId, {
         rawResponse,
+        rawResponseHeaders,
         status: 'failed',
         error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
         completedAt: new Date().toISOString(),
@@ -234,6 +288,7 @@ export async function POST(request: Request) {
       updateJob(jobId, {
         requestId: rawResponse.data.request_id,
         rawResponse,
+        rawResponseHeaders,
         status: 'processing',
       });
 
@@ -251,6 +306,7 @@ export async function POST(request: Request) {
     // Only update costCredits if API returns it, otherwise keep the estimated price
     const syncUpdateData: Record<string, unknown> = {
       rawResponse,
+      rawResponseHeaders,
       status: 'completed',
       completedAt: new Date().toISOString(),
       resultUrl: rawResponse.data?.result_url,

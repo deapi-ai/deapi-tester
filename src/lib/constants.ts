@@ -4,6 +4,7 @@
 
 // Status colors for background/dot indicators (Tailwind classes)
 export const STATUS_BG_COLORS: Record<string, string> = {
+  sending: 'bg-violet-500',
   pending: 'bg-yellow-500',
   processing: 'bg-blue-500',
   completed: 'bg-green-500',
@@ -17,6 +18,7 @@ export const STATUS_BG_COLORS: Record<string, string> = {
 // Status colors for text (Tailwind classes)
 export const STATUS_TEXT_COLORS: Record<string, string> = {
   idle: 'text-zinc-500',
+  sending: 'text-violet-400',
   pending: 'text-yellow-400',
   processing: 'text-blue-400',
   polling: 'text-blue-400',
@@ -31,6 +33,7 @@ export const STATUS_TEXT_COLORS: Record<string, string> = {
 // Status emoji icons
 export const STATUS_ICONS: Record<string, string> = {
   idle: '⏸️',
+  sending: '📤',
   pending: '⏳',
   processing: '🔄',
   polling: '🔄',

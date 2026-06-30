@@ -9,11 +9,72 @@ function generateProfileId(): string {
   return Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
 }
 
+// Known WebSocket (Pusher/soketi) presets per environment, matched against the
+// profile's apiUrl host. Lets a profile auto-fill its WS connection so the user
+// only needs to add the dashboard clientId. Order matters (most specific first).
+interface WsPreset {
+  match: (host: string) => boolean;
+  ws: Pick<ConfigProfile, 'wsKey' | 'wsHost' | 'wsPort' | 'wsForceTLS' | 'wsCluster'>;
+}
+
+const WS_PRESETS: WsPreset[] = [
+  {
+    // Sandbox (…sandbox.deapi.dev)
+    match: (host) => host.includes('sandbox'),
+    ws: { wsKey: 'depin-api-dev-key', wsHost: 'soketi-depin-api.sandbox.deapi.dev', wsPort: 443, wsForceTLS: true, wsCluster: 'mt1' },
+  },
+  {
+    // Dev (…ghash.dev)
+    match: (host) => host.includes('ghash.dev'),
+    ws: { wsKey: 'depin-api-dev-key', wsHost: 'depin-soketi-dev.ghash.dev', wsPort: 443, wsForceTLS: true, wsCluster: 'mt1' },
+  },
+  {
+    // Production (api.deapi.ai)
+    match: (host) => host.includes('deapi.ai'),
+    ws: { wsKey: 'depin-api-prod-key', wsHost: 'soketi.deapi.ai', wsPort: 443, wsForceTLS: true, wsCluster: 'mt1' },
+  },
+];
+
+// Resolve the broadcasting/auth URL for a profile. Explicit wsAuthUrl wins;
+// otherwise derive from the apiUrl origin (auth lives at the ROOT, not /api/v2).
+export function resolveWsAuthUrl(profile: ConfigProfile): string {
+  if (profile.wsAuthUrl && profile.wsAuthUrl.trim()) return profile.wsAuthUrl.trim();
+  try {
+    return `${new URL(profile.apiUrl).origin}/broadcasting/auth`;
+  } catch {
+    return '';
+  }
+}
+
+// Fill in missing WebSocket fields from the matching environment preset so a
+// profile works out of the box. Never overwrites values the user has set.
+function normalizeProfile(profile: ConfigProfile): ConfigProfile {
+  let host = '';
+  try {
+    host = new URL(profile.apiUrl).host;
+  } catch {
+    host = '';
+  }
+  const preset = host ? WS_PRESETS.find((p) => p.match(host))?.ws : undefined;
+
+  return {
+    ...profile,
+    wsEnabled: profile.wsEnabled ?? true,
+    wsKey: profile.wsKey ?? preset?.wsKey ?? '',
+    wsHost: profile.wsHost ?? preset?.wsHost ?? '',
+    wsPort: profile.wsPort ?? preset?.wsPort ?? 443,
+    wsForceTLS: profile.wsForceTLS ?? preset?.wsForceTLS ?? true,
+    wsCluster: profile.wsCluster ?? preset?.wsCluster ?? 'mt1',
+    wsClientId: profile.wsClientId ?? '',
+    wsAuthUrl: profile.wsAuthUrl ?? '',
+  };
+}
+
 // Default profile
 const DEFAULT_PROFILE: ConfigProfile = {
   id: 'default',
-  name: 'Default',
-  apiUrl: 'https://api.deapi.ai/api/v1/client',
+  name: 'Production',
+  apiUrl: 'https://api.deapi.ai/api/v2',
   apiToken: '',
 };
 
@@ -24,6 +85,7 @@ const DEFAULT_CONFIG_FULL: AppConfigFull = {
   outputDir: './output',
   pollingIntervalMs: 2000,
   maxPollingAttempts: 120,
+  fallbackPollIntervalMs: 10000,
 };
 
 // Check if config is old format (flat) or new format (with profiles)
@@ -43,7 +105,7 @@ function isOldFormat(config: unknown): config is OldConfig {
 function migrateOldConfig(oldConfig: OldConfig): AppConfigFull {
   const profile: ConfigProfile = {
     id: 'default',
-    name: 'Default',
+    name: 'Production',
     apiUrl: oldConfig.apiUrl || DEFAULT_PROFILE.apiUrl,
     apiToken: oldConfig.apiToken || '',
   };
@@ -54,6 +116,7 @@ function migrateOldConfig(oldConfig: OldConfig): AppConfigFull {
     outputDir: oldConfig.outputDir || DEFAULT_CONFIG_FULL.outputDir,
     pollingIntervalMs: oldConfig.pollingIntervalMs || DEFAULT_CONFIG_FULL.pollingIntervalMs,
     maxPollingAttempts: oldConfig.maxPollingAttempts || DEFAULT_CONFIG_FULL.maxPollingAttempts,
+    fallbackPollIntervalMs: DEFAULT_CONFIG_FULL.fallbackPollIntervalMs,
   };
 }
 
@@ -76,6 +139,9 @@ export function loadFullConfig(): AppConfigFull {
       }
     }
 
+    // Backfill WebSocket defaults (presets) for every profile.
+    config.profiles = config.profiles.map(normalizeProfile);
+
     // Environment variables override active profile settings
     if (config.profiles.length > 0) {
       const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
@@ -97,6 +163,9 @@ export function loadFullConfig(): AppConfigFull {
     }
     if (process.env.DEAPI_MAX_POLLING_ATTEMPTS) {
       config.maxPollingAttempts = parseInt(process.env.DEAPI_MAX_POLLING_ATTEMPTS, 10);
+    }
+    if (process.env.DEAPI_FALLBACK_POLLING_INTERVAL_MS) {
+      config.fallbackPollIntervalMs = parseInt(process.env.DEAPI_FALLBACK_POLLING_INTERVAL_MS, 10);
     }
 
     return config;
@@ -207,6 +276,15 @@ export function updateProfile(profileId: string, updates: Partial<Omit<ConfigPro
   if (updates.name !== undefined) profile.name = updates.name;
   if (updates.apiUrl !== undefined) profile.apiUrl = updates.apiUrl;
   if (updates.apiToken !== undefined) profile.apiToken = updates.apiToken;
+  // WebSocket fields
+  if (updates.wsEnabled !== undefined) profile.wsEnabled = updates.wsEnabled;
+  if (updates.wsKey !== undefined) profile.wsKey = updates.wsKey;
+  if (updates.wsHost !== undefined) profile.wsHost = updates.wsHost;
+  if (updates.wsPort !== undefined) profile.wsPort = updates.wsPort;
+  if (updates.wsForceTLS !== undefined) profile.wsForceTLS = updates.wsForceTLS;
+  if (updates.wsCluster !== undefined) profile.wsCluster = updates.wsCluster;
+  if (updates.wsClientId !== undefined) profile.wsClientId = updates.wsClientId;
+  if (updates.wsAuthUrl !== undefined) profile.wsAuthUrl = updates.wsAuthUrl;
 
   saveFullConfig(fullConfig);
   return profile;

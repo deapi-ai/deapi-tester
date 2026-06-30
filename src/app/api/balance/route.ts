@@ -22,7 +22,7 @@ export async function GET(request: Request) {
       );
     }
 
-    const apiUrl = `${config.apiUrl.replace(/\/$/, '')}/balance`;
+    const apiUrl = `${config.apiUrl.replace(/\/$/, '')}/account/balance`;
 
     // Create job if requested
     let jobId: string | undefined;
@@ -76,7 +76,8 @@ export async function GET(request: Request) {
         status: 'completed',
         completedAt: new Date().toISOString(),
         // Store balance as costCredits so it shows on the job
-        costCredits: data.data?.balance,
+        // v2 returns balance at top level; v1 wrapped it in `data`
+        costCredits: data.data?.balance ?? data.balance,
       });
     }
 

@@ -8,6 +8,7 @@ import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
 import { EndpointForm } from '@/components/EndpointForm';
 import { JobsPanel, JobsPanelRef } from '@/components/JobsPanel';
+import { WsIndicator } from '@/components/WsIndicator';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
 import { useModelsContext } from '@/components/ModelsContext';
@@ -36,7 +37,6 @@ export default function Home() {
   const jobsPanelRef = useRef<JobsPanelRef>(null);
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [prefill, setPrefill] = useState<FormPrefill | null>(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
 
   // Duplicate a request from history: select its endpoint and preload its params
@@ -70,29 +70,55 @@ export default function Home() {
   }, []);
 
   const handleSubmit = async (params: Record<string, JsonValue>, formData?: FormData) => {
-    setIsSubmitting(true);
+    const endpoint = selectedEndpoint;
+    if (!endpoint) return;
 
+    // Persist the job to history immediately as 'sending' so it appears on the
+    // list the moment Execute is clicked — without blocking the button. The proxy
+    // (price calc + submit) then runs in the background and updates this SAME job
+    // in place (request_id + real status) when it returns. We don't have the
+    // request_id yet, and that's fine — 'sending' is the start of its lifecycle.
+    const displayParams = { ...params };
+    delete displayParams._endpointId;
+
+    let jobId: string | undefined;
     try {
-      const res = await fetch('/api/proxy', {
+      const res = await fetch('/api/history', {
         method: 'POST',
-        headers: formData ? undefined : { 'Content-Type': 'application/json' },
-        body: formData || JSON.stringify(params),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ endpointId: endpoint.id, params: displayParams }),
       });
-
-      const data: ProxyResponse = await res.json();
-
-      // Refresh jobs panel immediately
-      jobsPanelRef.current?.refresh();
-
-      if (!data.success) {
-        showError(data.error || 'Request failed');
-        return;
-      }
-    } catch (err) {
-      showError(err instanceof Error ? err.message : 'Request failed');
-    } finally {
-      setIsSubmitting(false);
+      const data = await res.json();
+      jobId = data.jobId;
+      jobsPanelRef.current?.refresh(); // show the 'sending' job
+    } catch {
+      // Couldn't pre-create the stub — fall back to a plain submit (proxy creates the job).
     }
+
+    let body: BodyInit;
+    let headers: Record<string, string> | undefined;
+    if (formData) {
+      if (jobId) formData.append('_jobId', jobId);
+      body = formData;
+    } else {
+      body = JSON.stringify(jobId ? { ...params, _jobId: jobId } : params);
+      headers = { 'Content-Type': 'application/json' };
+    }
+
+    fetch('/api/proxy', { method: 'POST', headers, body })
+      .then((res) => res.json())
+      .then((data: ProxyResponse) => {
+        if (!data.success) {
+          showError(data.error || 'Request failed');
+        }
+      })
+      .catch((err) => {
+        showError(err instanceof Error ? err.message : 'Request failed');
+      })
+      .finally(() => {
+        // Pull the now-updated job (request_id + real status) into the list.
+        jobsPanelRef.current?.refresh();
+      });
   };
 
 
@@ -106,6 +132,9 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* WebSocket status (left of balance) */}
+          <WsIndicator />
+
           {/* Balance display */}
           {balance !== null && (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--surface-2)] rounded">
@@ -164,7 +193,7 @@ export default function Home() {
                 prefill={prefill}
                 onSubmit={handleSubmit}
                 onPriceCheck={() => jobsPanelRef.current?.refresh()}
-                isSubmitting={isSubmitting}
+                isSubmitting={false}
               />
             ) : (
               <div className="h-[200px] flex items-center justify-center">
