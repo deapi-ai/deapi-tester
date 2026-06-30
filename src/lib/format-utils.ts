@@ -3,6 +3,7 @@
  */
 
 import { getEndpointByApiPath } from './endpoint-registry';
+import { Job, JsonValue } from './types';
 
 /**
  * Format ISO date string to HH:MM:SS time
@@ -84,4 +85,32 @@ export function getResultType(
       // transcription, ocr, embeddings, utility, or unknown → non-media (text/json)
       return 'other';
   }
+}
+
+/**
+ * Extract a copyable text output from a job when the result is text rather than
+ * a media file. Returns null when there is no text result.
+ *  - Prompt enhancement returns a top-level { prompt, negative_prompt }.
+ *  - OCR / transcription put the text in data.result (v2 job schema: result =
+ *    "Generate text (e.g. transcription)"); media jobs leave it null and use
+ *    result_url instead.
+ */
+export function getResultText(job: Job): string | null {
+  const rr = job.rawResponse;
+  if (!rr || typeof rr !== 'object' || Array.isArray(rr)) return null;
+  const r = rr as Record<string, JsonValue>;
+
+  // Prompt enhancement: top-level { prompt, negative_prompt }
+  if (typeof r.prompt === 'string' && r.prompt.trim()) return r.prompt;
+
+  const data =
+    r.data && typeof r.data === 'object' && !Array.isArray(r.data)
+      ? (r.data as Record<string, JsonValue>)
+      : undefined;
+  if (data) {
+    if (typeof data.result === 'string' && data.result.trim()) return data.result;
+    if (typeof data.text === 'string' && data.text.trim()) return data.text;
+    if (typeof data.prompt === 'string' && data.prompt.trim()) return data.prompt;
+  }
+  return null;
 }
