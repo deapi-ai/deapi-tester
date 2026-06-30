@@ -590,9 +590,10 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
 
       let res: Response;
 
-      // For multipart endpoints with files, send as FormData (includes files for price calc)
-      const hasFiles = Object.keys(files).length > 0;
-      if (endpoint.contentType === 'multipart' && hasFiles) {
+      // Mirror the main request: multipart endpoints (with or without files) send
+      // FormData so the price endpoint validates the same payload it will receive.
+      // Sending JSON with "[File: …]" placeholders fails with 422.
+      if (endpoint.contentType === 'multipart') {
         const formData = new FormData();
         formData.append('_endpointId', endpoint.id);
         formData.append('_priceCalc', 'true');

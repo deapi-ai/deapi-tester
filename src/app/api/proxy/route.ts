@@ -146,14 +146,41 @@ export async function POST(request: Request) {
       try {
         const priceUrl = config.apiUrl.replace(/\/$/, '') + endpoint.priceCalcPath;
         console.log('[deapi-tester] Fetching price from:', priceUrl);
-        const priceResponse = await fetch(priceUrl, {
-          method: 'POST',
-          headers: {
-            'Authorization': `Bearer ${config.apiToken}`,
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify(params),
-        });
+
+        let priceResponse: Response;
+        if (endpoint.contentType === 'multipart') {
+          // The price endpoint validates the SAME payload as the main request,
+          // including uploaded file(s). Sending JSON with "[File: …]" placeholder
+          // strings fails with 422 ("The image field must be a file."), so mirror
+          // the real multipart payload (fields + actual files). Build a fresh
+          // FormData (the original is reused for the main request below) and let
+          // fetch set the multipart boundary — do not set Content-Type manually.
+          const priceForm = new FormData();
+          for (const [key, value] of Object.entries(params)) {
+            if (fileEntries.some((f) => f.field === key)) continue; // skip file placeholders
+            if (value !== undefined && value !== null) {
+              priceForm.append(key, String(value));
+            }
+          }
+          for (const { field, file } of fileEntries) {
+            priceForm.append(field, file);
+          }
+          priceResponse = await fetch(priceUrl, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${config.apiToken}` },
+            body: priceForm,
+          });
+        } else {
+          priceResponse = await fetch(priceUrl, {
+            method: 'POST',
+            headers: {
+              'Authorization': `Bearer ${config.apiToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(params),
+          });
+        }
+
         const priceData = await priceResponse.json();
         console.log('[deapi-tester] Price response:', priceResponse.status, priceData);
         if (priceResponse.ok && priceData.data?.price !== undefined) {

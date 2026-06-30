@@ -68,10 +68,15 @@ export async function GET(
               }
               updateJob(job.id, updateData);
             } else if (status === 'error') {
+              // v2 reports failures via error_message / error_code (not "error")
               updateJob(job.id, {
                 status: 'failed',
                 rawResponse: data,
-                error: data.data?.error || data.error,
+                error:
+                  data.data?.error_message ||
+                  data.data?.error ||
+                  data.error ||
+                  (data.data?.error_code ? `Error: ${data.data.error_code}` : undefined),
                 completedAt: new Date().toISOString(),
               });
             } else {

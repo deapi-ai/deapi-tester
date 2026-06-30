@@ -212,7 +212,13 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
             refreshBalance();
             setTimeout(() => loadJobs(), 500);
           } else if (status === 'error' || status === 'timeout') {
-            const errorMsg = data.data?.error || data.error || 'Job failed';
+            // v2 reports failures via error_message / error_code (not "error")
+            const errorMsg =
+              data.data?.error_message ||
+              data.data?.error ||
+              data.error ||
+              (data.data?.error_code ? `Error: ${data.data.error_code}` : null) ||
+              'Job failed';
             setActiveJobs((prev) => {
               const newMap = new Map(prev);
               const activeJob = newMap.get(job.id);

@@ -58,7 +58,6 @@ export function JobRow({
   onDuplicate,
 }: JobRowProps) {
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
-  const resultType = getResultType(job.endpointId);
 
   const getResultUrl = (): string | null => {
     if (job.resultUrl) return job.resultUrl;
@@ -90,6 +89,9 @@ export function JobRow({
 
   const resultUrl = getResultUrl();
   const cost = getCost();
+  // Derived from the result URL extension (most reliable) with the endpoint's
+  // group as fallback — robust to the v2 path stored in job.endpointId.
+  const resultType = getResultType(job.endpointId, resultUrl);
 
   return (
     <div className="hover:bg-[var(--hover)]">
