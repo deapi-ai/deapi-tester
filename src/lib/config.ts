@@ -73,7 +73,7 @@ function normalizeProfile(profile: ConfigProfile): ConfigProfile {
 // Default profile
 const DEFAULT_PROFILE: ConfigProfile = {
   id: 'default',
-  name: 'Default',
+  name: 'Production',
   apiUrl: 'https://api.deapi.ai/api/v2',
   apiToken: '',
 };
@@ -105,7 +105,7 @@ function isOldFormat(config: unknown): config is OldConfig {
 function migrateOldConfig(oldConfig: OldConfig): AppConfigFull {
   const profile: ConfigProfile = {
     id: 'default',
-    name: 'Default',
+    name: 'Production',
     apiUrl: oldConfig.apiUrl || DEFAULT_PROFILE.apiUrl,
     apiToken: oldConfig.apiToken || '',
   };

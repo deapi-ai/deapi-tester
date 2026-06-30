@@ -18,7 +18,7 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints — un
 - **Endpoint Browser** - Browse and select from all available deAPI endpoints organized by category
 - **Dynamic Forms** - Automatically generated forms based on endpoint parameters with model-aware limits and defaults
 - **Dynamic Models** - Model options, limits, defaults, voices, and languages auto-discovered from API (zero code changes to add models)
-- **Async Job Tracking** - Real-time polling with SSE for async operations (image/video generation)
+- **Real-Time Job Tracking** - Live status, progress, and previews over WebSocket (Pusher/soketi) for async operations, with polling as an automatic fallback
 - **Request Inspector** - View raw request/response JSON for debugging
 - **Job History** - Persistent history of all requests with status, cost, and results
 - **Result Preview** - Inline previews for images, videos, and audio
@@ -74,12 +74,14 @@ Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ### Configuration
 
+A ready-to-use **Production** profile (pointing at `https://api.deapi.ai/api/v2`) is pre-defined out of the box — you only need to add your API token. `data/config.json` is **not** shipped in the repo: it is created the first time you save, so your token is never committed.
+
 **Option 1: UI Configuration (Recommended for local use)**
 
 1. Click the **gear icon** in the top right corner
-2. Enter your deAPI token and other settings
-3. Create multiple profiles for different environments
-4. Configuration is saved to `data/config.json`
+2. Enter your deAPI token (and, optionally, a per-profile WebSocket **Client ID** — see [Real-Time Updates](#real-time-updates-websocket))
+3. Create additional profiles for other environments if needed
+4. Click **Save** — your configuration is written to `data/config.json` (created on first save)
 
 **Option 2: Environment Variables**
 
@@ -97,15 +99,32 @@ DEAPI_API_URL=https://api.deapi.ai/api/v2
 DEAPI_OUTPUT_DIR=./output
 DEAPI_POLLING_INTERVAL_MS=2000
 DEAPI_MAX_POLLING_ATTEMPTS=120
+# Fallback poll interval (ms) used while the WebSocket is the primary source
+DEAPI_FALLBACK_POLLING_INTERVAL_MS=10000
+# Optional — only for OG/Twitter metadata (defaults to http://localhost:3000)
+# NEXT_PUBLIC_SITE_URL=https://your-domain.com
 ```
+
+> **Note:** WebSocket settings (Client ID, key, host) are **per profile** and are configured in the UI, not via environment variables.
 
 **Priority:** Environment variables override `data/config.json` values when both exist.
 
 **Git-ignored files:**
 - `.env.local` - excluded from git (safe to store tokens)
-- `data/config.json` - excluded from git (local configuration)
+- `data/config.json` - excluded from git (local configuration, created on first save)
 - `data/history.json` - excluded from git (your job history)
 - `output/` - excluded from git (generated files)
+
+### Real-Time Updates (WebSocket)
+
+Job status is delivered in real time over deAPI's WebSocket (a Pusher-compatible **soketi** server), with HTTP polling kept as an automatic fallback.
+
+- **WebSocket = primary.** Live `processing` → `done` status, progress, and image previews stream over the socket. The connection indicator sits in the header, left of the balance: **WS live / connecting / down / off**.
+- **Polling = fallback.** A slow reconciliation poll runs only when the socket is quiet (configurable via the **Fallback poll interval** setting, default 10s). It is also what surfaces **failures**, which deAPI delivers via webhooks rather than over the socket.
+- **What you need to enable it:** the per-profile **API token** plus a **Client ID** (your private channel `private-client.{id}`), taken from the [deAPI dashboard](https://app.deapi.ai). Add the Client ID in **Settings → edit profile → WebSocket**. Without a Client ID, the profile simply runs on polling — nothing breaks.
+- **Per-environment connection** (key, host, port) **auto-fills** from the profile's API URL (production / dev / sandbox presets), so in most cases the Client ID is the only field you add. All of these are editable in the profile's WebSocket section.
+
+> WebSocket settings are non-secret and stored per profile in `data/config.json`; the private-channel auth is proxied through the backend (`/api/ws-auth`) so the API token never leaves the server.
 
 ## Usage
 
@@ -129,26 +148,28 @@ deapi-tester/
 │   │   ├── globals.css           # Global styles, CSS variables, theme definitions
 │   │   ├── api/
 │   │   │   ├── proxy/            # Proxy requests to deAPI
-│   │   │   ├── poll/[id]/        # SSE polling for async jobs
+│   │   │   ├── ws-auth/          # WebSocket private-channel auth proxy
+│   │   │   ├── jobs/[id]/        # One-shot job status fetch + persist (poll fallback)
 │   │   │   ├── endpoints/        # GET endpoint registry
 │   │   │   ├── history/          # Job history CRUD
 │   │   │   ├── config/           # Configuration management
 │   │   │   ├── models/           # Proxy to deAPI /models
 │   │   │   ├── balance/          # Proxy to deAPI /balance
 │   │   │   ├── files/            # List/serve files from output dir
+│   │   │   ├── uploads/[name]/   # Serve persisted uploaded files
 │   │   │   └── download/         # Download results
 │   ├── components/
 │   │   ├── Providers.tsx         # Root providers (Contexts + Toast)
 │   │   ├── BalanceContext.tsx     # Balance state (useBalance hook)
 │   │   ├── ModelsContext.tsx      # Models cache (useModelsContext hook)
+│   │   ├── JobSocketContext.tsx   # WebSocket (Pusher/soketi) realtime job updates
 │   │   ├── ThemeContext.tsx       # Theme state (useTheme hook)
 │   │   ├── Toast.tsx             # Toast notifications (useToast hook)
-│   │   ├── ConfigPanel.tsx       # Quick profile switcher (header)
-│   │   ├── ConfigDrawer.tsx      # Full settings drawer
+│   │   ├── WsIndicator.tsx       # Header WebSocket status indicator
+│   │   ├── ConfigDrawer.tsx      # Full settings drawer (profiles + WebSocket)
 │   │   ├── EndpointSelector.tsx  # Endpoint browser
 │   │   ├── EndpointForm.tsx      # Dynamic form generator
 │   │   ├── RequestInspector.tsx  # Raw JSON viewer
-│   │   ├── JobTracker.tsx        # Polling status, progress bar
 │   │   ├── JobsPanel.tsx         # Job tracking & history
 │   │   ├── ResultViewer.tsx      # Preview img/video/audio
 │   │   ├── HistoryPanel.tsx      # Previous jobs list
@@ -163,7 +184,6 @@ deapi-tester/
 │   │       └── JobLogsView.tsx   # Logs view
 │   ├── hooks/
 │   │   ├── useDeApi.ts           # Main API hook
-│   │   ├── usePolling.ts         # SSE/polling hook
 │   │   └── useConfig.ts          # Configuration hook
 │   └── lib/
 │       ├── endpoint-registry.ts  # Endpoint definitions (form structure only)
@@ -209,7 +229,7 @@ The form is automatically generated. Model options, limits, and defaults are loa
 ## Architecture
 
 - All requests to deAPI go through the backend proxy (`/api/proxy`) which adds the Authorization header and logs to history
-- Async job polling uses Server-Sent Events (SSE) from `/api/poll/[id]`
+- Real-time job status arrives over a WebSocket (Pusher/soketi) via `JobSocketContext`; private-channel auth is proxied through `/api/ws-auth` so the token stays server-side. A slow reconciliation poll (`/api/jobs/[id]`, every `fallbackPollIntervalMs`) is the fallback and surfaces failures (delivered by webhook, not over the socket)
 - Endpoint registry defines form **structure** only (field names, types, required flags)
 - All model data (slugs, limits, defaults, voices, languages) comes dynamically from `/api/models`
 - Adding a new model to deAPI requires **zero code changes** — it auto-appears in the UI

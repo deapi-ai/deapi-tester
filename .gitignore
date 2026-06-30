@@ -28,6 +28,8 @@ yarn-debug.log*
 yarn-error.log*
 
 # env files
+.env
+.env.local
 .env*.local
 
 # vercel
@@ -41,6 +43,10 @@ next-env.d.ts
 /output
 
 # local data files (contain sensitive keys and user history)
+# Ignore all local data json (config holds the API token, history holds requests),
+# but keep the committed example. config.json is created on first save, never shipped.
+/data/*.json
+!/data/config.example.json
 /data/config.json
 /data/history.json
 /data/uploads
