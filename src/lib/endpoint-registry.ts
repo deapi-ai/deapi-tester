@@ -1,4 +1,5 @@
 import { EndpointDefinition, EndpointGroupMeta, EndpointParam } from './types';
+import { ENHANCEMENT_TYPE_OPTIONS } from './prompt-enhancement';
 
 // ============================================================
 // ENDPOINT GROUPS
@@ -51,6 +52,12 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     label: 'Embeddings',
     icon: '🧮',
     description: 'Text to vector embeddings',
+  },
+  {
+    id: 'prompt-enhancement',
+    label: 'Prompt Booster',
+    icon: '✨',
+    description: 'Enhance prompts per model',
   },
   {
     id: 'utility',
@@ -922,6 +929,62 @@ export const ENDPOINTS: EndpointDefinition[] = [
         supportsArray: true,
       },
       modelSelectParam(),
+    ],
+  },
+
+  // ── Prompt Enhancement ────────────────────────────────────
+  {
+    id: 'prompt-enhancement',
+    name: 'Prompt Enhancement',
+    group: 'prompt-enhancement',
+    method: 'POST',
+    path: '/prompts/enhancements',
+    description: 'Enhance/boost a prompt for a target model (model selects the guide)',
+    contentType: 'multipart',
+    isAsync: false,
+    hasPriceCalc: true,
+    priceCalcPath: '/prompts/enhancements/price',
+    params: [
+      {
+        name: 'prompt',
+        label: 'Prompt',
+        type: 'textarea',
+        required: true,
+        placeholder: 'Prompt to enhance (min 3 chars)...',
+        description: 'Raw prompt to rewrite/enhance',
+      },
+      {
+        name: 'type',
+        label: 'Inference Type',
+        type: 'select',
+        required: true,
+        default: 'images.generations',
+        options: ENHANCEMENT_TYPE_OPTIONS,
+        description: 'Target inference type (v2 dot notation)',
+      },
+      {
+        name: 'model_slug',
+        label: 'Model',
+        type: 'select',
+        required: true,
+        description: 'Target model — selects the enhancement guide',
+      },
+      {
+        name: 'negative_prompt',
+        label: 'Negative Prompt',
+        type: 'textarea',
+        required: false,
+        placeholder: 'Optional (min 3 chars)...',
+        description: 'Optional negative prompt to enhance',
+      },
+      {
+        name: 'image',
+        label: 'Reference Image',
+        type: 'file',
+        required: false,
+        accept: 'image/*',
+        description: 'Required for images.edits and videos.animations',
+      },
     ],
   },
 

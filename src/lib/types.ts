@@ -47,6 +47,7 @@ export type EndpointGroup =
   | 'ocr'
   | 'image-utils'
   | 'embeddings'
+  | 'prompt-enhancement'
   | 'utility';
 
 export interface EndpointGroupMeta {

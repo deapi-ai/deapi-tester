@@ -183,8 +183,11 @@ export async function POST(request: Request) {
 
         const priceData = await priceResponse.json();
         console.log('[deapi-tester] Price response:', priceResponse.status, priceData);
-        if (priceResponse.ok && priceData.data?.price !== undefined) {
-          estimatedPrice = priceData.data.price;
+        // Most price endpoints return { data: { price } }; prompt-enhancement
+        // returns a top-level { price }.
+        const price = priceData?.data?.price ?? priceData?.price;
+        if (priceResponse.ok && price !== undefined) {
+          estimatedPrice = price;
         }
       } catch (priceErr) {
         console.error('[deapi-tester] Price calculation failed:', priceErr);
