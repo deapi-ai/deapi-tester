@@ -136,6 +136,10 @@ export function EndpointSelector({ selectedEndpoint, onSelect }: EndpointSelecto
             No endpoints found
           </div>
         )}
+
+        {/* Bottom spacer so the last items aren't covered by the floating
+            Next.js dev indicator in the bottom-left corner. */}
+        <div className="h-[50px] flex-shrink-0" aria-hidden />
       </div>
     </div>
   );
