@@ -238,10 +238,17 @@ export async function POST(request: Request) {
 
     const rawResponse = await response.json();
 
+    // Capture response headers so the UI can optionally display them
+    const rawResponseHeaders: Record<string, string> = {};
+    response.headers.forEach((value, key) => {
+      rawResponseHeaders[key] = value;
+    });
+
     // Update job with response
     if (!response.ok) {
       updateJob(jobId, {
         rawResponse,
+        rawResponseHeaders,
         status: 'failed',
         error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
         completedAt: new Date().toISOString(),
@@ -261,6 +268,7 @@ export async function POST(request: Request) {
       updateJob(jobId, {
         requestId: rawResponse.data.request_id,
         rawResponse,
+        rawResponseHeaders,
         status: 'processing',
       });
 
@@ -278,6 +286,7 @@ export async function POST(request: Request) {
     // Only update costCredits if API returns it, otherwise keep the estimated price
     const syncUpdateData: Record<string, unknown> = {
       rawResponse,
+      rawResponseHeaders,
       status: 'completed',
       completedAt: new Date().toISOString(),
       resultUrl: rawResponse.data?.result_url,

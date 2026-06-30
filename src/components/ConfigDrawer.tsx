@@ -28,7 +28,7 @@ interface ConfigDrawerProps {
 export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
   const { balance, refreshBalance, isLoading: isBalanceLoading } = useBalance();
   const { refreshModels } = useModelsContext();
-  const { strictValidation, setStrictValidation } = useSettings();
+  const { strictValidation, setStrictValidation, showResponseHeaders, setShowResponseHeaders } = useSettings();
   const [config, setConfig] = useState<ConfigState>({
     activeProfileId: '',
     profiles: [],
@@ -483,6 +483,21 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                 <p className="mt-1 text-[11px] text-[var(--text-faint)]">
                   When on, enforces model min/max limits on numeric fields and file type restrictions.
                   Turn off to send any value to the API for debugging.
+                </p>
+              </div>
+
+              <div>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showResponseHeaders}
+                    onChange={e => setShowResponseHeaders(e.target.checked)}
+                    className="w-3.5 h-3.5 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
+                  />
+                  <span className="text-sm text-[var(--text-secondary)]">Show response headers</span>
+                </label>
+                <p className="mt-1 text-[11px] text-[var(--text-faint)]">
+                  When on, the response HTTP headers from deAPI are shown in each job&apos;s Raw panel.
                 </p>
               </div>
             </div>

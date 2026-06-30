@@ -4,6 +4,7 @@ import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy } from 'luc
 import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
 import { formatTime, formatCost, getResultType } from '@/lib/format-utils';
+import { useSettings } from '@/components/SettingsContext';
 
 interface PollUpdate {
   timestamp: number;
@@ -57,7 +58,10 @@ export function JobRow({
   onDelete,
   onDuplicate,
 }: JobRowProps) {
+  const { showResponseHeaders } = useSettings();
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
+  const hasResponseHeaders =
+    !!job.rawResponseHeaders && Object.keys(job.rawResponseHeaders).length > 0;
 
   const getResultUrl = (): string | null => {
     if (job.resultUrl) return job.resultUrl;
@@ -297,7 +301,7 @@ export function JobRow({
       </div>
 
       {/* Expanded Raw Request & Response */}
-      {isRawExpanded && (job.rawRequest || job.rawResponse) && (
+      {isRawExpanded && (job.rawRequest || job.rawResponse || (showResponseHeaders && hasResponseHeaders)) && (
         <div className="px-4 pb-3 space-y-2">
           {job.rawRequest && (
             <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
@@ -312,6 +316,24 @@ export function JobRow({
               </div>
               <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
                 {JSON.stringify(job.rawRequest, null, 2)}
+              </pre>
+            </div>
+          )}
+          {showResponseHeaders && hasResponseHeaders && (
+            <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded p-2">
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Response Headers</span>
+                <button
+                  onClick={() => navigator.clipboard.writeText(JSON.stringify(job.rawResponseHeaders, null, 2))}
+                  className="text-[10px] text-[var(--muted)] hover:text-[var(--text-primary)]"
+                >
+                  Copy
+                </button>
+              </div>
+              <pre className="text-[10px] font-mono text-[var(--text-secondary)] overflow-x-auto max-h-40">
+                {Object.entries(job.rawResponseHeaders!)
+                  .map(([k, v]) => `${k}: ${v}`)
+                  .join('\n')}
               </pre>
             </div>
           )}

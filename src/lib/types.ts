@@ -82,6 +82,7 @@ export interface Job {
     body: JsonValue;
   };
   rawResponse?: JsonValue;         // raw HTTP response from deAPI
+  rawResponseHeaders?: Record<string, string>; // response HTTP headers from deAPI (submit response)
   uploadedFiles?: UploadedFile[];  // persisted multipart uploads (for duplicate)
   status: 'pending' | 'processing' | 'completed' | 'failed' | 'cancelled';
   resultUrl?: string;              // result URL from deAPI
