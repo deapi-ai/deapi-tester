@@ -8,6 +8,7 @@ import { ConfigDrawer } from '@/components/ConfigDrawer';
 import { EndpointSelector } from '@/components/EndpointSelector';
 import { EndpointForm } from '@/components/EndpointForm';
 import { JobsPanel, JobsPanelRef } from '@/components/JobsPanel';
+import { WsIndicator } from '@/components/WsIndicator';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
 import { useModelsContext } from '@/components/ModelsContext';
@@ -106,6 +107,9 @@ export default function Home() {
         </div>
 
         <div className="flex items-center gap-3">
+          {/* WebSocket status (left of balance) */}
+          <WsIndicator />
+
           {/* Balance display */}
           {balance !== null && (
             <div className="flex items-center gap-1.5 px-2 py-1 bg-[var(--surface-2)] rounded">

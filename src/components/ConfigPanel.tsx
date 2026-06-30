@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { Loader2, RefreshCw } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
+import { useJobSocket } from './JobSocketContext';
 
 interface ProfileState {
   id: string;
@@ -21,6 +22,7 @@ interface ConfigState {
 export function ConfigPanel() {
   const { balance, refreshBalance, isLoading: isBalanceLoading } = useBalance();
   const { refreshModels } = useModelsContext();
+  const { reconnect: reconnectSocket } = useJobSocket();
   const [config, setConfig] = useState<ConfigState>({
     activeProfileId: '',
     profiles: [],
@@ -61,9 +63,10 @@ export function ConfigPanel() {
         profiles: data.profiles,
         outputDir: data.outputDir,
       });
-      // Refresh balance and models for new profile
+      // Refresh balance and models for new profile, and rebuild the WS connection
       refreshBalance();
       refreshModels();
+      reconnectSocket();
     } catch (err) {
       console.error('[deapi-tester] Failed to switch profile:', err);
     } finally {

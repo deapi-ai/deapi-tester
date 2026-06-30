@@ -13,6 +13,7 @@ interface PollUpdate {
   maxAttempts: number;
   status: string;
   data: JsonValue;
+  source: 'ws' | 'poll';
 }
 
 interface ActiveJob {
@@ -419,6 +420,16 @@ export function JobRow({
                         <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--hover)] cursor-pointer text-xs">
                           <ChevronRight className="w-2 h-2 text-[var(--text-faint)] transition-transform group-open:rotate-90 flex-shrink-0" />
                           <span className="text-[var(--text-faint)] font-mono w-8">#{update.attempt}</span>
+                          <span
+                            className={`text-[9px] px-1 py-0.5 rounded font-medium ${
+                              update.source === 'ws'
+                                ? 'bg-blue-500/15 text-blue-400'
+                                : 'bg-[var(--surface-2)] text-[var(--muted)]'
+                            }`}
+                            title={update.source === 'ws' ? 'Received over WebSocket' : 'Received via polling'}
+                          >
+                            {update.source === 'ws' ? 'WS' : 'POLL'}
+                          </span>
                           <span
                             className={`font-medium ${
                               update.status === 'done'

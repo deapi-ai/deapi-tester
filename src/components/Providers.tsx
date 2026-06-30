@@ -6,6 +6,7 @@ import { ToastProvider } from './Toast';
 import { BalanceProvider } from './BalanceContext';
 import { ModelsProvider } from './ModelsContext';
 import { SettingsProvider } from './SettingsContext';
+import { JobSocketProvider } from './JobSocketContext';
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -13,7 +14,9 @@ export function Providers({ children }: { children: ReactNode }) {
       <SettingsProvider>
         <BalanceProvider>
           <ModelsProvider>
-            <ToastProvider>{children}</ToastProvider>
+            <JobSocketProvider>
+              <ToastProvider>{children}</ToastProvider>
+            </JobSocketProvider>
           </ModelsProvider>
         </BalanceProvider>
       </SettingsProvider>

@@ -5,6 +5,7 @@ import { X, RefreshCw, Pencil, Trash2 } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
 import { useSettings } from './SettingsContext';
+import { useJobSocket } from './JobSocketContext';
 
 interface ProfileState {
   id: string;
@@ -12,13 +13,50 @@ interface ProfileState {
   apiUrl: string;
   apiToken: string;
   hasToken: boolean;
+  wsEnabled?: boolean;
+  wsKey?: string;
+  wsHost?: string;
+  wsPort?: number;
+  wsForceTLS?: boolean;
+  wsCluster?: string;
+  wsClientId?: string;
+  wsAuthUrl?: string;
 }
 
 interface ConfigState {
   activeProfileId: string;
   profiles: ProfileState[];
   outputDir: string;
+  fallbackPollIntervalMs: number;
 }
+
+interface EditForm {
+  name: string;
+  apiUrl: string;
+  apiToken: string;
+  wsEnabled: boolean;
+  wsClientId: string;
+  wsKey: string;
+  wsHost: string;
+  wsPort: string;
+  wsForceTLS: boolean;
+  wsCluster: string;
+  wsAuthUrl: string;
+}
+
+const EMPTY_EDIT_FORM: EditForm = {
+  name: '',
+  apiUrl: '',
+  apiToken: '',
+  wsEnabled: true,
+  wsClientId: '',
+  wsKey: '',
+  wsHost: '',
+  wsPort: '443',
+  wsForceTLS: true,
+  wsCluster: 'mt1',
+  wsAuthUrl: '',
+};
 
 interface ConfigDrawerProps {
   isOpen: boolean;
@@ -29,13 +67,15 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
   const { balance, refreshBalance, isLoading: isBalanceLoading } = useBalance();
   const { refreshModels } = useModelsContext();
   const { strictValidation, setStrictValidation, showResponseHeaders, setShowResponseHeaders } = useSettings();
+  const { reconnect: reconnectSocket } = useJobSocket();
   const [config, setConfig] = useState<ConfigState>({
     activeProfileId: '',
     profiles: [],
     outputDir: '',
+    fallbackPollIntervalMs: 10000,
   });
   const [editingProfileId, setEditingProfileId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', apiUrl: '', apiToken: '' });
+  const [editForm, setEditForm] = useState<EditForm>(EMPTY_EDIT_FORM);
   const [isAddingProfile, setIsAddingProfile] = useState(false);
   const [newProfileForm, setNewProfileForm] = useState({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
   const [isSaving, setIsSaving] = useState(false);
@@ -58,6 +98,7 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
         activeProfileId: data.activeProfileId || '',
         profiles: data.profiles || [],
         outputDir: data.outputDir || '',
+        fallbackPollIntervalMs: data.fallbackPollIntervalMs || 10000,
       });
     } catch (err) {
       console.error('[deapi-tester] Failed to load config:', err);
@@ -75,14 +116,16 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       });
       if (!res.ok) throw new Error('Failed to switch profile');
       const data = await res.json();
-      setConfig({
+      setConfig((prev) => ({
+        ...prev,
         activeProfileId: data.activeProfileId,
         profiles: data.profiles,
         outputDir: data.outputDir,
-      });
-      // Refresh balance and models for new profile
+      }));
+      // Refresh balance and models for new profile, and rebuild the WS connection
       refreshBalance();
       refreshModels();
+      reconnectSocket();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to switch profile');
     } finally {
@@ -96,6 +139,14 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       name: profile.name,
       apiUrl: profile.apiUrl,
       apiToken: '',
+      wsEnabled: profile.wsEnabled ?? true,
+      wsClientId: profile.wsClientId ?? '',
+      wsKey: profile.wsKey ?? '',
+      wsHost: profile.wsHost ?? '',
+      wsPort: String(profile.wsPort ?? 443),
+      wsForceTLS: profile.wsForceTLS ?? true,
+      wsCluster: profile.wsCluster ?? 'mt1',
+      wsAuthUrl: profile.wsAuthUrl ?? '',
     });
   };
 
@@ -104,9 +155,17 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
     setIsSaving(true);
     setError(null);
     try {
-      const updates: Record<string, string> = {
+      const updates: Record<string, string | number | boolean> = {
         name: editForm.name,
         apiUrl: editForm.apiUrl,
+        wsEnabled: editForm.wsEnabled,
+        wsClientId: editForm.wsClientId.trim(),
+        wsKey: editForm.wsKey.trim(),
+        wsHost: editForm.wsHost.trim(),
+        wsPort: Number(editForm.wsPort) || 443,
+        wsForceTLS: editForm.wsForceTLS,
+        wsCluster: editForm.wsCluster.trim(),
+        wsAuthUrl: editForm.wsAuthUrl.trim(),
       };
       if (editForm.apiToken) {
         updates.apiToken = editForm.apiToken;
@@ -118,18 +177,21 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       });
       if (!res.ok) throw new Error('Failed to update profile');
       const data = await res.json();
-      setConfig({
+      setConfig((prev) => ({
+        ...prev,
         activeProfileId: data.config.activeProfileId,
         profiles: data.config.profiles,
         outputDir: data.config.outputDir,
-      });
+      }));
+      const editedActive = editingProfileId === config.activeProfileId;
       setEditingProfileId(null);
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
-      // If editing active profile, refresh balance and models
-      if (editingProfileId === config.activeProfileId) {
+      // If editing active profile, refresh balance/models and rebuild the WS connection
+      if (editedActive) {
         refreshBalance();
         refreshModels();
+        reconnectSocket();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update profile');
@@ -153,11 +215,12 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       });
       if (!res.ok) throw new Error('Failed to add profile');
       const data = await res.json();
-      setConfig({
+      setConfig((prev) => ({
+        ...prev,
         activeProfileId: data.config.activeProfileId,
         profiles: data.config.profiles,
         outputDir: data.config.outputDir,
-      });
+      }));
       setIsAddingProfile(false);
       setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
       setSuccess(true);
@@ -185,15 +248,17 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       });
       if (!res.ok) throw new Error('Failed to delete profile');
       const data = await res.json();
-      setConfig({
+      setConfig((prev) => ({
+        ...prev,
         activeProfileId: data.activeProfileId,
         profiles: data.profiles,
         outputDir: data.outputDir,
-      });
-      // If deleted active profile, refresh balance and models for new active
+      }));
+      // If deleted active profile, refresh balance/models and rebuild the WS connection
       if (profileId === config.activeProfileId) {
         refreshBalance();
         refreshModels();
+        reconnectSocket();
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete profile');
@@ -209,7 +274,10 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       const res = await fetch('/api/config', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ outputDir: config.outputDir }),
+        body: JSON.stringify({
+          outputDir: config.outputDir,
+          fallbackPollIntervalMs: config.fallbackPollIntervalMs,
+        }),
       });
       if (!res.ok) throw new Error('Failed to save settings');
       onClose();
@@ -330,6 +398,83 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                         className="w-full rounded px-2 py-1.5 text-sm font-mono"
                         placeholder={profile.hasToken ? 'Leave empty to keep current' : 'API Token'}
                       />
+
+                      {/* WebSocket (realtime) settings */}
+                      <div className="border-t border-[var(--border)] pt-2 mt-2 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">
+                            WebSocket (realtime)
+                          </span>
+                          <label className="flex items-center gap-1.5 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={editForm.wsEnabled}
+                              onChange={e => setEditForm({ ...editForm, wsEnabled: e.target.checked })}
+                              className="w-3.5 h-3.5 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
+                            />
+                            <span className="text-[11px] text-[var(--text-secondary)]">Enabled</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={editForm.wsClientId}
+                          onChange={e => setEditForm({ ...editForm, wsClientId: e.target.value })}
+                          className="w-full rounded px-2 py-1.5 text-sm font-mono"
+                          placeholder="Client ID (private-client.{id}, from dashboard)"
+                        />
+                        <p className="text-[10px] text-[var(--text-faint)] -mt-1">
+                          Required to enable WebSocket. Without it the app falls back to polling.
+                        </p>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editForm.wsKey}
+                            onChange={e => setEditForm({ ...editForm, wsKey: e.target.value })}
+                            className="flex-1 rounded px-2 py-1.5 text-xs font-mono"
+                            placeholder="App key"
+                          />
+                          <input
+                            type="text"
+                            value={editForm.wsCluster}
+                            onChange={e => setEditForm({ ...editForm, wsCluster: e.target.value })}
+                            className="w-20 rounded px-2 py-1.5 text-xs font-mono"
+                            placeholder="cluster"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={editForm.wsHost}
+                            onChange={e => setEditForm({ ...editForm, wsHost: e.target.value })}
+                            className="flex-1 rounded px-2 py-1.5 text-xs font-mono"
+                            placeholder="WS host (e.g. soketi.deapi.ai)"
+                          />
+                          <input
+                            type="number"
+                            value={editForm.wsPort}
+                            onChange={e => setEditForm({ ...editForm, wsPort: e.target.value })}
+                            className="w-20 rounded px-2 py-1.5 text-xs font-mono"
+                            placeholder="port"
+                          />
+                          <label className="flex items-center gap-1.5 cursor-pointer px-1">
+                            <input
+                              type="checkbox"
+                              checked={editForm.wsForceTLS}
+                              onChange={e => setEditForm({ ...editForm, wsForceTLS: e.target.checked })}
+                              className="w-3.5 h-3.5 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-blue-600 cursor-pointer"
+                            />
+                            <span className="text-[11px] text-[var(--text-secondary)]">TLS</span>
+                          </label>
+                        </div>
+                        <input
+                          type="text"
+                          value={editForm.wsAuthUrl}
+                          onChange={e => setEditForm({ ...editForm, wsAuthUrl: e.target.value })}
+                          className="w-full rounded px-2 py-1.5 text-xs font-mono"
+                          placeholder="Auth URL (blank = derive {origin}/broadcasting/auth)"
+                        />
+                      </div>
+
                       <div className="flex gap-2">
                         <button
                           onClick={saveEditProfile}
@@ -467,6 +612,29 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                 />
                 <p className="mt-1 text-[11px] text-[var(--text-faint)]">
                   Where downloaded results will be saved
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-xs text-[var(--muted)] mb-1">
+                  Fallback poll interval (seconds)
+                </label>
+                <input
+                  type="number"
+                  min={1}
+                  value={Math.round(config.fallbackPollIntervalMs / 1000)}
+                  onChange={e =>
+                    setConfig({
+                      ...config,
+                      fallbackPollIntervalMs: Math.max(1, Number(e.target.value) || 1) * 1000,
+                    })
+                  }
+                  className="w-full rounded px-3 py-2 text-sm font-mono"
+                  placeholder="10"
+                />
+                <p className="mt-1 text-[11px] text-[var(--text-faint)]">
+                  How often to poll job status as a fallback. WebSocket is the primary source;
+                  this poll also catches failures (delivered via webhooks, never over WS).
                 </p>
               </div>
 

@@ -184,6 +184,17 @@ export async function PUT(request: Request) {
       config.maxPollingAttempts = body.maxPollingAttempts;
     }
 
+    if (body.fallbackPollIntervalMs !== undefined) {
+      if (typeof body.fallbackPollIntervalMs !== 'number') {
+        return NextResponse.json(
+          { error: 'fallbackPollIntervalMs must be a number' },
+          { status: 400 }
+        );
+      }
+      // Guard against a runaway-fast poll; floor at 1s.
+      config.fallbackPollIntervalMs = Math.max(1000, body.fallbackPollIntervalMs);
+    }
+
     // Backward compatibility: if apiUrl/apiToken sent, update active profile
     const activeProfile = config.profiles.find(p => p.id === config.activeProfileId);
     if (activeProfile) {

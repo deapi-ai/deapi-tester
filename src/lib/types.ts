@@ -100,6 +100,16 @@ export interface ConfigProfile {
   name: string;                    // user-friendly name (e.g. "Production", "Dev")
   apiUrl: string;
   apiToken: string;
+  // WebSocket (Pusher/soketi) realtime config — per environment. Non-secret,
+  // so these are safe to expose to the client (the API token is NOT).
+  wsEnabled?: boolean;             // use WebSocket as the primary status source
+  wsKey?: string;                  // Pusher app key, e.g. "depin-api-prod-key"
+  wsHost?: string;                 // e.g. "soketi.deapi.ai"
+  wsPort?: number;                 // e.g. 443
+  wsForceTLS?: boolean;            // wss
+  wsCluster?: string;              // Pusher cluster (cosmetic for self-hosted), e.g. "mt1"
+  wsClientId?: string;             // private channel id: private-client.{id} (from dashboard)
+  wsAuthUrl?: string;              // broadcasting/auth URL; blank = derive from apiUrl origin
 }
 
 // Full configuration with multiple profiles
@@ -107,8 +117,9 @@ export interface AppConfigFull {
   activeProfileId: string;
   profiles: ConfigProfile[];
   outputDir: string;
-  pollingIntervalMs: number;       // default 2000
-  maxPollingAttempts: number;      // default 120 (4 minutes)
+  pollingIntervalMs: number;       // default 2000 (legacy; submit-time price/poll spacing)
+  maxPollingAttempts: number;      // default 120 — caps reconciliation ticks per job
+  fallbackPollIntervalMs: number;  // default 10000 — reconciliation poll cadence (WS is primary)
 }
 
 // Flat configuration (for backward compatibility with existing code)
