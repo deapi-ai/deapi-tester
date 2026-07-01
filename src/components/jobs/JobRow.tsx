@@ -117,7 +117,7 @@ export function JobRow({
         <div className="col-span-5 flex items-center gap-3 min-w-0">
           <span
             className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${STATUS_BG_COLORS[job.status] || 'bg-[var(--muted)]'} ${
-              activeJob?.isPolling || job.status === 'sending' ? 'status-pulse' : ''
+              activeJob?.isPolling || job.status === 'sending' || job.status === 'pending' ? 'status-pulse' : ''
             }`}
           />
           <div className="min-w-0 flex-1">

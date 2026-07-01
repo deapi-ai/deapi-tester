@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { X, RefreshCw, Pencil, Trash2, Copy, AlertTriangle } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
 import { useSettings } from './SettingsContext';
@@ -57,6 +57,23 @@ const EMPTY_EDIT_FORM: EditForm = {
   wsCluster: 'mt1',
   wsAuthUrl: '',
 };
+
+// A deAPI v2 base URL normally ends with /api/v2. We don't hard-block other
+// values (a dev machine may legitimately need a custom path), but we surface a
+// yellow warning so an accidental typo doesn't silently point at the wrong host.
+function getApiUrlWarning(url: string): string | null {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (!trimmed) return null;
+  try {
+    new URL(trimmed);
+  } catch {
+    return "This doesn't look like a valid URL.";
+  }
+  if (!trimmed.endsWith('/api/v2')) {
+    return 'URL usually ends with /api/v2 — double-check this is correct.';
+  }
+  return null;
+}
 
 interface ConfigDrawerProps {
   isOpen: boolean;
@@ -267,6 +284,32 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
     }
   };
 
+  const duplicateProfileAction = async (profileId: string) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'duplicateProfile', profileId }),
+      });
+      if (!res.ok) throw new Error('Failed to duplicate profile');
+      const data = await res.json();
+      setConfig((prev) => ({
+        ...prev,
+        activeProfileId: data.config.activeProfileId,
+        profiles: data.config.profiles,
+        outputDir: data.config.outputDir,
+      }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   const saveGlobalSettings = async () => {
     setIsSaving(true);
     setError(null);
@@ -391,6 +434,12 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                         className="w-full rounded px-2 py-1.5 text-sm font-mono"
                         placeholder="API URL"
                       />
+                      {getApiUrlWarning(editForm.apiUrl) && (
+                        <p className="text-[11px] text-yellow-500 flex items-start gap-1 -mt-1">
+                          <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                          <span>{getApiUrlWarning(editForm.apiUrl)}</span>
+                        </p>
+                      )}
                       <input
                         type="password"
                         value={editForm.apiToken}
@@ -521,8 +570,17 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                             </button>
                           )}
                           <button
+                            onClick={() => duplicateProfileAction(profile.id)}
+                            disabled={isSaving}
+                            className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded disabled:opacity-50"
+                            title="Duplicate profile (copies token + WebSocket settings)"
+                          >
+<Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => startEditProfile(profile)}
                             className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded"
+                            title="Edit profile"
                           >
 <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -562,6 +620,12 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                     className="w-full rounded px-2 py-1.5 text-sm font-mono"
                     placeholder="API URL"
                   />
+                  {getApiUrlWarning(newProfileForm.apiUrl) && (
+                    <p className="text-[11px] text-yellow-500 flex items-start gap-1 -mt-1">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>{getApiUrlWarning(newProfileForm.apiUrl)}</span>
+                    </p>
+                  )}
                   <input
                     type="password"
                     value={newProfileForm.apiToken}

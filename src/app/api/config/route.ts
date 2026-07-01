@@ -5,6 +5,7 @@ import {
   setActiveProfile,
   addProfile,
   updateProfile,
+  duplicateProfile,
   deleteProfile,
 } from '@/lib/config';
 import { AppConfigFull, ConfigProfile } from '@/lib/types';
@@ -120,6 +121,28 @@ export async function PUT(request: Request) {
               ...updated,
               apiToken: maskToken(updated.apiToken),
               hasToken: !!updated.apiToken,
+            },
+            config: {
+              ...config,
+              profiles: maskProfiles(config.profiles),
+            },
+          });
+        }
+
+        case 'duplicateProfile': {
+          if (!body.profileId || typeof body.profileId !== 'string') {
+            return NextResponse.json(
+              { error: 'profileId is required' },
+              { status: 400 }
+            );
+          }
+          const newProfile = duplicateProfile(body.profileId);
+          const config = loadFullConfig();
+          return NextResponse.json({
+            profile: {
+              ...newProfile,
+              apiToken: maskToken(newProfile.apiToken),
+              hasToken: !!newProfile.apiToken,
             },
             config: {
               ...config,
