@@ -164,8 +164,21 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
   // deAPI { data: {...} } shape; WS payloads are normalized to it by the caller.
   const recordUpdate = useCallback(
     (job: Job, deApiResponse: Record<string, unknown>, rawStatus: string, source: 'ws' | 'poll') => {
+      // Map the deAPI raw status onto our internal status. A queued job (pending /
+      // in_queue / waiting) stays 'pending' (yellow, "waiting") — only becomes
+      // 'processing' (blue) once a worker actually starts, so we don't imply
+      // compute has begun while it's still queued.
       const jobStatus: Job['status'] =
-        rawStatus === 'done' ? 'completed' : rawStatus === 'error' ? 'failed' : 'processing';
+        rawStatus === 'done'
+          ? 'completed'
+          : rawStatus === 'error'
+            ? 'failed'
+            : rawStatus === 'pending' ||
+                rawStatus === 'queued' ||
+                rawStatus === 'in_queue' ||
+                rawStatus === 'waiting'
+              ? 'pending'
+              : 'processing';
       const isTerminal = rawStatus === 'done' || rawStatus === 'error';
 
       const attempt = (attemptsRef.current.get(job.id) || 0) + 1;

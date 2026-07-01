@@ -47,6 +47,16 @@ export function formatCost(cost: number): string {
   return String(cost);
 }
 
+// Progress arrives from deAPI as a number or a string like "45.50" / "100.00".
+// Render it as a whole percent in the UI — the exact value stays visible in the
+// Raw panel. Returns null when there is no usable numeric value.
+export function formatProgress(value: unknown): number | null {
+  if (value === null || value === undefined) return null;
+  const num = typeof value === 'number' ? value : parseFloat(String(value));
+  if (!Number.isFinite(num)) return null;
+  return Math.round(num);
+}
+
 // Result file extensions by media type (URL may carry a query string, e.g. signed S3 links).
 const IMAGE_EXT = /\.(png|jpe?g|gif|webp|bmp|svg|avif|tiff?)(\?|#|$)/i;
 const VIDEO_EXT = /\.(mp4|webm|mov|m4v|avi|mkv|ogv)(\?|#|$)/i;

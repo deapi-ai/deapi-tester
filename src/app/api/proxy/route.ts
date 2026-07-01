@@ -7,6 +7,9 @@ import { Job, JsonValue, UploadedFile } from '@/lib/types';
 
 // POST /api/proxy - Proxy request to deAPI
 export async function POST(request: Request) {
+  // Track a persisted job so the outer catch can mark it failed instead of
+  // leaving a pre-created 'sending' stub stuck forever on an unexpected error.
+  let persistedJobId: string | undefined;
   try {
     const contentType = request.headers.get('content-type') || '';
     let endpointId: string;
@@ -187,8 +190,20 @@ export async function POST(request: Request) {
           });
         }
 
-        const priceData = await priceResponse.json();
-        console.log('[deapi-tester] Price response:', priceResponse.status, priceData);
+        // Parse defensively — a non-JSON price response (e.g. HTML error page)
+        // should not crash the whole request, just skip the estimate.
+        const priceText = await priceResponse.text();
+        let priceData;
+        try {
+          priceData = JSON.parse(priceText);
+        } catch {
+          priceData = null;
+        }
+        console.log(
+          '[deapi-tester] Price response:',
+          priceResponse.status,
+          priceData ?? priceText.slice(0, 300)
+        );
         // Most price endpoints return { data: { price } }; prompt-enhancement
         // returns a top-level { price }.
         const price = priceData?.data?.price ?? priceData?.price;
@@ -214,7 +229,9 @@ export async function POST(request: Request) {
 
     // Create or reuse the job entry before making the request. When the client
     // pre-created a 'sending' stub (providedJobId), update it in place so the row
-    // transitions sending -> pending without duplicating.
+    // transitions sending -> pending without duplicating. Price-only checks are a
+    // throwaway pre-calculation — there is no request to restore/duplicate to —
+    // so they are NOT persisted to history (all job writes are skipped below).
     const jobId = providedJobId || generateJobId();
     // Store the actual API path (without leading slash) as endpointId
     const jobEndpointId = targetPath.replace(/^\//, '');
@@ -234,15 +251,18 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
     };
-    if (providedJobId) {
-      // Preserve the stub's original createdAt (set when the user clicked Execute).
-      const jobUpdate: Partial<Job> = { ...job };
-      delete jobUpdate.createdAt;
-      const updated = updateJob(jobId, jobUpdate);
-      // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
-      if (!updated) addJob(job);
-    } else {
-      addJob(job);
+    if (!isPriceCalc) {
+      if (providedJobId) {
+        // Preserve the stub's original createdAt (set when the user clicked Execute).
+        const jobUpdate: Partial<Job> = { ...job };
+        delete jobUpdate.createdAt;
+        const updated = updateJob(jobId, jobUpdate);
+        // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
+        if (!updated) addJob(job);
+      } else {
+        addJob(job);
+      }
+      persistedJobId = jobId;
     }
 
     // Make request to deAPI
@@ -256,7 +276,21 @@ export async function POST(request: Request) {
 
     clearTimeout(timeoutId);
 
-    const rawResponse = await response.json();
+    // deAPI (or a gateway/proxy in front of it) can return a non-JSON body on
+    // errors — an HTML 500/502 page, a plain string. response.json() would throw
+    // a cryptic "Unexpected token '<'". Read the body as text and parse
+    // defensively so we surface the real HTTP status + a body snippet instead.
+    const responseText = await response.text();
+    let rawResponse;
+    try {
+      rawResponse = JSON.parse(responseText);
+    } catch {
+      rawResponse = {
+        error: `Non-JSON response from API (HTTP ${response.status})`,
+        status: response.status,
+        body: responseText.slice(0, 4000),
+      };
+    }
 
     // Capture response headers so the UI can optionally display them
     const rawResponseHeaders: Record<string, string> = {};
@@ -266,13 +300,15 @@ export async function POST(request: Request) {
 
     // Update job with response
     if (!response.ok) {
-      updateJob(jobId, {
-        rawResponse,
-        rawResponseHeaders,
-        status: 'failed',
-        error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
-        completedAt: new Date().toISOString(),
-      });
+      if (!isPriceCalc) {
+        updateJob(jobId, {
+          rawResponse,
+          rawResponseHeaders,
+          status: 'failed',
+          error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
+          completedAt: new Date().toISOString(),
+        });
+      }
 
       return NextResponse.json({
         success: false,
@@ -285,12 +321,20 @@ export async function POST(request: Request) {
 
     // For async endpoints, extract request_id
     if (endpoint.isAsync && rawResponse.data?.request_id) {
-      updateJob(jobId, {
-        requestId: rawResponse.data.request_id,
-        rawResponse,
-        rawResponseHeaders,
-        status: 'processing',
-      });
+      // A request_id means the job was accepted and QUEUED — not yet being
+      // computed. Mark it 'pending' (waiting in queue), not 'processing'; the
+      // WebSocket / reconciliation poll flips it to 'processing' once a worker
+      // actually starts, then to completed/failed. This avoids the misleading
+      // "processing" flash (and the processing -> pending regression) right after
+      // submit.
+      if (!isPriceCalc) {
+        updateJob(jobId, {
+          requestId: rawResponse.data.request_id,
+          rawResponse,
+          rawResponseHeaders,
+          status: 'pending',
+        });
+      }
 
       return NextResponse.json({
         success: true,
@@ -319,7 +363,7 @@ export async function POST(request: Request) {
     } else if (rawResponse.data?.balance !== undefined) {
       syncUpdateData.costCredits = rawResponse.data.balance;
     }
-    updateJob(jobId, syncUpdateData);
+    if (!isPriceCalc) updateJob(jobId, syncUpdateData);
 
     return NextResponse.json({
       success: true,
@@ -332,6 +376,16 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error('[deapi-tester] POST /api/proxy error:', error);
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    // Don't leave a pre-created job stuck (e.g. in 'sending'/'pending') when the
+    // request throws before a response was recorded — mark it failed so the UI
+    // reflects the error instead of spinning forever.
+    if (persistedJobId) {
+      updateJob(persistedJobId, {
+        status: 'failed',
+        error: errorMessage,
+        completedAt: new Date().toISOString(),
+      });
+    }
     return NextResponse.json(
       { error: errorMessage },
       { status: 500 }

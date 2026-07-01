@@ -290,6 +290,29 @@ export function updateProfile(profileId: string, updates: Partial<Omit<ConfigPro
   return profile;
 }
 
+// Duplicate an existing profile (including its token and WebSocket settings)
+// under a new id. Useful for spinning up a variant of an environment without
+// re-entering the token/WS config. The copy is inserted right after the source.
+export function duplicateProfile(profileId: string): ConfigProfile {
+  const fullConfig = loadFullConfig();
+  const index = fullConfig.profiles.findIndex(p => p.id === profileId);
+  if (index === -1) {
+    throw new Error(`Profile not found: ${profileId}`);
+  }
+
+  const source = fullConfig.profiles[index];
+  const copy: ConfigProfile = {
+    ...source,
+    id: generateProfileId(),
+    name: `${source.name} (copy)`,
+  };
+
+  fullConfig.profiles.splice(index + 1, 0, copy);
+  saveFullConfig(fullConfig);
+
+  return copy;
+}
+
 // Delete profile
 export function deleteProfile(profileId: string): AppConfigFull {
   const fullConfig = loadFullConfig();

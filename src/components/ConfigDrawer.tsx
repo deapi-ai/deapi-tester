@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { X, RefreshCw, Pencil, Trash2 } from 'lucide-react';
+import { X, RefreshCw, Pencil, Trash2, Copy, AlertTriangle } from 'lucide-react';
 import { useBalance } from './BalanceContext';
 import { useModelsContext } from './ModelsContext';
 import { useSettings } from './SettingsContext';
@@ -58,6 +58,23 @@ const EMPTY_EDIT_FORM: EditForm = {
   wsAuthUrl: '',
 };
 
+// A deAPI v2 base URL normally ends with /api/v2. We don't hard-block other
+// values (a dev machine may legitimately need a custom path), but we surface a
+// yellow warning so an accidental typo doesn't silently point at the wrong host.
+function getApiUrlWarning(url: string): string | null {
+  const trimmed = url.trim().replace(/\/+$/, '');
+  if (!trimmed) return null;
+  try {
+    new URL(trimmed);
+  } catch {
+    return "This doesn't look like a valid URL.";
+  }
+  if (!trimmed.endsWith('/api/v2')) {
+    return 'URL usually ends with /api/v2 — double-check this is correct.';
+  }
+  return null;
+}
+
 interface ConfigDrawerProps {
   isOpen: boolean;
   onClose: () => void;
@@ -79,6 +96,9 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
   const [isAddingProfile, setIsAddingProfile] = useState(false);
   const [newProfileForm, setNewProfileForm] = useState({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
   const [isSaving, setIsSaving] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [pendingEditSave, setPendingEditSave] = useState(false);
+  const [pendingAddSave, setPendingAddSave] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
@@ -87,8 +107,31 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       loadConfig();
       setEditingProfileId(null);
       setIsAddingProfile(false);
+      setPendingEditSave(false);
+      setPendingAddSave(false);
+      setError(null);
     }
   }, [isOpen]);
+
+  // Verify a profile's API URL + token reach a live deAPI before saving. Returns
+  // the connection result; the token is resolved server-side (stored token used
+  // when editing without retyping). Never throws — network errors become { ok:false }.
+  const testConnection = async (
+    apiUrl: string,
+    apiToken: string,
+    profileId?: string
+  ): Promise<{ ok: boolean; status: number; error?: string }> => {
+    try {
+      const res = await fetch('/api/test-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ apiUrl, apiToken, profileId }),
+      });
+      return await res.json();
+    } catch (err) {
+      return { ok: false, status: 0, error: err instanceof Error ? err.message : 'Test failed' };
+    }
+  };
 
   const loadConfig = async () => {
     try {
@@ -135,6 +178,8 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
 
   const startEditProfile = (profile: ProfileState) => {
     setEditingProfileId(profile.id);
+    setPendingEditSave(false);
+    setError(null);
     setEditForm({
       name: profile.name,
       apiUrl: profile.apiUrl,
@@ -150,10 +195,27 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
     });
   };
 
-  const saveEditProfile = async () => {
+  const saveEditProfile = async (skipCheck = false) => {
     if (!editingProfileId) return;
-    setIsSaving(true);
     setError(null);
+
+    // Verify connectivity before saving (unless the user chose "Save anyway").
+    if (!skipCheck) {
+      setIsTesting(true);
+      const check = await testConnection(editForm.apiUrl, editForm.apiToken, editingProfileId);
+      setIsTesting(false);
+      if (!check.ok) {
+        setPendingEditSave(true);
+        setError(
+          `API did not respond OK (${check.error || `HTTP ${check.status}`}). ` +
+            'Check the URL/token, or click "Save anyway" to save without verifying.'
+        );
+        return;
+      }
+    }
+    setPendingEditSave(false);
+
+    setIsSaving(true);
     try {
       const updates: Record<string, string | number | boolean> = {
         name: editForm.name,
@@ -200,13 +262,30 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
     }
   };
 
-  const addNewProfile = async () => {
+  const addNewProfile = async (skipCheck = false) => {
     if (!newProfileForm.name.trim()) {
       setError('Profile name is required');
       return;
     }
-    setIsSaving(true);
     setError(null);
+
+    // Verify connectivity before creating the profile (unless "Add anyway").
+    if (!skipCheck) {
+      setIsTesting(true);
+      const check = await testConnection(newProfileForm.apiUrl, newProfileForm.apiToken);
+      setIsTesting(false);
+      if (!check.ok) {
+        setPendingAddSave(true);
+        setError(
+          `API did not respond OK (${check.error || `HTTP ${check.status}`}). ` +
+            'Check the URL/token, or click "Add anyway" to save without verifying.'
+        );
+        return;
+      }
+    }
+    setPendingAddSave(false);
+
+    setIsSaving(true);
     try {
       const res = await fetch('/api/config', {
         method: 'PUT',
@@ -262,6 +341,32 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to delete profile');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const duplicateProfileAction = async (profileId: string) => {
+    setIsSaving(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'duplicateProfile', profileId }),
+      });
+      if (!res.ok) throw new Error('Failed to duplicate profile');
+      const data = await res.json();
+      setConfig((prev) => ({
+        ...prev,
+        activeProfileId: data.config.activeProfileId,
+        profiles: data.config.profiles,
+        outputDir: data.config.outputDir,
+      }));
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to duplicate profile');
     } finally {
       setIsSaving(false);
     }
@@ -356,7 +461,11 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                 API Profiles
               </label>
               <button
-                onClick={() => setIsAddingProfile(true)}
+                onClick={() => {
+                  setIsAddingProfile(true);
+                  setPendingAddSave(false);
+                  setError(null);
+                }}
                 disabled={isAddingProfile}
                 className="text-xs text-blue-400 hover:text-blue-300 disabled:opacity-50"
               >
@@ -391,6 +500,12 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                         className="w-full rounded px-2 py-1.5 text-sm font-mono"
                         placeholder="API URL"
                       />
+                      {getApiUrlWarning(editForm.apiUrl) && (
+                        <p className="text-[11px] text-yellow-500 flex items-start gap-1 -mt-1">
+                          <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                          <span>{getApiUrlWarning(editForm.apiUrl)}</span>
+                        </p>
+                      )}
                       <input
                         type="password"
                         value={editForm.apiToken}
@@ -477,14 +592,27 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
 
                       <div className="flex gap-2">
                         <button
-                          onClick={saveEditProfile}
-                          disabled={isSaving}
+                          onClick={() => saveEditProfile()}
+                          disabled={isSaving || isTesting}
                           className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded py-1.5 text-xs font-medium"
                         >
-                          {isSaving ? 'Saving...' : 'Save'}
+                          {isTesting ? 'Testing…' : isSaving ? 'Saving...' : 'Save'}
                         </button>
+                        {pendingEditSave && (
+                          <button
+                            onClick={() => saveEditProfile(true)}
+                            disabled={isSaving}
+                            className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 rounded text-xs font-medium text-white"
+                          >
+                            Save anyway
+                          </button>
+                        )}
                         <button
-                          onClick={() => setEditingProfileId(null)}
+                          onClick={() => {
+                            setEditingProfileId(null);
+                            setPendingEditSave(false);
+                            setError(null);
+                          }}
                           className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-xs"
                         >
                           Cancel
@@ -521,8 +649,17 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                             </button>
                           )}
                           <button
+                            onClick={() => duplicateProfileAction(profile.id)}
+                            disabled={isSaving}
+                            className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded disabled:opacity-50"
+                            title="Duplicate profile (copies token + WebSocket settings)"
+                          >
+<Copy className="w-3.5 h-3.5" />
+                          </button>
+                          <button
                             onClick={() => startEditProfile(profile)}
                             className="p-1 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--border-strong)] rounded"
+                            title="Edit profile"
                           >
 <Pencil className="w-3.5 h-3.5" />
                           </button>
@@ -562,6 +699,12 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                     className="w-full rounded px-2 py-1.5 text-sm font-mono"
                     placeholder="API URL"
                   />
+                  {getApiUrlWarning(newProfileForm.apiUrl) && (
+                    <p className="text-[11px] text-yellow-500 flex items-start gap-1 -mt-1">
+                      <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                      <span>{getApiUrlWarning(newProfileForm.apiUrl)}</span>
+                    </p>
+                  )}
                   <input
                     type="password"
                     value={newProfileForm.apiToken}
@@ -571,15 +714,26 @@ export function ConfigDrawer({ isOpen, onClose }: ConfigDrawerProps) {
                   />
                   <div className="flex gap-2">
                     <button
-                      onClick={addNewProfile}
-                      disabled={isSaving}
+                      onClick={() => addNewProfile()}
+                      disabled={isSaving || isTesting}
                       className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 rounded py-1.5 text-xs font-medium"
                     >
-                      {isSaving ? 'Adding...' : 'Add Profile'}
+                      {isTesting ? 'Testing…' : isSaving ? 'Adding...' : 'Add Profile'}
                     </button>
+                    {pendingAddSave && (
+                      <button
+                        onClick={() => addNewProfile(true)}
+                        disabled={isSaving}
+                        className="px-3 py-1.5 bg-yellow-600 hover:bg-yellow-500 disabled:opacity-50 rounded text-xs font-medium text-white"
+                      >
+                        Add anyway
+                      </button>
+                    )}
                     <button
                       onClick={() => {
                         setIsAddingProfile(false);
+                        setPendingAddSave(false);
+                        setError(null);
                         setNewProfileForm({ name: '', apiUrl: 'https://api.deapi.ai/api/v2', apiToken: '' });
                       }}
                       className="px-3 py-1.5 bg-[var(--border-strong)] hover:bg-[var(--muted)] rounded text-xs"

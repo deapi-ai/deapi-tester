@@ -71,8 +71,18 @@ export async function GET(
           completedAt: new Date().toISOString(),
         });
       } else {
+        // A queued job (pending/in_queue/waiting) stays 'pending' (waiting) — it
+        // only becomes 'processing' once a worker actually starts. This keeps the
+        // fallback poll consistent with the WebSocket path.
+        const jobStatus =
+          status === 'pending' ||
+          status === 'queued' ||
+          status === 'in_queue' ||
+          status === 'waiting'
+            ? 'pending'
+            : 'processing';
         updateJob(job.id, {
-          status: 'processing',
+          status: jobStatus,
           rawResponse: data,
         });
       }
