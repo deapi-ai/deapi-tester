@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy, ClipboardCopy, ClipboardCheck } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
-import { formatTime, formatCost, getResultType, getResultText } from '@/lib/format-utils';
+import { formatTime, formatCost, formatProgress, getResultType, getResultText } from '@/lib/format-utils';
 import { useSettings } from '@/components/SettingsContext';
 
 interface PollUpdate {
@@ -148,14 +148,14 @@ export function JobRow({
             const firstPollUpdate = activeJob.pollUpdates[0];
             const lastPollUpdate = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
             const apiData = (lastPollUpdate?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-            const pollProgress = apiData?.progress as number | undefined;
+            const pollProgress = formatProgress(apiData?.progress);
             const elapsedSec = Math.floor(
               ((activeJob.isPolling ? now : lastPollUpdate?.timestamp) - firstPollUpdate?.timestamp) / 1000
             );
 
             return (
               <div className="flex items-center gap-2 text-[10px] font-mono">
-                {pollProgress !== undefined && <span className="text-blue-400">{pollProgress}%</span>}
+                {pollProgress !== null && <span className="text-blue-400">{pollProgress}%</span>}
                 <span className="text-[var(--muted)]">{elapsedSec}s</span>
               </div>
             );
@@ -392,7 +392,7 @@ export function JobRow({
           ((activeJob.isPolling ? now : lastUpdateData?.timestamp) || Date.now()) - (firstUpdate?.timestamp || Date.now());
         const elapsedSec = Math.floor(elapsedMs / 1000);
         const apiData = (lastUpdateData?.data as Record<string, unknown>)?.data as Record<string, unknown> | undefined;
-        const progressData = apiData?.progress as number | undefined;
+        const progressData = formatProgress(apiData?.progress);
 
         return (
           <div className="bg-[var(--surface-inset)] border-t border-[var(--border-dim)]">
@@ -400,7 +400,7 @@ export function JobRow({
               <div className="flex items-center justify-between mb-2 text-[10px]">
                 <span className="text-[var(--muted)] uppercase tracking-wide">Polling Updates</span>
                 <div className="flex items-center gap-3 text-[var(--text-secondary)] font-mono">
-                  {progressData !== undefined && <span className="text-blue-400">{progressData}%</span>}
+                  {progressData !== null && <span className="text-blue-400">{progressData}%</span>}
                   <span>
                     {elapsedSec}s{activeJob.isPolling && <span className="ml-1 text-blue-400">(running)</span>}
                   </span>
@@ -414,7 +414,7 @@ export function JobRow({
                     const updateApiData = (update.data as Record<string, unknown>)?.data as
                       | Record<string, unknown>
                       | undefined;
-                    const updateProgress = updateApiData?.progress as number | undefined;
+                    const updateProgress = formatProgress(updateApiData?.progress);
                     return (
                       <details key={activeJob.pollUpdates.length - idx} className="group">
                         <summary className="flex items-center gap-3 px-2 py-1.5 rounded hover:bg-[var(--hover)] cursor-pointer text-xs">
@@ -443,7 +443,7 @@ export function JobRow({
                           >
                             {update.status}
                           </span>
-                          {updateProgress !== undefined && (
+                          {updateProgress !== null && (
                             <span className="text-blue-400 font-mono">{updateProgress}%</span>
                           )}
                           <span className="text-[var(--text-faint)] flex-1 text-right">
