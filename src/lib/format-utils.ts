@@ -3,7 +3,7 @@
  */
 
 import { getEndpointByApiPath } from './endpoint-registry';
-import { Job, JsonValue } from './types';
+import { Job, JsonValue, TranscriptionMeta } from './types';
 
 /**
  * Format ISO date string to HH:MM:SS time
@@ -95,6 +95,61 @@ export function getResultType(
       // transcription, ocr, embeddings, utility, or unknown → non-media (text/json)
       return 'other';
   }
+}
+
+/**
+ * What a transcription job actually produced, as reported by deAPI under
+ * `data.transcription` on the job status. Present only for transcription jobs
+ * that reached "done"; null for everything else.
+ *
+ * `ts_level` is the granularity actually delivered, which can be coarser than
+ * the one requested (a language with no aligner degrades `word` to `segment`),
+ * and `structured` says whether the result file is a JSON transcription object
+ * or plain text — the model decides that, not the request.
+ */
+export function getTranscriptionMeta(job: Job): TranscriptionMeta | null {
+  const rr = job.rawResponse;
+  if (!rr || typeof rr !== 'object' || Array.isArray(rr)) return null;
+
+  const data = (rr as Record<string, JsonValue>).data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  const meta = (data as Record<string, JsonValue>).transcription;
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return null;
+
+  return meta as unknown as TranscriptionMeta;
+}
+
+/**
+ * Source metadata deAPI attaches to the job status when `include_metadata` was
+ * requested — title, channel, uploader, upload date and engagement counts.
+ * Null for uploaded files and for sources whose resolver reports nothing.
+ * Rendered generically (key/value), so platform-specific fields still show up.
+ */
+export function getSourceMetadata(job: Job): Record<string, JsonValue> | null {
+  const rr = job.rawResponse;
+  if (!rr || typeof rr !== 'object' || Array.isArray(rr)) return null;
+
+  const data = (rr as Record<string, JsonValue>).data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  const metadata = (data as Record<string, JsonValue>).metadata;
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) return null;
+
+  const entries = Object.entries(metadata as Record<string, JsonValue>).filter(
+    ([, value]) => value !== null && value !== undefined && value !== ''
+  );
+  return entries.length > 0 ? Object.fromEntries(entries) : null;
+}
+
+/**
+ * Format seconds as M:SS.mmm — the precision the structured result carries.
+ */
+export function formatTimestamp(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '—';
+  const mins = Math.floor(seconds / 60);
+  const secs = seconds - mins * 60;
+  return `${mins}:${secs.toFixed(3).padStart(6, '0')}`;
 }
 
 /**

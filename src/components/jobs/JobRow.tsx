@@ -6,6 +6,7 @@ import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
 import { formatTime, formatCost, formatProgress, getResultType, getResultText } from '@/lib/format-utils';
 import { useSettings } from '@/components/SettingsContext';
+import { JobTranscription } from '@/components/jobs/JobTranscription';
 
 interface PollUpdate {
   timestamp: number;
@@ -327,6 +328,10 @@ export function JobRow({
           </button>
         </div>
       </div>
+
+      {/* Transcription result — renders only for jobs deAPI reported a
+          `transcription` block for (self-hiding otherwise). */}
+      <JobTranscription job={job} resultUrl={resultUrl} />
 
       {/* Expanded Raw Request & Response */}
       {isRawExpanded && (job.rawRequest || job.rawResponse || (showResponseHeaders && hasResponseHeaders)) && (

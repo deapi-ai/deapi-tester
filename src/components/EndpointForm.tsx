@@ -244,6 +244,30 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     });
   }, [selectedModelSlug, selectedModel, resolveLangSlug, resolveVoiceSlug]);
 
+  // Keep model-driven selects (e.g. ts_level) on a value the selected model
+  // actually offers — switching to a model with a shorter list would otherwise
+  // keep a value the API rejects.
+  useEffect(() => {
+    const limits = (modelLimits ?? {}) as Record<string, unknown>;
+    const modelDriven = endpoint.params.filter((p) => p.optionsFromModel);
+    if (modelDriven.length === 0) return;
+
+    setValues((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      modelDriven.forEach((param) => {
+        const list = limits[param.optionsFromModel as string];
+        if (!Array.isArray(list) || list.length === 0) return;
+        const allowed = list.map((v) => String(v));
+        if (!allowed.includes(String(next[param.name] ?? ''))) {
+          next[param.name] = allowed[0];
+          changed = true;
+        }
+      });
+      return changed ? next : prev;
+    });
+  }, [modelLimits, endpoint.params]);
+
   // Apply a "duplicate request" prefill — load params from a history job into the form.
   // Declared after the init / auto-select / auto-default effects so it runs last and its
   // values win. Keyed on a one-shot nonce so it never re-applies on later re-renders.
@@ -567,6 +591,20 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       return selectedModel.languages.map((l) => ({ value: l.slug, label: l.name }));
     }
 
+    // Options published by the model itself, e.g. `info.limits.timestamp_levels`.
+    const fromModel = endpoint.params.find((p) => p.name === paramName)?.optionsFromModel;
+    if (fromModel) {
+      const limits = (modelLimits ?? {}) as Record<string, unknown>;
+      const list = limits[fromModel];
+      if (Array.isArray(list) && list.length > 0) {
+        return list.map((v) => {
+          const value = String(v);
+          return { value, label: value.charAt(0).toUpperCase() + value.slice(1) };
+        });
+      }
+      return undefined;
+    }
+
     if (paramName === 'voice' && selectedModel.languages) {
       const selectedLang = values['lang'] as string;
       // Also try matching by name (API defaults may use name instead of slug)
@@ -584,24 +622,48 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     }
 
     return undefined;
-  }, [endpoint.id, endpoint.inferenceType, models, selectedModel, values, enhancementInferenceType]);
+  }, [endpoint.id, endpoint.inferenceType, endpoint.params, models, selectedModel, modelLimits, values, enhancementInferenceType]);
 
-  // Check if a field should be visible based on visibleWhen condition
-  const isFieldVisible = useCallback((param: EndpointParam): boolean => {
-    if (!param.visibleWhen) return true;
-    const currentValue = values[param.visibleWhen.field];
-    if (param.visibleWhen.matchEmpty && (currentValue === null || currentValue === undefined || currentValue === '')) {
-      return true;
+  // Whether the selected model publishes a given capability. The key is looked up
+  // in `info.features` first, then `info.limits`; an empty array counts as "not
+  // supported" (the API validates the field against the published list).
+  const modelPublishesCapability = useCallback((key: string): boolean => {
+    const features = (modelFeatures ?? {}) as Record<string, unknown>;
+    if (key in features) return features[key] === true;
+    const limits = (modelLimits ?? {}) as Record<string, unknown>;
+    if (key in limits) {
+      const value = limits[key];
+      return Array.isArray(value) ? value.length > 0 : Boolean(value);
     }
-    return param.visibleWhen.values.includes(currentValue as string);
-  }, [values]);
+    return false;
+  }, [modelFeatures, modelLimits]);
+
+  // Check if a field should be visible: model capability gate first, then the
+  // value-based visibleWhen condition (an array of conditions means OR).
+  const isFieldVisible = useCallback((param: EndpointParam): boolean => {
+    if (param.visibleFromModel && !modelPublishesCapability(param.visibleFromModel)) {
+      return false;
+    }
+    if (!param.visibleWhen) return true;
+
+    const conditions = Array.isArray(param.visibleWhen) ? param.visibleWhen : [param.visibleWhen];
+    return conditions.some((condition) => {
+      const currentValue = values[condition.field];
+      if (condition.matchEmpty && (currentValue === null || currentValue === undefined || currentValue === '')) {
+        return true;
+      }
+      // Booleans are stored as real booleans; compare on their string form so a
+      // condition can be written as values: ['true'].
+      return condition.values.includes(String(currentValue));
+    });
+  }, [values, modelPublishesCapability]);
 
   const buildFilteredValues = useCallback((): Record<string, JsonValue> => {
     const filteredValues: Record<string, JsonValue> = {};
     Object.entries(values).forEach(([key, value]) => {
-      // Exclude hidden fields from payload
+      // Exclude hidden fields from payload (value-gated or model-capability-gated)
       const param = endpoint.params.find(p => p.name === key);
-      if (param?.visibleWhen && !isFieldVisible(param)) return;
+      if (param && !isFieldVisible(param)) return;
 
       if (value !== null) {
         // Split into array if arrayMode is on for this field
@@ -734,7 +796,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
 
         Object.entries(files).forEach(([key, fileOrFiles]) => {
           const param = endpoint.params.find((p) => p.name === key);
-          if (param?.visibleWhen && !isFieldVisible(param)) return;
+          if (param && !isFieldVisible(param)) return;
           if (Array.isArray(fileOrFiles)) {
             fileOrFiles.forEach((file) => formData.append(key, file));
           } else {
@@ -791,7 +853,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       Object.entries(files).forEach(([key, fileOrFiles]) => {
         const param = endpoint.params.find((p) => p.name === key);
         // Skip hidden file fields
-        if (param?.visibleWhen && !isFieldVisible(param)) return;
+        if (param && !isFieldVisible(param)) return;
         const isMultiMode = param?.multiFieldName && multiFileMode[key];
         const fieldName = isMultiMode && param?.multiFieldName ? param.multiFieldName : key;
 
@@ -982,8 +1044,8 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
           )}
         </div>
 
-        {/* Center: Params with defaults/limits */}
-        {compactParams.length > 0 && (
+        {/* Center: Params with defaults/limits, plus toggles */}
+        {(compactParams.length > 0 || booleanParams.length > 0) && (
           <div className="w-44 flex-shrink-0 space-y-2 overflow-y-auto border-l border-r border-[var(--border)] px-3">
             <div className="space-y-2">
               {compactParams.map((param) => {
@@ -1019,6 +1081,29 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                 );
               })}
             </div>
+
+            {booleanParams.length > 0 && (
+              <div className="space-y-2 pt-1">
+                {booleanParams.map((param) => (
+                  <div key={param.name}>
+                    <label
+                      className="block text-[10px] text-[var(--muted)] mb-0.5"
+                      title={param.description}
+                    >
+                      {param.label}
+                    </label>
+                    <FormField
+                      param={param}
+                      value={values[param.name]}
+                      compact
+                      isNullableDisabled={nullableDisabled[param.name]}
+                      onValueChange={handleChange}
+                      onNullableToggle={toggleNullable}
+                    />
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
@@ -1056,22 +1141,6 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                   <ModelInfo model={selectedModel} isLoading={modelsLoading && !selectedModel} />
                 </>
               )}
-            </div>
-          ))}
-
-          {booleanParams.map((param) => (
-            <div key={param.name}>
-              <label className="flex items-baseline gap-1 text-[10px] text-[var(--muted)] mb-1">
-                {param.label}
-              </label>
-              <FormField
-                param={getEffectiveParam(param)}
-                value={values[param.name]}
-                compact
-                isNullableDisabled={nullableDisabled[param.name]}
-                onValueChange={handleChange}
-                onNullableToggle={toggleNullable}
-              />
             </div>
           ))}
 

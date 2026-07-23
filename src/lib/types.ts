@@ -1,6 +1,13 @@
 // Form parameter types
 export type ParamType = 'text' | 'textarea' | 'number' | 'select' | 'file' | 'boolean' | 'json' | 'lora-array';
 
+// Condition on another field's current value. An array of these means OR.
+export interface VisibleWhen {
+  field: string;
+  values: string[];
+  matchEmpty?: boolean;
+}
+
 export interface EndpointParam {
   name: string;
   label: string;
@@ -19,8 +26,16 @@ export interface EndpointParam {
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
-  visibleWhen?: { field: string; values: string[]; matchEmpty?: boolean };  // conditional visibility based on another field's value
+  visibleWhen?: VisibleWhen | VisibleWhen[];  // conditional visibility based on other fields (array = OR)
   valueType?: 'number';  // for select fields: convert string value to number in payload
+  // Capability gating from /models. The key is looked up in the selected model's
+  // `info.features` first, then `info.limits`; the field is shown only when it is
+  // truthy (a non-empty array counts). Models that publish no such capability get
+  // the field hidden — which is exactly what the API validates against.
+  visibleFromModel?: string;
+  // Select options taken from the selected model's `info.limits[<key>]`
+  // (an array of strings, e.g. `timestamp_levels`).
+  optionsFromModel?: string;
 }
 
 export interface EndpointDefinition {
@@ -158,6 +173,9 @@ export interface ModelFeatures {
   supports_negative_prompt?: boolean;
   supports_last_frame?: boolean;
   supports_custom_output_size?: boolean;
+  // ASR capabilities (transcription models)
+  supports_timestamps?: boolean;
+  supports_diarization?: boolean;
 }
 
 export interface ModelLimits {
@@ -183,6 +201,10 @@ export interface ModelLimits {
   min_scale?: number;
   max_scale?: number;
   max_video_duration_seconds?: number;
+  // ASR: timestamp granularities the model can deliver, e.g. ["segment", "word"]
+  timestamp_levels?: string[];
+  // ASR: language codes the model accepts; absent means "any value accepted"
+  languages?: string[];
 }
 
 export interface ModelDefaults {
@@ -204,6 +226,55 @@ export interface ModelInfo {
   limits?: ModelLimits;
   defaults?: ModelDefaults;
   features?: ModelFeatures;
+}
+
+// ── Transcription results ────────────────────────────────────
+// deAPI reports what a transcription job actually produced under
+// `data.transcription` on GET /jobs/{id}. `structured` decides how to read the
+// result file: true → JSON object with `segments`, false → plain text.
+export type TsLevel = 'none' | 'segment' | 'word' | 'char';
+
+export interface TranscriptionMeta {
+  language?: string | null;
+  ts_level?: TsLevel | null;
+  diarization_available?: boolean;
+  structured?: boolean;
+}
+
+export interface AsrChar {
+  char: string;
+  start: number;
+  end: number;
+  score?: number;
+}
+
+export interface AsrWord {
+  word: string;
+  start: number;
+  end: number;
+  score?: number;
+  speaker?: string;
+  chars?: AsrChar[];
+}
+
+export interface AsrSegment {
+  start: number;
+  end: number;
+  text: string;
+  avg_logprob?: number;
+  speaker?: string;
+  words?: AsrWord[];
+}
+
+// The JSON result file produced when `structured` is true. Self-contained:
+// full text, language and (when timestamps were asked for) segments.
+export interface AsrTranscription {
+  text?: string;
+  language?: string;
+  language_probability?: number;
+  ts_level?: TsLevel;
+  diarization_available?: boolean;
+  segments?: AsrSegment[];
 }
 
 export interface DeApiModel {
