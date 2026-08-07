@@ -31,7 +31,7 @@ interface ProxyResponse {
 
 export default function Home() {
   const { showError, showSuccess } = useToast();
-  const { balance } = useBalance();
+  const { balance, refreshBalance, isLoading: balanceLoading } = useBalance();
   const { resolvedTheme, toggleTheme } = useTheme();
   const { refreshModels, isLoading: modelsLoading } = useModelsContext();
   const jobsPanelRef = useRef<JobsPanelRef>(null);
@@ -143,14 +143,17 @@ export default function Home() {
             </div>
           )}
 
-          {/* Refresh models */}
+          {/* Refresh models + balance */}
           <button
-            onClick={() => refreshModels()}
-            disabled={modelsLoading}
+            onClick={() => {
+              refreshModels();
+              refreshBalance();
+            }}
+            disabled={modelsLoading || balanceLoading}
             className="p-1.5 text-[var(--muted)] hover:text-[var(--text-primary)] hover:bg-[var(--surface-2)] rounded transition-colors"
-            title="Refresh models"
+            title="Refresh models & balance"
           >
-            <RefreshCw className={`w-4 h-4 ${modelsLoading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 ${modelsLoading || balanceLoading ? 'animate-spin' : ''}`} />
           </button>
 
           {/* Theme toggle */}

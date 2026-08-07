@@ -156,6 +156,78 @@ const lorasParam = (): EndpointParam => ({
   description: 'Array of LoRA adapters [{name, weight}]. Leave empty if not using.',
 });
 
+// Shared controls for every /audio/transcriptions endpoint.
+//
+// What a model can actually do is published by GET /models and the API
+// validates against it, so these fields are capability-gated rather than
+// hardcoded: `ts_level` appears only for models publishing
+// `info.limits.timestamp_levels` (and takes its options from that list),
+// `diarize` only for models with `info.features.supports_diarization`.
+// A legacy model that publishes neither shows just Include Timestamps.
+//
+// `urlSource` adds Include Metadata, which only makes sense for URL sources —
+// the API returns null metadata for an uploaded file.
+const transcriptionParams = (opts?: { urlSource?: boolean }): EndpointParam[] => [
+  {
+    name: 'include_ts',
+    label: 'Include Timestamps',
+    type: 'boolean',
+    required: false,
+    default: false,
+    description: 'Return times for each unit. Implied when Diarize is on.',
+  },
+  {
+    name: 'ts_level',
+    label: 'Timestamp Level',
+    type: 'select',
+    required: false,
+    default: 'segment',
+    // Fallback list; replaced by the model's own `timestamp_levels` when published.
+    options: [
+      { value: 'segment', label: 'Segment' },
+      { value: 'word', label: 'Word' },
+      { value: 'char', label: 'Char' },
+    ],
+    optionsFromModel: 'timestamp_levels',
+    visibleFromModel: 'timestamp_levels',
+    visibleWhen: [
+      { field: 'include_ts', values: ['true'] },
+      { field: 'diarize', values: ['true'] },
+    ],
+    description: 'Granularity of the timestamps. Sent only when timestamps are requested.',
+  },
+  {
+    name: 'diarize',
+    label: 'Diarize (speakers)',
+    type: 'boolean',
+    required: false,
+    default: false,
+    visibleFromModel: 'supports_diarization',
+    description: 'Label each timed unit with a detected speaker. Implies timestamps.',
+  },
+  {
+    name: 'lang',
+    label: 'Language',
+    type: 'text',
+    required: false,
+    placeholder: 'auto',
+    description: 'ISO code hint (e.g. en, pl). Blank or "auto" = auto-detect.',
+  },
+  ...(opts?.urlSource
+    ? [
+        {
+          name: 'include_metadata',
+          label: 'Include Metadata',
+          type: 'boolean' as const,
+          required: false,
+          default: false,
+          description:
+            'Return source info (title, channel, uploader, upload date, view/like/comment counts) on the job status.',
+        },
+      ]
+    : []),
+];
+
 // ============================================================
 // ENDPOINT DEFINITIONS
 // ============================================================
@@ -724,13 +796,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         description: 'YouTube, X, or Twitch video URL',
       },
       modelSelectParam(),
-      {
-        name: 'include_ts',
-        label: 'Include Timestamps',
-        type: 'boolean',
-        required: true,
-        default: false,
-      },
+      ...transcriptionParams({ urlSource: true }),
     ],
   },
 
@@ -754,14 +820,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'video/*',
       },
-      {
-        name: 'include_ts',
-        label: 'Include Timestamps',
-        type: 'boolean',
-        required: true,
-        default: false,
-      },
       modelSelectParam(),
+      ...transcriptionParams(),
     ],
   },
 
@@ -787,13 +847,7 @@ export const ENDPOINTS: EndpointDefinition[] = [
         description: 'X/Twitter Spaces URL',
       },
       modelSelectParam(),
-      {
-        name: 'include_ts',
-        label: 'Include Timestamps',
-        type: 'boolean',
-        required: true,
-        default: false,
-      },
+      ...transcriptionParams({ urlSource: true }),
     ],
   },
 
@@ -817,14 +871,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         required: true,
         accept: 'audio/*',
       },
-      {
-        name: 'include_ts',
-        label: 'Include Timestamps',
-        type: 'boolean',
-        required: true,
-        default: false,
-      },
       modelSelectParam(),
+      ...transcriptionParams(),
     ],
   },
 
