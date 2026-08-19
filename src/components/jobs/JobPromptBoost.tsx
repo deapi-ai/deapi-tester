@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ChevronRight, ClipboardCheck, ClipboardCopy, Sparkles } from 'lucide-react';
+import { ClipboardCheck, ClipboardCopy, Sparkles } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 
 interface JobPromptBoostProps {
@@ -67,11 +67,11 @@ function PromptPair({
  *
  * When a request is sent with `enhance_prompt`, deAPI rewrites the prompt as a
  * pre-step of the job and reports both versions on the status. This panel shows
- * what was actually generated from — self-hiding for jobs that were not boosted.
+ * what was actually generated from. It is opened from the row's "boosted" chip,
+ * so it never takes space on rows nobody asked about.
  */
 export function JobPromptBoost({ job }: JobPromptBoostProps) {
   const boost = getBoost(job);
-  const [isExpanded, setIsExpanded] = useState(false);
   const [copied, setCopied] = useState(false);
 
   if (!boost || (!boost.prompt && !boost.negativePrompt)) return null;
@@ -87,25 +87,11 @@ export function JobPromptBoost({ job }: JobPromptBoostProps) {
     <div className="px-4 pb-3">
       <div className="bg-[var(--surface-inset)] border border-[var(--border-dim)] rounded">
         <div className="flex items-center gap-2 px-2 py-1.5">
-          <button
-            type="button"
-            onClick={() => setIsExpanded((v) => !v)}
-            className="flex items-center gap-1 text-[10px] text-[var(--muted)] hover:text-[var(--text-primary)] uppercase tracking-wide"
-          >
-            <ChevronRight
-              className={`w-2 h-2 transition-transform ${isExpanded ? 'rotate-90' : ''}`}
-            />
-            Prompt boost
-          </button>
+          <span className="text-[10px] text-[var(--muted)] uppercase tracking-wide">Prompt boost</span>
           <span className="flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-purple-500/15 text-purple-300">
             <Sparkles className="w-2.5 h-2.5" />
             enhance_prompt
           </span>
-          {!isExpanded && boost.prompt && (
-            <span className="text-[10px] text-[var(--text-faint)] truncate flex-1 min-w-0">
-              {boost.prompt}
-            </span>
-          )}
           <div className="flex-1" />
           {boost.prompt && (
             <button
@@ -125,20 +111,18 @@ export function JobPromptBoost({ job }: JobPromptBoostProps) {
           )}
         </div>
 
-        {isExpanded && (
-          <div className="border-t border-[var(--border-dim)] px-2 py-2 space-y-2">
-            <PromptPair
-              label="prompt (original → boosted)"
-              original={boost.promptOriginal}
-              boosted={boost.prompt}
-            />
-            <PromptPair
-              label="negative prompt (original → boosted)"
-              original={boost.negativePromptOriginal}
-              boosted={boost.negativePrompt}
-            />
-          </div>
-        )}
+        <div className="border-t border-[var(--border-dim)] px-2 py-2 space-y-2">
+          <PromptPair
+            label="prompt (original → boosted)"
+            original={boost.promptOriginal}
+            boosted={boost.prompt}
+          />
+          <PromptPair
+            label="negative prompt (original → boosted)"
+            original={boost.negativePromptOriginal}
+            boosted={boost.negativePrompt}
+          />
+        </div>
       </div>
     </div>
   );

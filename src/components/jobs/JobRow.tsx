@@ -64,11 +64,20 @@ export function JobRow({
 }: JobRowProps) {
   const { showResponseHeaders } = useSettings();
   const [copiedOutput, setCopiedOutput] = useState(false);
+  const [copiedRequestId, setCopiedRequestId] = useState(false);
+  const [showPromptBoost, setShowPromptBoost] = useState(false);
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
   const hasResponseHeaders =
     !!job.rawResponseHeaders && Object.keys(job.rawResponseHeaders).length > 0;
   // Text output (OCR, transcription, prompt booster) — offer a one-click copy.
   const resultText = getResultText(job);
+
+  const handleCopyRequestId = () => {
+    if (!job.requestId) return;
+    navigator.clipboard.writeText(job.requestId);
+    setCopiedRequestId(true);
+    setTimeout(() => setCopiedRequestId(false), 1500);
+  };
 
   const handleCopyOutput = () => {
     if (!resultText) return;
@@ -150,23 +159,22 @@ export function JobRow({
             }`}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm font-medium text-[var(--text-primary)]">{job.endpointId}</span>
-              {job.requestId && (
-                <span className="text-[10px] font-mono text-[var(--muted)]">{job.requestId}</span>
-              )}
+            <div className="flex items-baseline gap-2 flex-nowrap">
+              <span className="text-sm font-medium text-[var(--text-primary)] flex-shrink-0">
+                {job.endpointId}
+              </span>
               {/* Price: the estimate until the job finishes, then what it actually
                   cost. Both are shown only when they differ. */}
               {finalPrice === null && estimate !== null && (
                 <span
-                  className="text-[10px] font-mono text-yellow-500"
+                  className="text-[10px] font-mono text-yellow-500 flex-shrink-0"
                   title="Estimated price (quoted before the request)"
                 >
                   ~${formatCost(estimate)}
                 </span>
               )}
               {finalPrice !== null && (
-                <span className="flex items-baseline gap-1">
+                <span className="flex items-baseline gap-1 flex-shrink-0">
                   {!priceMatchesEstimate && estimate !== null && (
                     <span
                       className="text-[10px] font-mono text-[var(--muted)] line-through"
@@ -193,39 +201,55 @@ export function JobRow({
               )}
               {boostFee !== undefined && (
                 <span
-                  className="text-[10px] font-mono text-purple-300"
+                  className="text-[10px] font-mono text-purple-300 flex-shrink-0"
                   title="Prompt boost fee (estimated, billed separately from the inference)"
                 >
                   +${formatCost(boostFee)}
                 </span>
               )}
               {job.promptBoosted && (
-                <span
-                  className="text-[10px] px-1 rounded bg-purple-500/20 text-purple-300"
-                  title={
-                    promptBoost?.prompt
-                      ? `Prompt boosted by deAPI:\n\n${promptBoost.prompt}`
-                      : 'Prompt boosted by deAPI (enhance_prompt)'
-                  }
+                <button
+                  type="button"
+                  onClick={() => setShowPromptBoost((v) => !v)}
+                  title="Prompt boosted by deAPI (enhance_prompt) — click to see the original and boosted prompt"
+                  className={`text-[10px] px-1 rounded flex-shrink-0 transition-colors ${
+                    showPromptBoost
+                      ? 'bg-purple-500/35 text-purple-200'
+                      : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                  }`}
                 >
                   ✨ boosted
-                </span>
+                </button>
               )}
             </div>
-            <div className="text-xs text-[var(--text-faint)] truncate font-mono">
-              {typeof job.params.prompt === 'string'
-                ? job.params.prompt.slice(0, 60)
-                : typeof job.params.text === 'string'
-                  ? job.params.text.slice(0, 60)
-                  : typeof job.params.input === 'string'
-                    ? job.params.input.slice(0, 60)
-                    : job.requestId || '—'}
+            <div className="flex items-baseline gap-2 min-w-0">
+              {job.requestId && (
+                <button
+                  type="button"
+                  onClick={handleCopyRequestId}
+                  title="Copy request id"
+                  className={`text-[10px] font-mono flex-shrink-0 transition-colors ${
+                    copiedRequestId ? 'text-green-400' : 'text-[var(--muted)] hover:text-blue-400'
+                  }`}
+                >
+                  {copiedRequestId ? 'copied' : job.requestId}
+                </button>
+              )}
+              <div className="text-xs text-[var(--text-faint)] truncate font-mono min-w-0">
+                {typeof job.params.prompt === 'string'
+                  ? job.params.prompt
+                  : typeof job.params.text === 'string'
+                    ? job.params.text
+                    : typeof job.params.input === 'string'
+                      ? job.params.input
+                      : '—'}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Column 2: Polling & Status (4 cols) */}
-        <div className="col-span-4 flex items-center gap-2">
+        <div className="col-span-4 flex items-center gap-2 pl-6">
           {activeJob && activeJob.pollUpdates.length > 0 && (() => {
             const firstPollUpdate = activeJob.pollUpdates[0];
             const lastPollUpdate = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
@@ -414,8 +438,9 @@ export function JobRow({
           `transcription` block for (self-hiding otherwise). */}
       <JobTranscription job={job} resultUrl={resultUrl} />
 
-      {/* Inline prompt-boost result — self-hiding for unboosted jobs. */}
-      <JobPromptBoost job={job} />
+      {/* Inline prompt-boost result — opened from the row's "boosted" chip, so
+          it costs no vertical space until asked for. */}
+      {showPromptBoost && <JobPromptBoost job={job} />}
 
       {/* Expanded Raw Request & Response */}
       {isRawExpanded && (job.rawRequest || job.rawResponse || (showResponseHeaders && hasResponseHeaders)) && (
