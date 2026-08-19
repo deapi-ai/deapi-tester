@@ -131,7 +131,9 @@ export function JobRow({
   const promptBoost = job.promptBoost;
   // The prompt boost is charged on its own — the job's `price` covers the
   // inference only — so it is reported next to the price, never inside it.
-  const boostFee = job.estimateBreakdown?.boost;
+  // Zero means the environment does not charge for boosts (dev/sandbox quote it
+  // at 0) — nothing worth a badge.
+  const boostFee = job.estimateBreakdown?.boost || undefined;
   // Derived from the result URL extension (most reliable) with the endpoint's
   // group as fallback — robust to the v2 path stored in job.endpointId.
   const resultType = getResultType(job.endpointId, resultUrl);

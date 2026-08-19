@@ -879,7 +879,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       const tester = data.rawResponse?._tester as
         | { boost_price?: number; total_price?: number }
         | undefined;
-      setPriceResult({ credits: price, boostCredits: tester?.boost_price });
+      setPriceResult({ credits: price, boostCredits: tester?.boost_price || undefined });
       onPriceCheck?.();
     } catch (err) {
       setPriceResult({ credits: 0, error: err instanceof Error ? err.message : 'Failed' });
