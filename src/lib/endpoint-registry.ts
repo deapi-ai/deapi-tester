@@ -1047,7 +1047,47 @@ export const ENDPOINTS: EndpointDefinition[] = [
     contentType: 'json',
     isAsync: false,
     hasPriceCalc: false,
-    params: [],
+    // deAPI paginates this endpoint (Laravel-style `meta.current_page` /
+    // `meta.last_page`). Defaults are page 1 / 25 per page, so without these
+    // controls the tester could only ever see the first 25 models. Note the
+    // param is `limit` — `per_page` is accepted but silently ignored — and the
+    // server caps it at 50 (limit=100 still returns per_page=50), so more than
+    // 50 models always requires walking pages.
+    params: [
+      {
+        name: '_fetchAll',
+        label: 'Fetch All Pages',
+        type: 'boolean',
+        required: false,
+        default: false,
+        description:
+          'Tester-side: walk every page and merge into one response. Not sent to deAPI — the response is marked with _tester.merged_pages.',
+      },
+      {
+        name: 'page',
+        label: 'Page',
+        type: 'number',
+        required: false,
+        min: 1,
+        step: 1,
+        placeholder: '1',
+        description: 'Page number. Check meta.last_page in the response for the page count.',
+        visibleWhen: { field: '_fetchAll', values: ['false'], matchEmpty: true },
+      },
+      {
+        name: 'limit',
+        label: 'Limit',
+        type: 'number',
+        required: false,
+        default: 50,
+        min: 1,
+        max: 50,
+        step: 1,
+        placeholder: '25',
+        description: 'Models per page. Server caps this at 50 (deAPI default is 25).',
+        visibleWhen: { field: '_fetchAll', values: ['false'], matchEmpty: true },
+      },
+    ],
   },
 
   {

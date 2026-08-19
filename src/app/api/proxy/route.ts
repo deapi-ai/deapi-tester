@@ -3,6 +3,7 @@ import { loadConfig } from '@/lib/config';
 import { addJob, generateJobId, updateJob } from '@/lib/storage';
 import { saveUploadedFile } from '@/lib/upload-storage';
 import { getEndpointById } from '@/lib/endpoint-registry';
+import { fetchAllPages, PAGE_LIMIT } from '@/lib/pagination';
 import { Job, JsonValue, UploadedFile } from '@/lib/types';
 
 // POST /api/proxy - Proxy request to deAPI
@@ -47,6 +48,13 @@ export async function POST(request: Request) {
     // it so the job updates in place instead of creating a duplicate row.
     const providedJobId = typeof params._jobId === 'string' ? params._jobId : undefined;
     delete params._jobId;
+
+    // Tester-only control: walk every page of a paginated GET and merge the
+    // results into one response. deAPI caps `limit` at 50, so this is the only
+    // way to see more than 50 items at once. Deleted from params so it is never
+    // forwarded to the API as a query param.
+    const fetchAllRequested = params._fetchAll === true || params._fetchAll === 'true';
+    delete params._fetchAll;
 
     // Validate endpoint
     const endpoint = getEndpointById(endpointId);
@@ -137,6 +145,10 @@ export async function POST(request: Request) {
       bodyForLog = params;
     }
 
+    // Only paginate GETs — the flag is meaningless for a POST body, and a price
+    // pre-calculation is a single POST regardless.
+    const shouldFetchAllPages = fetchAllRequested && endpoint.method === 'GET' && !isPriceCalc;
+
     // Add query params for GET requests
     let finalUrl = url;
     if (endpoint.method === 'GET' && Object.keys(params).length > 0) {
@@ -147,6 +159,23 @@ export async function POST(request: Request) {
         }
       });
       finalUrl = url + '?' + queryParams.toString();
+    }
+
+    // In "fetch all pages" mode the walker owns page/limit. Log the first page
+    // it will actually request; `_tester.pages_fetched` on the response records
+    // how many followed.
+    const pagedQuery: Record<string, string> = {};
+    if (shouldFetchAllPages) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (key === 'page' || key === 'limit') return;
+        if (value !== undefined && value !== null && value !== '') {
+          pagedQuery[key] = String(value);
+        }
+      });
+      const firstPage = new URLSearchParams(pagedQuery);
+      firstPage.set('limit', String(PAGE_LIMIT));
+      firstPage.set('page', '1');
+      finalUrl = `${url}?${firstPage.toString()}`;
     }
 
     // Fetch estimated price if endpoint supports price calculation (skip if this IS a price calc request)
@@ -267,45 +296,82 @@ export async function POST(request: Request) {
 
     // Make request to deAPI
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    // The page walker makes up to MAX_PAGES sequential requests, so it gets a
+    // larger budget than a single call.
+    const timeoutId = setTimeout(() => controller.abort(), shouldFetchAllPages ? 60000 : 30000);
 
-    const response = await fetch(finalUrl, {
-      ...fetchOptions,
-      signal: controller.signal,
-    });
-
-    clearTimeout(timeoutId);
-
-    // deAPI (or a gateway/proxy in front of it) can return a non-JSON body on
-    // errors — an HTML 500/502 page, a plain string. response.json() would throw
-    // a cryptic "Unexpected token '<'". Read the body as text and parse
-    // defensively so we surface the real HTTP status + a body snippet instead.
-    const responseText = await response.text();
     let rawResponse;
-    try {
-      rawResponse = JSON.parse(responseText);
-    } catch {
-      rawResponse = {
-        error: `Non-JSON response from API (HTTP ${response.status})`,
-        status: response.status,
-        body: responseText.slice(0, 4000),
-      };
+    const rawResponseHeaders: Record<string, string> = {};
+    let responseOk: boolean;
+    let responseStatus: number;
+
+    if (shouldFetchAllPages) {
+      const paged = await fetchAllPages(url, config.apiToken, {
+        query: pagedQuery,
+        signal: controller.signal,
+      });
+      clearTimeout(timeoutId);
+
+      responseOk = paged.ok;
+      if (paged.ok) {
+        responseStatus = 200;
+        rawResponse = {
+          data: paged.data,
+          meta: paged.meta,
+          // Marker so the inspector never reads this as a verbatim API
+          // response — it is N page responses merged by the tester. `meta` is
+          // carried over from the LAST page, hence current_page === last_page.
+          _tester: {
+            merged_pages: true,
+            pages_fetched: paged.pagesFetched,
+            items: paged.data.length,
+            truncated: paged.truncated,
+          },
+        };
+      } else {
+        responseStatus = paged.status;
+        rawResponse = paged.body;
+      }
+    } else {
+      const response = await fetch(finalUrl, {
+        ...fetchOptions,
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      responseOk = response.ok;
+      responseStatus = response.status;
+
+      // deAPI (or a gateway/proxy in front of it) can return a non-JSON body on
+      // errors — an HTML 500/502 page, a plain string. response.json() would throw
+      // a cryptic "Unexpected token '<'". Read the body as text and parse
+      // defensively so we surface the real HTTP status + a body snippet instead.
+      const responseText = await response.text();
+      try {
+        rawResponse = JSON.parse(responseText);
+      } catch {
+        rawResponse = {
+          error: `Non-JSON response from API (HTTP ${response.status})`,
+          status: response.status,
+          body: responseText.slice(0, 4000),
+        };
+      }
+
+      // Capture response headers so the UI can optionally display them
+      response.headers.forEach((value, key) => {
+        rawResponseHeaders[key] = value;
+      });
     }
 
-    // Capture response headers so the UI can optionally display them
-    const rawResponseHeaders: Record<string, string> = {};
-    response.headers.forEach((value, key) => {
-      rawResponseHeaders[key] = value;
-    });
-
     // Update job with response
-    if (!response.ok) {
+    if (!responseOk) {
       if (!isPriceCalc) {
         updateJob(jobId, {
           rawResponse,
           rawResponseHeaders,
           status: 'failed',
-          error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
+          error: rawResponse.error || rawResponse.message || `HTTP ${responseStatus}`,
           completedAt: new Date().toISOString(),
         });
       }
@@ -313,10 +379,10 @@ export async function POST(request: Request) {
       return NextResponse.json({
         success: false,
         jobId,
-        error: rawResponse.error || rawResponse.message || `HTTP ${response.status}`,
+        error: rawResponse.error || rawResponse.message || `HTTP ${responseStatus}`,
         rawRequest: job.rawRequest,
         rawResponse,
-      }, { status: response.status });
+      }, { status: responseStatus });
     }
 
     // For async endpoints, extract request_id
