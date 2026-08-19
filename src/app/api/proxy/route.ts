@@ -4,7 +4,58 @@ import { addJob, generateJobId, updateJob } from '@/lib/storage';
 import { saveUploadedFile } from '@/lib/upload-storage';
 import { getEndpointById } from '@/lib/endpoint-registry';
 import { fetchAllPages, PAGE_LIMIT } from '@/lib/pagination';
+import {
+  INLINE_BOOST_FIELD,
+  enhancementTypeForPath,
+  supportsInlineBoost,
+} from '@/lib/prompt-enhancement';
 import { Job, JsonValue, UploadedFile } from '@/lib/types';
+
+// Price of the inline prompt boost (`enhance_prompt`), quoted by the same
+// endpoint the standalone booster uses. The generation /price endpoints do not
+// accept `enhance_prompt` and the job's own `price` covers the inference only,
+// so the boost fee is quoted here and reported alongside the estimate.
+async function fetchInlineBoostPrice(
+  apiUrl: string,
+  apiToken: string,
+  args: {
+    type: string;
+    modelSlug: string;
+    prompt: string;
+    negativePrompt?: string;
+    image?: File;
+  }
+): Promise<number | undefined> {
+  try {
+    const form = new FormData();
+    form.append('type', args.type);
+    form.append('model_slug', args.modelSlug);
+    form.append('prompt', args.prompt);
+    if (args.negativePrompt && args.negativePrompt.length >= 3) {
+      form.append('negative_prompt', args.negativePrompt);
+    }
+    if (args.image) form.append('image', args.image);
+
+    const res = await fetch(`${apiUrl.replace(/\/$/, '')}/prompts/enhancements/price`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${apiToken}` },
+      body: form,
+    });
+    const text = await res.text();
+    let data: { price?: number; data?: { price?: number } } | null;
+    try {
+      data = JSON.parse(text);
+    } catch {
+      data = null;
+    }
+    console.log('[deapi-tester] Boost price response:', res.status, data ?? text.slice(0, 300));
+    const price = data?.price ?? data?.data?.price;
+    return res.ok && typeof price === 'number' ? price : undefined;
+  } catch (err) {
+    console.error('[deapi-tester] Boost price calculation failed:', err);
+    return undefined;
+  }
+}
 
 // POST /api/proxy - Proxy request to deAPI
 export async function POST(request: Request) {
@@ -63,6 +114,18 @@ export async function POST(request: Request) {
         { error: `Unknown endpoint: ${endpointId}` },
         { status: 400 }
       );
+    }
+
+    // Inline prompt booster: `enhance_prompt` travels with the generation
+    // request itself. The /price endpoints do not accept it, so it is stripped
+    // from every price payload and the boost fee is quoted separately (below).
+    const boostFlag = params[INLINE_BOOST_FIELD];
+    const boostRequested =
+      supportsInlineBoost(endpoint.path) &&
+      (boostFlag === true || boostFlag === 'true' || boostFlag === '1' || boostFlag === 1);
+    if (isPriceCalc && boostFlag !== undefined) {
+      delete params[INLINE_BOOST_FIELD];
+      formData?.delete(INLINE_BOOST_FIELD);
     }
 
     // For price calculation, check if endpoint supports it
@@ -180,6 +243,7 @@ export async function POST(request: Request) {
 
     // Fetch estimated price if endpoint supports price calculation (skip if this IS a price calc request)
     let estimatedPrice: number | undefined;
+    let estimateBreakdown: { base?: number; boost?: number } | undefined;
     if (!isPriceCalc && endpoint.hasPriceCalc && endpoint.priceCalcPath) {
       try {
         const priceUrl = config.apiUrl.replace(/\/$/, '') + endpoint.priceCalcPath;
@@ -196,6 +260,7 @@ export async function POST(request: Request) {
           const priceForm = new FormData();
           for (const [key, value] of Object.entries(params)) {
             if (fileEntries.some((f) => f.field === key)) continue; // skip file placeholders
+            if (key === INLINE_BOOST_FIELD) continue; // not part of the /price contract
             if (value !== undefined && value !== null) {
               priceForm.append(key, String(value));
             }
@@ -209,13 +274,15 @@ export async function POST(request: Request) {
             body: priceForm,
           });
         } else {
+          const priceParams = { ...params };
+          delete priceParams[INLINE_BOOST_FIELD]; // not part of the /price contract
           priceResponse = await fetch(priceUrl, {
             method: 'POST',
             headers: {
               'Authorization': `Bearer ${config.apiToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(params),
+            body: JSON.stringify(priceParams),
           });
         }
 
@@ -241,6 +308,29 @@ export async function POST(request: Request) {
         }
       } catch (priceErr) {
         console.error('[deapi-tester] Price calculation failed:', priceErr);
+      }
+    }
+
+    // The inline boost is charged separately from the inference: the job's
+    // reported `price` covers the inference only (verified against the live
+    // API). So quote the boost on the side and keep it out of the estimate the
+    // final price is compared against, rather than folding it in.
+    if (!isPriceCalc && boostRequested) {
+      const boostType = enhancementTypeForPath(endpoint.path);
+      const modelSlug = typeof params.model === 'string' ? params.model : undefined;
+      const promptText = typeof params.prompt === 'string' ? params.prompt : undefined;
+      if (boostType && modelSlug && promptText) {
+        const boostPrice = await fetchInlineBoostPrice(config.apiUrl, config.apiToken, {
+          type: boostType,
+          modelSlug,
+          prompt: promptText,
+          negativePrompt:
+            typeof params.negative_prompt === 'string' ? params.negative_prompt : undefined,
+          image: fileEntries.find((f) => f.file.type.startsWith('image/'))?.file,
+        });
+        if (boostPrice !== undefined) {
+          estimateBreakdown = { base: estimatedPrice, boost: boostPrice };
+        }
       }
     }
 
@@ -279,6 +369,7 @@ export async function POST(request: Request) {
       status: 'pending',
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
+      estimateBreakdown,
     };
     if (!isPriceCalc) {
       if (providedJobId) {
@@ -410,6 +501,34 @@ export async function POST(request: Request) {
         rawRequest: job.rawRequest,
         rawResponse,
       });
+    }
+
+    // Price-only check with the inline boost enabled: the /price endpoint quotes
+    // the inference alone, so quote the boost as well and expose base/boost/total
+    // under `_tester`. The API payload itself stays verbatim.
+    if (isPriceCalc && boostRequested && responseOk) {
+      const basePrice = rawResponse?.data?.price ?? rawResponse?.price;
+      const boostType = enhancementTypeForPath(endpoint.path);
+      const modelSlug = typeof params.model === 'string' ? params.model : undefined;
+      const promptText = typeof params.prompt === 'string' ? params.prompt : undefined;
+      if (boostType && modelSlug && promptText) {
+        const boostPrice = await fetchInlineBoostPrice(config.apiUrl, config.apiToken, {
+          type: boostType,
+          modelSlug,
+          prompt: promptText,
+          negativePrompt:
+            typeof params.negative_prompt === 'string' ? params.negative_prompt : undefined,
+          image: fileEntries.find((f) => f.file.type.startsWith('image/'))?.file,
+        });
+        if (boostPrice !== undefined) {
+          rawResponse._tester = {
+            ...(rawResponse._tester || {}),
+            base_price: basePrice,
+            boost_price: boostPrice,
+            total_price: (typeof basePrice === 'number' ? basePrice : 0) + boostPrice,
+          };
+        }
+      }
     }
 
     // For sync endpoints, mark as completed

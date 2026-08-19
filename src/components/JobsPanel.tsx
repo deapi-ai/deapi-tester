@@ -215,8 +215,34 @@ export const JobsPanel = forwardRef<JobsPanelRef, JobsPanelProps>(function JobsP
         return newMap;
       });
 
+      // What the request actually cost (and the inline-boost outcome) arrive on
+      // the status payload once it is terminal. The server persists them; merge
+      // them into the in-memory row too so the price flips from estimate to
+      // final without waiting for a history reload.
+      const inner = (deApiResponse.data ?? deApiResponse) as Record<string, unknown>;
+      const price = inner?.price as { amount?: number; is_estimated?: boolean } | null | undefined;
+      const boost = inner?.prompt_boost as Record<string, unknown> | null | undefined;
+      const str = (value: unknown) => (typeof value === 'string' ? value : null);
+      const terminalPatch: Partial<Job> = {};
+      if (price && typeof price.amount === 'number') {
+        terminalPatch.finalPrice = { amount: price.amount, isEstimated: price.is_estimated === true };
+      }
+      if (inner?.prompt_boosted !== undefined) {
+        terminalPatch.promptBoosted = inner.prompt_boosted === true;
+      }
+      if (boost) {
+        terminalPatch.promptBoost = {
+          prompt: str(boost.prompt),
+          promptOriginal: str(boost.prompt_original),
+          negativePrompt: str(boost.negative_prompt),
+          negativePromptOriginal: str(boost.negative_prompt_original),
+        };
+      }
+
       setJobs((prev) => {
-        const next = prev.map((j) => (j.id === job.id ? { ...j, status: jobStatus } : j));
+        const next = prev.map((j) =>
+          j.id === job.id ? { ...j, status: jobStatus, ...terminalPatch } : j
+        );
         jobsRef.current = next;
         return next;
       });

@@ -7,6 +7,7 @@ import { STATUS_BG_COLORS } from '@/lib/constants';
 import { formatTime, formatCost, formatProgress, getResultType, getResultText } from '@/lib/format-utils';
 import { useSettings } from '@/components/SettingsContext';
 import { JobTranscription } from '@/components/jobs/JobTranscription';
+import { JobPromptBoost } from '@/components/jobs/JobPromptBoost';
 
 interface PollUpdate {
   timestamp: number;
@@ -63,11 +64,20 @@ export function JobRow({
 }: JobRowProps) {
   const { showResponseHeaders } = useSettings();
   const [copiedOutput, setCopiedOutput] = useState(false);
+  const [copiedRequestId, setCopiedRequestId] = useState(false);
+  const [showPromptBoost, setShowPromptBoost] = useState(false);
   const lastUpdate = activeJob?.pollUpdates[activeJob.pollUpdates.length - 1];
   const hasResponseHeaders =
     !!job.rawResponseHeaders && Object.keys(job.rawResponseHeaders).length > 0;
   // Text output (OCR, transcription, prompt booster) — offer a one-click copy.
   const resultText = getResultText(job);
+
+  const handleCopyRequestId = () => {
+    if (!job.requestId) return;
+    navigator.clipboard.writeText(job.requestId);
+    setCopiedRequestId(true);
+    setTimeout(() => setCopiedRequestId(false), 1500);
+  };
 
   const handleCopyOutput = () => {
     if (!resultText) return;
@@ -90,22 +100,49 @@ export function JobRow({
     return null;
   };
 
-  const getCost = (): number | null => {
-    if (job.costCredits !== undefined && job.costCredits !== null) return job.costCredits;
-    if (activeJob?.finalResult) {
-      const result = activeJob.finalResult as Record<string, JsonValue>;
-      if (result.cost_credits !== undefined) return result.cost_credits as number;
+  // Pre-request estimate: what the endpoint's /price call quoted at submit time
+  // (including the inline prompt-boost fee when the request asked for one).
+  const getEstimate = (): number | null =>
+    job.costCredits !== undefined && job.costCredits !== null ? job.costCredits : null;
+
+  // What the request actually cost. deAPI reports `price` on the job status once
+  // the request is terminal; prefer the persisted value and fall back to the
+  // live status payload, since the job row is not refetched after every poll.
+  const readPrice = (
+    source: Record<string, JsonValue> | undefined | null
+  ): { amount: number; isEstimated: boolean } | null => {
+    const price = source?.price as { amount?: number; is_estimated?: boolean } | null | undefined;
+    if (price && typeof price.amount === 'number') {
+      return { amount: price.amount, isEstimated: price.is_estimated === true };
     }
-    if (job.rawResponse) {
-      const response = job.rawResponse as Record<string, JsonValue>;
-      const data = response.data as Record<string, JsonValue> | undefined;
-      if (data?.cost_credits !== undefined) return data.cost_credits as number;
+    // v1 shape, still emitted by some sync endpoints.
+    if (typeof source?.cost_credits === 'number') {
+      return { amount: source.cost_credits, isEstimated: false };
     }
     return null;
   };
 
+  const getFinalPrice = (): { amount: number; isEstimated: boolean } | null => {
+    if (job.finalPrice && typeof job.finalPrice.amount === 'number') return job.finalPrice;
+    const fromLive = readPrice(activeJob?.finalResult as Record<string, JsonValue> | null);
+    if (fromLive) return fromLive;
+    const response = job.rawResponse as Record<string, JsonValue> | undefined;
+    return readPrice(response?.data as Record<string, JsonValue> | undefined);
+  };
+
   const resultUrl = getResultUrl();
-  const cost = getCost();
+  const estimate = getEstimate();
+  const finalPrice = getFinalPrice();
+  // Same figure quoted and charged → show it once. Floats come back from two
+  // different calculations, so compare with a tolerance rather than ===.
+  const priceMatchesEstimate =
+    finalPrice !== null && estimate !== null && Math.abs(finalPrice.amount - estimate) < 1e-9;
+  const promptBoost = job.promptBoost;
+  // The prompt boost is charged on its own — the job's `price` covers the
+  // inference only — so it is reported next to the price, never inside it.
+  // Zero means the environment does not charge for boosts (dev/sandbox quote it
+  // at 0) — nothing worth a badge.
+  const boostFee = job.estimateBreakdown?.boost || undefined;
   // Derived from the result URL extension (most reliable) with the endpoint's
   // group as fallback — robust to the v2 path stored in job.endpointId.
   const resultType = getResultType(job.endpointId, resultUrl);
@@ -122,29 +159,97 @@ export function JobRow({
             }`}
           />
           <div className="min-w-0 flex-1">
-            <div className="flex items-baseline gap-2">
-              <span className="text-sm font-medium text-[var(--text-primary)]">{job.endpointId}</span>
-              {job.requestId && (
-                <span className="text-[10px] font-mono text-[var(--muted)]">{job.requestId}</span>
+            <div className="flex items-baseline gap-2 flex-nowrap">
+              <span className="text-sm font-medium text-[var(--text-primary)] flex-shrink-0">
+                {job.endpointId}
+              </span>
+              {/* Price: the estimate until the job finishes, then what it actually
+                  cost. Both are shown only when they differ. */}
+              {finalPrice === null && estimate !== null && (
+                <span
+                  className="text-[10px] font-mono text-yellow-500 flex-shrink-0"
+                  title="Estimated price (quoted before the request)"
+                >
+                  ~${formatCost(estimate)}
+                </span>
               )}
-              {cost !== null && (
-                <span className="text-[10px] font-mono text-yellow-500">${formatCost(cost)}</span>
+              {finalPrice !== null && (
+                <span className="flex items-baseline gap-1 flex-shrink-0">
+                  {!priceMatchesEstimate && estimate !== null && (
+                    <span
+                      className="text-[10px] font-mono text-[var(--muted)] line-through"
+                      title="Estimated price (quoted before the request)"
+                    >
+                      ${formatCost(estimate)}
+                    </span>
+                  )}
+                  <span
+                    className={`text-[10px] font-mono ${
+                      finalPrice.isEstimated ? 'text-yellow-500' : 'text-green-400'
+                    }`}
+                    title={
+                      finalPrice.isEstimated
+                        ? 'Charge still settling (partner model) — this figure can change'
+                        : priceMatchesEstimate
+                          ? 'Final price — matches the estimate'
+                          : 'Final price charged for this request'
+                    }
+                  >
+                    {finalPrice.isEstimated ? '~' : ''}${formatCost(finalPrice.amount)}
+                  </span>
+                </span>
+              )}
+              {boostFee !== undefined && (
+                <span
+                  className="text-[10px] font-mono text-purple-300 flex-shrink-0"
+                  title="Prompt boost fee (estimated, billed separately from the inference)"
+                >
+                  +${formatCost(boostFee)}
+                </span>
+              )}
+              {job.promptBoosted && (
+                <button
+                  type="button"
+                  onClick={() => setShowPromptBoost((v) => !v)}
+                  title="Prompt boosted by deAPI (enhance_prompt) — click to see the original and boosted prompt"
+                  className={`text-[10px] px-1 rounded flex-shrink-0 transition-colors ${
+                    showPromptBoost
+                      ? 'bg-purple-500/35 text-purple-200'
+                      : 'bg-purple-500/20 text-purple-300 hover:bg-purple-500/30'
+                  }`}
+                >
+                  ✨ boosted
+                </button>
               )}
             </div>
-            <div className="text-xs text-[var(--text-faint)] truncate font-mono">
-              {typeof job.params.prompt === 'string'
-                ? job.params.prompt.slice(0, 60)
-                : typeof job.params.text === 'string'
-                  ? job.params.text.slice(0, 60)
-                  : typeof job.params.input === 'string'
-                    ? job.params.input.slice(0, 60)
-                    : job.requestId || '—'}
+            <div className="flex items-baseline gap-2 min-w-0">
+              {job.requestId && (
+                <button
+                  type="button"
+                  onClick={handleCopyRequestId}
+                  title="Copy request id"
+                  className={`text-[10px] font-mono flex-shrink-0 transition-colors ${
+                    copiedRequestId ? 'text-green-400' : 'text-[var(--muted)] hover:text-blue-400'
+                  }`}
+                >
+                  {copiedRequestId ? 'copied' : job.requestId}
+                </button>
+              )}
+              <div className="text-xs text-[var(--text-faint)] truncate font-mono min-w-0">
+                {typeof job.params.prompt === 'string'
+                  ? job.params.prompt
+                  : typeof job.params.text === 'string'
+                    ? job.params.text
+                    : typeof job.params.input === 'string'
+                      ? job.params.input
+                      : '—'}
+              </div>
             </div>
           </div>
         </div>
 
         {/* Column 2: Polling & Status (4 cols) */}
-        <div className="col-span-4 flex items-center gap-2">
+        <div className="col-span-4 flex items-center gap-2 pl-6">
           {activeJob && activeJob.pollUpdates.length > 0 && (() => {
             const firstPollUpdate = activeJob.pollUpdates[0];
             const lastPollUpdate = activeJob.pollUpdates[activeJob.pollUpdates.length - 1];
@@ -332,6 +437,10 @@ export function JobRow({
       {/* Transcription result — renders only for jobs deAPI reported a
           `transcription` block for (self-hiding otherwise). */}
       <JobTranscription job={job} resultUrl={resultUrl} />
+
+      {/* Inline prompt-boost result — opened from the row's "boosted" chip, so
+          it costs no vertical space until asked for. */}
+      {showPromptBoost && <JobPromptBoost job={job} />}
 
       {/* Expanded Raw Request & Response */}
       {isRawExpanded && (job.rawRequest || job.rawResponse || (showResponseHeaders && hasResponseHeaders)) && (

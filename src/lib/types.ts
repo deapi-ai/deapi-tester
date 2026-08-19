@@ -109,7 +109,23 @@ export interface Job {
   error?: string;
   createdAt: string;               // ISO timestamp
   completedAt?: string;
+  // Pre-request estimate (from the endpoint's /price call made at submit time).
+  // Includes the inline prompt-boost fee when the request asked for a boost.
   costCredits?: number;
+  // Breakdown of the estimate, present only when an inline boost was requested.
+  estimateBreakdown?: { base?: number; boost?: number };
+  // What the request actually cost, read from the job status once it is terminal
+  // (deAPI `price`). `isEstimated` is true for partner models whose charge is
+  // still settling — the figure can change afterwards.
+  finalPrice?: { amount: number; isEstimated: boolean } | null;
+  // Inline prompt booster (`enhance_prompt`) outcome, from the job status.
+  promptBoosted?: boolean;
+  promptBoost?: {
+    prompt?: string | null;
+    promptOriginal?: string | null;
+    negativePrompt?: string | null;
+    negativePromptOriginal?: string | null;
+  } | null;
 }
 
 // Configuration Profile (for multiple API keys/environments)
