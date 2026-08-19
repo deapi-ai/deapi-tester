@@ -5,11 +5,17 @@ import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices, Sparkl
 import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel, UploadedFile } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { useToast } from '@/components/Toast';
-import { enhancementTypeForPath, ENHANCEMENT_TYPES_REQUIRING_IMAGE } from '@/lib/prompt-enhancement';
+import {
+  enhancementTypeForPath,
+  ENHANCEMENT_TYPES_REQUIRING_IMAGE,
+  INLINE_BOOST_FIELD,
+  supportsInlineBoost,
+} from '@/lib/prompt-enhancement';
 import { getEndpointByApiPath } from '@/lib/endpoint-registry';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
 import { FileUploadField } from '@/components/form/FileUploadField';
+import { PromptTextarea } from '@/components/form/PromptTextarea';
 import {
   categorizeParams,
   generateImagePreview,
@@ -18,6 +24,7 @@ import {
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
 import { getRandomPrompt } from '@/lib/sample-prompts';
+import { formatCost } from '@/lib/format-utils';
 
 interface ImagePreview {
   url: string;
@@ -49,7 +56,11 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
   const [arrayMode, setArrayMode] = useState<Record<string, boolean>>({});
   const [imagePreviews, setImagePreviews] = useState<Record<string, ImagePreview[]>>({});
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
-  const [priceResult, setPriceResult] = useState<{ credits: number; error?: string } | null>(null);
+  const [priceResult, setPriceResult] = useState<{
+    credits: number;
+    boostCredits?: number;
+    error?: string;
+  } | null>(null);
   const [isBoosting, setIsBoosting] = useState(false);
   const { models, isLoading: modelsLoading, getModelBySlug } = useModelsContext();
   const { showError, showSuccess } = useToast();
@@ -67,6 +78,36 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       ? 'caption'
       : null;
   const canBoost = !!enhancementType && !!enhanceableField;
+
+  // Inline boost: instead of rewriting the prompt in the form first, the request
+  // carries `enhance_prompt: true` and deAPI boosts it as a pre-step of the job.
+  // Only four endpoints accept the flag. The choice is remembered per endpoint.
+  const canInlineBoost = supportsInlineBoost(endpoint.path);
+  const [inlineBoost, setInlineBoost] = useState(false);
+  const inlineBoostStorageKey = `deapi-inline-boost:${endpoint.id}`;
+  useEffect(() => {
+    if (!canInlineBoost) {
+      setInlineBoost(false);
+      return;
+    }
+    setInlineBoost(localStorage.getItem(inlineBoostStorageKey) === '1');
+  }, [canInlineBoost, inlineBoostStorageKey]);
+
+  const toggleInlineBoost = (enabled: boolean) => {
+    setInlineBoost(enabled);
+    localStorage.setItem(inlineBoostStorageKey, enabled ? '1' : '0');
+  };
+
+  // Inline boost flag as the API expects it. Laravel's `boolean` rule accepts
+  // 1/0 but not the string "true", so multipart requests send "1".
+  const inlineBoostPayload = useCallback(
+    (contentType: 'json' | 'multipart'): Record<string, JsonValue> =>
+      canInlineBoost && inlineBoost
+        ? { [INLINE_BOOST_FIELD]: contentType === 'multipart' ? '1' : true }
+        : {},
+    [canInlineBoost, inlineBoost]
+  );
+
   const prevModelSlugRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
   const appliedPrefillRef = useRef<number | undefined>(undefined);
@@ -787,6 +828,11 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         const formData = new FormData();
         formData.append('_endpointId', endpoint.id);
         formData.append('_priceCalc', 'true');
+        // The /price endpoints do not take `enhance_prompt` — the proxy strips it
+        // and quotes the boost separately, so the number includes the boost fee.
+        Object.entries(inlineBoostPayload('multipart')).forEach(([key, value]) => {
+          formData.append(key, String(value));
+        });
 
         Object.entries(filteredValues).forEach(([key, value]) => {
           if (value !== undefined && value !== '') {
@@ -811,6 +857,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...filteredValues,
+            ...inlineBoostPayload('json'),
             _endpointId: endpoint.id,
             _priceCalc: true,
           }),
@@ -825,8 +872,14 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       }
 
       // Most price endpoints return { data: { price } }; prompt-enhancement returns top-level { price }.
+      // With the inline boost on, the proxy quotes the boost separately under
+      // `_tester` — it is charged on its own, so show it as an add-on rather
+      // than folding it into the inference price.
       const price = data.rawResponse?.data?.price ?? data.rawResponse?.price ?? 0;
-      setPriceResult({ credits: price });
+      const tester = data.rawResponse?._tester as
+        | { boost_price?: number; total_price?: number }
+        | undefined;
+      setPriceResult({ credits: price, boostCredits: tester?.boost_price });
       onPriceCheck?.();
     } catch (err) {
       setPriceResult({ credits: 0, error: err instanceof Error ? err.message : 'Failed' });
@@ -843,6 +896,9 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     if (endpoint.contentType === 'multipart') {
       const formData = new FormData();
       formData.append('_endpointId', endpoint.id);
+      Object.entries(inlineBoostPayload('multipart')).forEach(([key, value]) => {
+        formData.append(key, String(value));
+      });
 
       Object.entries(filteredValues).forEach(([key, value]) => {
         if (value !== undefined && value !== '') {
@@ -866,9 +922,13 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         }
       });
 
-      onSubmit(filteredValues, formData);
+      onSubmit({ ...filteredValues, ...inlineBoostPayload('multipart') }, formData);
     } else {
-      onSubmit({ ...filteredValues, _endpointId: endpoint.id });
+      onSubmit({
+        ...filteredValues,
+        ...inlineBoostPayload('json'),
+        _endpointId: endpoint.id,
+      });
     }
   };
 
@@ -899,6 +959,14 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         {priceResult && (
           <span className={`text-xs font-mono ${priceResult.error ? 'text-red-400' : 'text-green-400'}`}>
             {priceResult.error ? priceResult.error : `~$${priceResult.credits}`}
+            {!priceResult.error && priceResult.boostCredits !== undefined && (
+              <span
+                className="text-purple-300 ml-1"
+                title="Prompt boost is billed separately from the inference"
+              >
+                + boost ${formatCost(priceResult.boostCredits)}
+              </span>
+            )}
           </span>
         )}
 
@@ -962,7 +1030,14 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
           )}
 
           {promptParams.map((param) => (
-            <div key={param.name} className="flex flex-col min-h-0">
+            // The primary prompt gets twice the slack of any secondary text
+            // field, so dragging the form taller mostly grows the prompt.
+            <div
+              key={param.name}
+              className={`flex flex-col min-h-0 ${
+                param.name === 'prompt' || param.name === 'caption' ? 'flex-[2]' : 'flex-1'
+              }`}
+            >
               <div className="flex items-center gap-1 mb-1 flex-shrink-0">
                 <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)]">
                   {param.label}
@@ -994,6 +1069,24 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                     Boost
                   </button>
                 )}
+                {canInlineBoost && param.name === 'prompt' && (
+                  <label
+                    className={`flex items-center gap-1 px-1.5 py-0.5 text-[10px] rounded cursor-pointer transition-colors flex-shrink-0 ${
+                      inlineBoost
+                        ? 'text-purple-200 bg-purple-500/25'
+                        : 'text-[var(--text-secondary)] bg-[var(--surface-2)] hover:bg-purple-500/15'
+                    }`}
+                    title="Send enhance_prompt=true — deAPI boosts the prompt as a pre-step of this job. The boost fee is billed on the job and is included in the price estimate."
+                  >
+                    <input
+                      type="checkbox"
+                      checked={inlineBoost}
+                      onChange={(e) => toggleInlineBoost(e.target.checked)}
+                      className="w-3 h-3 rounded bg-[var(--surface-2)] border-[var(--border-strong)] text-purple-600 cursor-pointer"
+                    />
+                    Boost in request
+                  </label>
+                )}
                 {param.supportsArray && (
                   <button
                     type="button"
@@ -1008,11 +1101,11 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                   </button>
                 )}
               </div>
-              <textarea
+              <PromptTextarea
                 value={String(values[param.name] ?? '')}
-                onChange={(e) => handleChange(param.name, e.target.value)}
+                onChange={(value) => handleChange(param.name, value)}
                 placeholder={arrayMode[param.name] ? 'One item per line...' : param.placeholder}
-                className="w-full rounded px-2 py-1.5 text-sm resize-none min-h-[50px] flex-1"
+                storageKey={`deapi-prompt-height:${param.name}`}
               />
             </div>
           ))}

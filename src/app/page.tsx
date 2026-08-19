@@ -21,6 +21,10 @@ interface FormPrefill {
   nonce: number;
 }
 
+// Request form panel sizing (dragged by the splitter below the form).
+const FORM_HEIGHT_KEY = 'deapi-form-height';
+const FORM_MIN_HEIGHT = 200;
+
 interface ProxyResponse {
   success: boolean;
   jobId?: string;
@@ -38,6 +42,48 @@ export default function Home() {
   const [selectedEndpoint, setSelectedEndpoint] = useState<EndpointDefinition | null>(null);
   const [prefill, setPrefill] = useState<FormPrefill | null>(null);
   const [isConfigOpen, setIsConfigOpen] = useState(false);
+
+  // Height of the request form panel. Null = the original auto behaviour
+  // (min 200px, capped at 45vh); a number is a height the user dragged and is
+  // remembered across sessions, so a long prompt can get as much room as needed.
+  const [formHeight, setFormHeight] = useState<number | null>(null);
+  const formAreaRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const stored = Number(localStorage.getItem(FORM_HEIGHT_KEY));
+    if (Number.isFinite(stored) && stored >= FORM_MIN_HEIGHT) setFormHeight(stored);
+  }, []);
+
+  const startFormResize = (e: React.PointerEvent) => {
+    e.preventDefault();
+    const startY = e.clientY;
+    const startHeight = formAreaRef.current?.getBoundingClientRect().height ?? FORM_MIN_HEIGHT;
+    let latest = startHeight;
+
+    const onMove = (ev: PointerEvent) => {
+      // Leave room for the jobs panel below, whatever the viewport height is.
+      const max = Math.max(FORM_MIN_HEIGHT, window.innerHeight - 200);
+      latest = Math.min(max, Math.max(FORM_MIN_HEIGHT, startHeight + ev.clientY - startY));
+      setFormHeight(latest);
+    };
+    const onUp = () => {
+      window.removeEventListener('pointermove', onMove);
+      window.removeEventListener('pointerup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+      localStorage.setItem(FORM_HEIGHT_KEY, String(Math.round(latest)));
+    };
+
+    window.addEventListener('pointermove', onMove);
+    window.addEventListener('pointerup', onUp);
+    document.body.style.cursor = 'row-resize';
+    document.body.style.userSelect = 'none';
+  };
+
+  const resetFormHeight = () => {
+    setFormHeight(null);
+    localStorage.removeItem(FORM_HEIGHT_KEY);
+  };
 
   // Duplicate a request from history: select its endpoint and preload its params
   // into the form so the user can tweak and re-run without rebuilding from scratch.
@@ -189,7 +235,15 @@ export default function Home() {
         {/* Center: Form + Jobs stacked */}
         <div className="flex-1 flex flex-col min-w-0">
           {/* Form Area */}
-          <div className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)]" style={{ minHeight: '200px', maxHeight: '45vh' }}>
+          <div
+            ref={formAreaRef}
+            className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)] overflow-hidden"
+            style={
+              formHeight === null
+                ? { minHeight: `${FORM_MIN_HEIGHT}px`, maxHeight: '45vh' }
+                : { height: `${formHeight}px` }
+            }
+          >
             {selectedEndpoint ? (
               <EndpointForm
                 endpoint={selectedEndpoint}
@@ -213,6 +267,14 @@ export default function Home() {
               </div>
             )}
           </div>
+
+          {/* Splitter: drag to give the form (and its prompt fields) more room */}
+          <div
+            onPointerDown={startFormResize}
+            onDoubleClick={resetFormHeight}
+            className="resize-handle-row flex-shrink-0"
+            title="Drag to resize the request form — double-click to reset"
+          />
 
           {/* Jobs Panel - takes remaining space */}
           <div className="flex-1 min-h-0 overflow-hidden">

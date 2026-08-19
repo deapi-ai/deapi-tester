@@ -40,3 +40,29 @@ export function enhancementTypeForPath(path: string): string | null {
   const dotted = path.replace(/^\//, '').replace(/\//g, '.');
   return (ENHANCEMENT_TYPES as readonly string[]).includes(dotted) ? dotted : null;
 }
+
+// ── Inline prompt booster (enhance_prompt) ──────────────────────────────────
+//
+// Besides the standalone POST /prompts/enhancements call, deAPI v2 accepts an
+// `enhance_prompt` boolean on a handful of generation endpoints. When true the
+// boost runs as an async pre-step of the job itself: the job status then reports
+// `prompt_boosted` and a `prompt_boost` object with the original and rewritten
+// prompts, and the boost fee is billed on the job.
+//
+// Verified against the v2 OpenAPI spec — only these four request bodies carry
+// the field (Txt2Img, Img2Img, Txt2Video, Img2Video). The API answers 422 when
+// the selected model has no prompt-booster guide configured.
+export const INLINE_BOOST_PATHS = [
+  '/images/generations',
+  '/images/edits',
+  '/videos/generations',
+  '/videos/animations',
+] as const;
+
+/** Whether an endpoint path accepts the inline `enhance_prompt` flag. */
+export function supportsInlineBoost(path: string): boolean {
+  return (INLINE_BOOST_PATHS as readonly string[]).includes(path);
+}
+
+/** Field name of the inline boost flag in the deAPI request body. */
+export const INLINE_BOOST_FIELD = 'enhance_prompt';

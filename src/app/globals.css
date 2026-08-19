@@ -142,6 +142,37 @@ body {
   height: 48px;
 }
 
+/* Horizontal splitter — drag to resize the panel above it */
+.resize-handle-row {
+  height: 6px;
+  background: transparent;
+  cursor: row-resize;
+  transition: background 0.15s;
+  position: relative;
+}
+
+.resize-handle-row::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  height: 2px;
+  width: 32px;
+  background: var(--border);
+  border-radius: 1px;
+  transition: background 0.15s, width 0.15s;
+}
+
+.resize-handle-row:hover {
+  background: var(--accent-dim);
+}
+
+.resize-handle-row:hover::after {
+  background: var(--accent);
+  width: 64px;
+}
+
 /* Drawer animation */
 @keyframes slideIn {
   from {
