@@ -1145,6 +1145,14 @@ export function getEndpointByApiPath(apiPath: string): EndpointDefinition | unde
   const normalized = apiPath.replace(/^\//, '');
   const byPath = ENDPOINTS.find(e => e.path.replace(/^\//, '') === normalized);
   if (byPath) return byPath;
+  // Price-check jobs store the /price path they called — map them back to the
+  // endpoint they priced so the row can be duplicated into the same form. A few
+  // endpoints share one price path (the transcription variants), so this resolves
+  // to the first of them.
+  const byPricePath = ENDPOINTS.find(
+    e => e.priceCalcPath?.replace(/^\//, '') === normalized
+  );
+  if (byPricePath) return byPricePath;
   // Fallback: some jobs may have been stored using the registry id directly
   return ENDPOINTS.find(e => e.id === normalized);
 }
