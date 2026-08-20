@@ -131,6 +131,9 @@ export function JobRow({
   };
 
   const resultUrl = getResultUrl();
+  // A "Check Price" row: the request went to the endpoint's /price path, so its
+  // figure is a quote — nothing was charged for it.
+  const isQuote = job.isPriceCheck === true;
   const estimate = getEstimate();
   const finalPrice = getFinalPrice();
   // Same figure quoted and charged → show it once. Floats come back from two
@@ -185,14 +188,20 @@ export function JobRow({
                   )}
                   <span
                     className={`text-[10px] font-mono ${
-                      finalPrice.isEstimated ? 'text-yellow-500' : 'text-green-400'
+                      isQuote
+                        ? 'text-blue-400'
+                        : finalPrice.isEstimated
+                          ? 'text-yellow-500'
+                          : 'text-green-400'
                     }`}
                     title={
-                      finalPrice.isEstimated
-                        ? 'Charge still settling (partner model) — this figure can change'
-                        : priceMatchesEstimate
-                          ? 'Final price — matches the estimate'
-                          : 'Final price charged for this request'
+                      isQuote
+                        ? 'Quoted price — this was a price check, nothing was charged'
+                        : finalPrice.isEstimated
+                          ? 'Charge still settling (partner model) — this figure can change'
+                          : priceMatchesEstimate
+                            ? 'Final price — matches the estimate'
+                            : 'Final price charged for this request'
                     }
                   >
                     {finalPrice.isEstimated ? '~' : ''}${formatCost(finalPrice.amount)}
@@ -202,7 +211,11 @@ export function JobRow({
               {boostFee !== undefined && (
                 <span
                   className="text-[10px] font-mono text-purple-300 flex-shrink-0"
-                  title="Prompt boost fee (estimated, billed separately from the inference)"
+                  title={
+                    isQuote
+                      ? 'Prompt boost fee (quoted separately — the /price endpoints do not include it)'
+                      : 'Prompt boost fee (estimated, billed separately from the inference)'
+                  }
                 >
                   +${formatCost(boostFee)}
                 </span>
