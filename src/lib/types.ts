@@ -109,6 +109,11 @@ export interface Job {
   error?: string;
   createdAt: string;               // ISO timestamp
   completedAt?: string;
+  // Price-only pre-calculation (the "Check Price" button): the request went to
+  // the endpoint's /price path, not the generation path. Logged like every other
+  // request so the price endpoints can be exercised from the jobs list — it has
+  // no request_id, is never polled, and nothing was charged for it.
+  isPriceCheck?: boolean;
   // Pre-request estimate (from the endpoint's /price call made at submit time).
   // Includes the inline prompt-boost fee when the request asked for a boost.
   costCredits?: number;

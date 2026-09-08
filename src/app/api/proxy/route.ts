@@ -335,10 +335,11 @@ export async function POST(request: Request) {
     }
 
     // Persist uploaded files (content-addressed) so the request can be duplicated
-    // later with its files intact. Skip for price-only requests. Reading a File's
-    // bytes does not consume it, so formData is still sent to deAPI below.
+    // later with its files intact — price checks included, since they are logged
+    // as jobs too. Reading a File's bytes does not consume it, so formData is
+    // still sent to deAPI below.
     let uploadedFiles: UploadedFile[] | undefined;
-    if (!isPriceCalc && fileEntries.length > 0) {
+    if (fileEntries.length > 0) {
       uploadedFiles = [];
       for (const { field, file } of fileEntries) {
         const buffer = Buffer.from(await file.arrayBuffer());
@@ -348,9 +349,9 @@ export async function POST(request: Request) {
 
     // Create or reuse the job entry before making the request. When the client
     // pre-created a 'sending' stub (providedJobId), update it in place so the row
-    // transitions sending -> pending without duplicating. Price-only checks are a
-    // throwaway pre-calculation — there is no request to restore/duplicate to —
-    // so they are NOT persisted to history (all job writes are skipped below).
+    // transitions sending -> pending without duplicating. Price-only checks are
+    // logged the same way (flagged with isPriceCheck) so the /price endpoints can
+    // be exercised — and their request/response inspected — from the jobs list.
     const jobId = providedJobId || generateJobId();
     // Store the actual API path (without leading slash) as endpointId
     const jobEndpointId = targetPath.replace(/^\//, '');
@@ -370,20 +371,19 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
       estimateBreakdown,
+      isPriceCheck: isPriceCalc || undefined,
     };
-    if (!isPriceCalc) {
-      if (providedJobId) {
-        // Preserve the stub's original createdAt (set when the user clicked Execute).
-        const jobUpdate: Partial<Job> = { ...job };
-        delete jobUpdate.createdAt;
-        const updated = updateJob(jobId, jobUpdate);
-        // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
-        if (!updated) addJob(job);
-      } else {
-        addJob(job);
-      }
-      persistedJobId = jobId;
+    if (providedJobId) {
+      // Preserve the stub's original createdAt (set when the user clicked Execute).
+      const jobUpdate: Partial<Job> = { ...job };
+      delete jobUpdate.createdAt;
+      const updated = updateJob(jobId, jobUpdate);
+      // Stub missing (e.g. cleared before the proxy ran) — fall back to creating it.
+      if (!updated) addJob(job);
+    } else {
+      addJob(job);
     }
+    persistedJobId = jobId;
 
     // Make request to deAPI
     const controller = new AbortController();
@@ -457,15 +457,13 @@ export async function POST(request: Request) {
 
     // Update job with response
     if (!responseOk) {
-      if (!isPriceCalc) {
-        updateJob(jobId, {
-          rawResponse,
-          rawResponseHeaders,
-          status: 'failed',
-          error: rawResponse.error || rawResponse.message || `HTTP ${responseStatus}`,
-          completedAt: new Date().toISOString(),
-        });
-      }
+      updateJob(jobId, {
+        rawResponse,
+        rawResponseHeaders,
+        status: 'failed',
+        error: rawResponse.error || rawResponse.message || `HTTP ${responseStatus}`,
+        completedAt: new Date().toISOString(),
+      });
 
       return NextResponse.json({
         success: false,
@@ -476,22 +474,22 @@ export async function POST(request: Request) {
       }, { status: responseStatus });
     }
 
-    // For async endpoints, extract request_id
-    if (endpoint.isAsync && rawResponse.data?.request_id) {
+    // For async endpoints, extract request_id. A price check never gets one (the
+    // /price endpoints answer synchronously), so it always falls through to the
+    // sync completion path below.
+    if (!isPriceCalc && endpoint.isAsync && rawResponse.data?.request_id) {
       // A request_id means the job was accepted and QUEUED — not yet being
       // computed. Mark it 'pending' (waiting in queue), not 'processing'; the
       // WebSocket / reconciliation poll flips it to 'processing' once a worker
       // actually starts, then to completed/failed. This avoids the misleading
       // "processing" flash (and the processing -> pending regression) right after
       // submit.
-      if (!isPriceCalc) {
-        updateJob(jobId, {
-          requestId: rawResponse.data.request_id,
-          rawResponse,
-          rawResponseHeaders,
-          status: 'pending',
-        });
-      }
+      updateJob(jobId, {
+        requestId: rawResponse.data.request_id,
+        rawResponse,
+        rawResponseHeaders,
+        status: 'pending',
+      });
 
       return NextResponse.json({
         success: true,
@@ -506,6 +504,7 @@ export async function POST(request: Request) {
     // Price-only check with the inline boost enabled: the /price endpoint quotes
     // the inference alone, so quote the boost as well and expose base/boost/total
     // under `_tester`. The API payload itself stays verbatim.
+    let priceCheckBoost: number | undefined;
     if (isPriceCalc && boostRequested && responseOk) {
       const basePrice = rawResponse?.data?.price ?? rawResponse?.price;
       const boostType = enhancementTypeForPath(endpoint.path);
@@ -521,6 +520,7 @@ export async function POST(request: Request) {
           image: fileEntries.find((f) => f.file.type.startsWith('image/'))?.file,
         });
         if (boostPrice !== undefined) {
+          priceCheckBoost = boostPrice;
           rawResponse._tester = {
             ...(rawResponse._tester || {}),
             base_price: basePrice,
@@ -548,7 +548,22 @@ export async function POST(request: Request) {
     } else if (rawResponse.data?.balance !== undefined) {
       syncUpdateData.costCredits = rawResponse.data.balance;
     }
-    if (!isPriceCalc) updateJob(jobId, syncUpdateData);
+    // A price check's answer IS its price — there is no estimate/final pair to
+    // reconcile, so record the quote as the job's price (and the separately
+    // billed boost fee alongside it, when the check asked for one).
+    if (isPriceCalc) {
+      const quoted = rawResponse.data?.price ?? rawResponse.price;
+      if (typeof quoted === 'number') {
+        syncUpdateData.finalPrice = {
+          amount: quoted,
+          isEstimated: (rawResponse.data?.is_estimated ?? rawResponse.is_estimated) === true,
+        };
+        if (priceCheckBoost !== undefined) {
+          syncUpdateData.estimateBreakdown = { base: quoted, boost: priceCheckBoost };
+        }
+      }
+    }
+    updateJob(jobId, syncUpdateData);
 
     return NextResponse.json({
       success: true,

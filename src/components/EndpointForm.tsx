@@ -880,11 +880,13 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         | { boost_price?: number; total_price?: number }
         | undefined;
       setPriceResult({ credits: price, boostCredits: tester?.boost_price || undefined });
-      onPriceCheck?.();
     } catch (err) {
       setPriceResult({ credits: 0, error: err instanceof Error ? err.message : 'Failed' });
     } finally {
       setIsCheckingPrice(false);
+      // The proxy logs the price check as a job (success or failure), so pull it
+      // into the jobs list either way.
+      onPriceCheck?.();
     }
   };
 
