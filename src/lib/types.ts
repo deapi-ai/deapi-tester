@@ -24,6 +24,10 @@ export interface EndpointParam {
   nullable?: boolean;  // allows field to be disabled/set to null via toggle
   multiple?: boolean;  // for file: allows multiple file selection (array)
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
+  // for file with multiFieldName: the field is ALWAYS an array, so start in multi mode and drop
+  // the Single/Multiple switch. Used where the API has no single-file spelling of the field at all
+  // (ref_images[] and friends), so offering "Single" would only ever produce a 422.
+  multiOnly?: boolean;
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
   visibleWhen?: VisibleWhen | VisibleWhen[];  // conditional visibility based on other fields (array = OR)

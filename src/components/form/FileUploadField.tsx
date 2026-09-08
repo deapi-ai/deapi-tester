@@ -20,6 +20,7 @@ interface FileUploadFieldProps {
   required?: boolean;
   accept?: string;
   multiFieldName?: string;
+  multiOnly?: boolean;
   files: File | File[] | undefined;
   isMultiMode: boolean;
   previews: ImagePreview[];
@@ -34,6 +35,7 @@ export function FileUploadField({
   required,
   accept,
   multiFieldName,
+  multiOnly,
   files,
   isMultiMode,
   previews,
@@ -99,8 +101,9 @@ export function FileUploadField({
 
   return (
     <div className="flex flex-col gap-2">
-      {/* Mode switch for fields with multiFieldName */}
-      {multiFieldName && (
+      {/* Mode switch for fields with multiFieldName. Hidden when the field is array-only:
+          the API has no single-file spelling of it, so "Single" would just build a 422. */}
+      {multiFieldName && !multiOnly && (
         <div className="flex items-center gap-2">
           <button
             type="button"

@@ -304,13 +304,17 @@ export const ENDPOINTS: EndpointDefinition[] = [
     hasPriceCalc: true,
     priceCalcPath: '/videos/animations/price',
     params: [
+      // Two mutually exclusive input shapes. The keyframe anchors below are the classic one;
+      // the reference lists further down are MiniMax-H3's Ref2VA mode. Sending both is a 422
+      // (`prohibits`), and sending neither is a 422 too — hence `required: false` on the first
+      // frame, which the API spells `required_without_all:ref_images,ref_videos`.
       {
         name: 'first_frame_image',
         label: 'First Frame Image',
         type: 'file',
-        required: true,
+        required: false,
         accept: 'image/*',
-        description: 'Starting frame image',
+        description: 'Starting frame image. Required unless you supply reference images/videos below — the two modes cannot be combined.',
       },
       {
         name: 'last_frame_image',
@@ -318,7 +322,56 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'file',
         required: false,
         accept: 'image/*',
-        description: 'Optional ending frame image',
+        description: 'Optional ending frame image. Keyframe mode only.',
+      },
+      // ⛔ ORDER IS THE CONTRACT. Position in each list is what the prompt's <Picture N> /
+      // <Video N> / <Audio N> tags resolve against, counted 1-based WITHIN each type. The API
+      // binds by the index it receives, so the upload order here is the numbering — reordering
+      // the files silently rebinds every tag the prompt refers to and nothing raises.
+      //
+      // ⚠️ A reference video that carries a soundtrack consumes an <Audio N> slot of its own,
+      // immediately before its <Video N> — so ref_audios[0] becomes <Audio 2>, not <Audio 1>.
+      // The response echoes `reference_labels` with the mapping each file actually answers to;
+      // read it rather than assuming.
+      //
+      // Sent as `ref_images[]` etc. so PHP builds the dense 0-based array the API requires.
+      // Shown only for models that declare the matching capability, which is exactly what the
+      // API validates against — a model may take image references and not audio ones.
+      {
+        name: 'ref_images',
+        label: 'Reference Images',
+        type: 'file',
+        required: false,
+        accept: 'image/*',
+        multiple: true,
+        multiFieldName: 'ref_images[]',
+        multiOnly: true,
+        visibleFromModel: 'supports_image_refs',
+        description: 'Ref2VA: up to 9, in binding order — the first is <Picture 1>. Aspect ratio must be within 1:4..4:1.',
+      },
+      {
+        name: 'ref_videos',
+        label: 'Reference Videos',
+        type: 'file',
+        required: false,
+        accept: 'video/*,.mp4,.mov,.webm,.avi,.mkv',
+        multiple: true,
+        multiFieldName: 'ref_videos[]',
+        multiOnly: true,
+        visibleFromModel: 'supports_video_refs',
+        description: 'Ref2VA: 1 video, 2-5 seconds. Its soundtrack, if any, takes <Audio 1> and pushes every reference audio down by one.',
+      },
+      {
+        name: 'ref_audios',
+        label: 'Reference Audios',
+        type: 'file',
+        required: false,
+        accept: 'audio/*,.wav,.mp3,.flac,.ogg,.m4a',
+        multiple: true,
+        multiFieldName: 'ref_audios[]',
+        multiOnly: true,
+        visibleFromModel: 'supports_audio_refs',
+        description: 'Ref2VA: up to 3. Cannot stand alone — needs at least one reference image or video.',
       },
       promptParam(),
       negativePromptParam(),

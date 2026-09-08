@@ -164,7 +164,9 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         nullableDefaults[param.name] = param.default === null || param.default === undefined;
       }
       if (param.multiFieldName) {
-        multiFileModeDefaults[param.name] = false;
+        // multiOnly fields have no single-file spelling in the API, so they start in — and stay
+        // in — array mode; the switch is hidden for them in FileUploadField.
+        multiFileModeDefaults[param.name] = param.multiOnly === true;
       }
     });
 
@@ -1126,6 +1128,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
                     required={param.required}
                     accept={param.accept}
                     multiFieldName={param.multiFieldName}
+                    multiOnly={param.multiOnly}
                     files={files[param.name]}
                     isMultiMode={!!(param.multiFieldName && multiFileMode[param.name])}
                     previews={imagePreviews[param.name] || []}
