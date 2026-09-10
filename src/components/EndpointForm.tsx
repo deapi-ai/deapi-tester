@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices, Sparkles } from 'lucide-react';
+import { Loader2, CircleDollarSign, Play, ChevronRight, RotateCcw, Dices, Sparkles, Info } from 'lucide-react';
 import { EndpointDefinition, EndpointParam, JsonValue, DeApiModel, UploadedFile } from '@/lib/types';
 import { useModelsContext } from '@/components/ModelsContext';
 import { useToast } from '@/components/Toast';
@@ -14,25 +14,18 @@ import {
 import { getEndpointByApiPath } from '@/lib/endpoint-registry';
 import { ModelInfo } from '@/components/ModelInfo';
 import { FormField } from '@/components/form/FormField';
-import { FileUploadField } from '@/components/form/FileUploadField';
+import { FileUploadField, AddMode } from '@/components/form/FileUploadField';
 import { PromptTextarea } from '@/components/form/PromptTextarea';
 import {
   categorizeParams,
-  generateImagePreview,
+  generateFilePreview,
   modelMatchesInferenceType,
+  FilePreview,
   FIELD_TO_FEATURE_MAP,
   DEFAULTABLE_FIELDS,
 } from '@/lib/form-utils';
 import { getRandomPrompt } from '@/lib/sample-prompts';
 import { formatCost } from '@/lib/format-utils';
-
-interface ImagePreview {
-  url: string;
-  width: number;
-  height: number;
-  format: string;
-  size: number;
-}
 
 interface FormPrefill {
   params: Record<string, JsonValue>;
@@ -54,7 +47,9 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
   const [nullableDisabled, setNullableDisabled] = useState<Record<string, boolean>>({});
   const [multiFileMode, setMultiFileMode] = useState<Record<string, boolean>>({});
   const [arrayMode, setArrayMode] = useState<Record<string, boolean>>({});
-  const [imagePreviews, setImagePreviews] = useState<Record<string, ImagePreview[]>>({});
+  // Previews are kept 1:1 with `files[name]`, so a tile's index is the index the
+  // file is sent at — which for reference lists is the binding the prompt uses.
+  const [filePreviews, setFilePreviews] = useState<Record<string, FilePreview[]>>({});
   const [isCheckingPrice, setIsCheckingPrice] = useState(false);
   const [priceResult, setPriceResult] = useState<{
     credits: number;
@@ -183,7 +178,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     setArrayMode({});
     setPriceResult(null);
     prevModelSlugRef.current = undefined;
-    setImagePreviews((prev) => {
+    setFilePreviews((prev) => {
       Object.values(prev).flat().forEach((p) => URL.revokeObjectURL(p.url));
       return {};
     });
@@ -353,9 +348,15 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     setFiles({});
     setNullableDisabled(newNullableDisabled);
     setArrayMode(newArrayMode);
-    setMultiFileMode({});
+    // Array-only fields have no single-file spelling — reset them back to multi
+    // mode, not to the empty default, or the next submit sends the wrong key.
+    setMultiFileMode(
+      Object.fromEntries(
+        endpoint.params.filter((p) => p.multiOnly).map((p) => [p.name, true])
+      )
+    );
     setPriceResult(null);
-    setImagePreviews((prev) => {
+    setFilePreviews((prev) => {
       Object.values(prev).flat().forEach((p) => URL.revokeObjectURL(p.url));
       return {};
     });
@@ -370,7 +371,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
       const fileParamsList = endpoint.params.filter((p) => p.type === 'file');
       (async () => {
         const restoredFiles: Record<string, File | File[]> = {};
-        const restoredPreviews: Record<string, ImagePreview[]> = {};
+        const restoredPreviews: Record<string, FilePreview[]> = {};
         const restoredMultiMode: Record<string, boolean> = {};
 
         for (const param of fileParamsList) {
@@ -400,17 +401,13 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
 
           restoredFiles[param.name] = isMulti ? fetched : fetched[0];
           if (isMulti && param.multiFieldName) restoredMultiMode[param.name] = true;
-
-          const images = fetched.filter((f) => f.type.startsWith('image/'));
-          if (images.length > 0) {
-            restoredPreviews[param.name] = await Promise.all(images.map(generateImagePreview));
-          }
+          restoredPreviews[param.name] = await Promise.all(fetched.map(generateFilePreview));
         }
 
         if (appliedPrefillRef.current !== thisNonce) return;
         if (Object.keys(restoredFiles).length > 0) setFiles(restoredFiles);
         if (Object.keys(restoredPreviews).length > 0) {
-          setImagePreviews((prev) => ({ ...prev, ...restoredPreviews }));
+          setFilePreviews((prev) => ({ ...prev, ...restoredPreviews }));
         }
         if (Object.keys(restoredMultiMode).length > 0) {
           setMultiFileMode((prev) => ({ ...prev, ...restoredMultiMode }));
@@ -436,51 +433,55 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     });
   }, [models]);
 
-  const handleFileChange = useCallback(async (name: string, file: File | File[] | null) => {
-    if (file) {
-      const incomingFiles = Array.isArray(file) ? file : [file];
-      const isMulti = Array.isArray(file);
-
-      // In multi mode, append to existing files
-      const mergedFiles = isMulti
-        ? [...(Array.isArray(files[name]) ? files[name] as File[] : files[name] ? [files[name] as File] : []), ...incomingFiles]
-        : incomingFiles;
-
-      setFiles((prev) => ({ ...prev, [name]: isMulti ? mergedFiles : mergedFiles[0] }));
-
-      const imageFiles = incomingFiles.filter((f) => f.type.startsWith('image/'));
-      if (imageFiles.length > 0) {
-        const newPreviews = await Promise.all(imageFiles.map(generateImagePreview));
-        setImagePreviews((prev) => ({
-          ...prev,
-          [name]: isMulti ? [...(prev[name] || []), ...newPreviews] : newPreviews,
-        }));
-      } else if (!isMulti) {
-        // Single mode non-image: clear old previews
-        setImagePreviews((prev) => {
-          const old = prev[name];
-          if (old) old.forEach((p) => URL.revokeObjectURL(p.url));
+  /**
+   * Put files into a field.
+   *
+   * `mode` is decided by the field, not by the shape of what arrives: a
+   * multi-file field appends whatever it is handed (dialog, drop or library)
+   * and a single-file field replaces. `null` clears the field.
+   *
+   * Files and their previews are updated together and stay index-aligned — for
+   * reference lists that index is the binding the prompt's <Picture N> tags
+   * resolve against, so the two must never drift.
+   */
+  const handleFileChange = useCallback(
+    async (name: string, incoming: File[] | null, mode: AddMode) => {
+      if (!incoming || incoming.length === 0) {
+        setFilePreviews((prev) => {
+          prev[name]?.forEach((p) => URL.revokeObjectURL(p.url));
           const next = { ...prev };
           delete next[name];
           return next;
         });
+        setFiles((prev) => {
+          const next = { ...prev };
+          delete next[name];
+          return next;
+        });
+        return;
       }
-    } else {
-      // Clear all
-      setImagePreviews((prev) => {
-        const old = prev[name];
-        if (old) old.forEach((p) => URL.revokeObjectURL(p.url));
-        const next = { ...prev };
-        delete next[name];
-        return next;
-      });
+
+      const isAppend = mode === 'append';
+      // Replacing means the field ends up holding exactly one file, whatever was
+      // handed over — so previews are built from the same list that is stored.
+      const accepted = isAppend ? incoming : [incoming[0]];
+
       setFiles((prev) => {
-        const newFiles = { ...prev };
-        delete newFiles[name];
-        return newFiles;
+        const existing = prev[name];
+        const current = existing ? (Array.isArray(existing) ? existing : [existing]) : [];
+        // Multi fields stay arrays even at one file, so the array field name
+        // (`ref_images[]`) keeps matching what is actually sent.
+        return { ...prev, [name]: isAppend ? [...current, ...accepted] : accepted[0] };
       });
-    }
-  }, [files]);
+
+      const newPreviews = await Promise.all(accepted.map(generateFilePreview));
+      setFilePreviews((prev) => {
+        if (!isAppend) prev[name]?.forEach((p) => URL.revokeObjectURL(p.url));
+        return { ...prev, [name]: isAppend ? [...(prev[name] || []), ...newPreviews] : newPreviews };
+      });
+    },
+    []
+  );
 
   const toggleNullable = useCallback((name: string, disabled: boolean) => {
     setNullableDisabled((prev) => ({ ...prev, [name]: disabled }));
@@ -489,34 +490,62 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     }
   }, []);
 
-  const removeFile = useCallback(
-    (name: string, index: number) => {
-      const currentFiles = files[name];
-      if (!currentFiles) return;
-
-      const fileArray = Array.isArray(currentFiles) ? currentFiles : [currentFiles];
-
-      if (fileArray.length <= 1) {
-        handleFileChange(name, null);
-        return;
+  const removeFile = useCallback((name: string, index: number) => {
+    setFiles((prev) => {
+      const existing = prev[name];
+      if (!existing) return prev;
+      const remaining = (Array.isArray(existing) ? existing : [existing]).filter((_, i) => i !== index);
+      if (remaining.length === 0) {
+        const next = { ...prev };
+        delete next[name];
+        return next;
       }
+      // Keep an array field an array: dropping to a bare File would switch the
+      // submitted field name from `ref_images[]` to `ref_images`.
+      return { ...prev, [name]: Array.isArray(existing) ? remaining : remaining[0] };
+    });
 
-      const newFiles = fileArray.filter((_, i) => i !== index);
-      setFiles((prev) => ({ ...prev, [name]: newFiles }));
+    setFilePreviews((prev) => {
+      const current = prev[name];
+      if (!current) return prev;
+      if (current[index]) URL.revokeObjectURL(current[index].url);
+      const remaining = current.filter((_, i) => i !== index);
+      if (remaining.length === 0) {
+        const next = { ...prev };
+        delete next[name];
+        return next;
+      }
+      return { ...prev, [name]: remaining };
+    });
+  }, []);
 
-      setImagePreviews((prev) => {
-        const prevPreviews = prev[name] || [];
-        if (prevPreviews[index]) {
-          URL.revokeObjectURL(prevPreviews[index].url);
-        }
-        return {
-          ...prev,
-          [name]: prevPreviews.filter((_, i) => i !== index),
-        };
-      });
-    },
-    [files, handleFileChange]
-  );
+  /**
+   * Move a file to a different position in its field.
+   *
+   * ⛔ This rewrites the binding: position N in the list is what the prompt's
+   * <Picture N> / <Video N> / <Audio N> tags resolve to, so files and previews
+   * move as one.
+   */
+  const reorderFiles = useCallback((name: string, from: number, to: number) => {
+    const move = <T,>(list: T[]): T[] => {
+      if (from < 0 || to < 0 || from >= list.length || to >= list.length) return list;
+      const next = [...list];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    };
+
+    setFiles((prev) => {
+      const existing = prev[name];
+      if (!Array.isArray(existing)) return prev;
+      return { ...prev, [name]: move(existing) };
+    });
+    setFilePreviews((prev) => {
+      const current = prev[name];
+      if (!current) return prev;
+      return { ...prev, [name]: move(current) };
+    });
+  }, []);
 
   const handleModeChange = useCallback((name: string, isMulti: boolean) => {
     setMultiFileMode((prev) => ({ ...prev, [name]: isMulti }));
@@ -667,6 +696,19 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     return undefined;
   }, [endpoint.id, endpoint.inferenceType, endpoint.params, models, selectedModel, modelLimits, values, enhancementInferenceType]);
 
+  // How many files the selected model accepts in a field, from its published
+  // limits. Undefined when the model says nothing — then the field is uncapped
+  // as far as this app knows and only the API can object.
+  const getMaxFilesForField = useCallback(
+    (param: EndpointParam): number | undefined => {
+      if (!param.maxFilesFromModel) return undefined;
+      const limits = (modelLimits ?? {}) as Record<string, unknown>;
+      const value = limits[param.maxFilesFromModel];
+      return typeof value === 'number' ? value : undefined;
+    },
+    [modelLimits]
+  );
+
   // Whether the selected model publishes a given capability. The key is looked up
   // in `info.features` first, then `info.limits`; an empty array counts as "not
   // supported" (the API validates the field against the published list).
@@ -812,6 +854,34 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     }
   };
 
+  /**
+   * Append the chosen files to a multipart body.
+   *
+   * Shared by the request and the price check so both spell the field the same
+   * way: a field in multi mode goes out under its array name (`ref_images[]`),
+   * which is what makes the server build a dense array. A repeated plain key
+   * keeps only the last file — a price quoted for one reference image, or a 422.
+   * Order within a field is preserved: it is what the prompt's tags bind to.
+   */
+  const appendFilesTo = useCallback(
+    (formData: FormData) => {
+      Object.entries(files).forEach(([key, fileOrFiles]) => {
+        const param = endpoint.params.find((p) => p.name === key);
+        // Skip hidden file fields
+        if (param && !isFieldVisible(param)) return;
+        const useArrayName = param?.multiFieldName && multiFileMode[key];
+        const fieldName = useArrayName && param?.multiFieldName ? param.multiFieldName : key;
+
+        if (Array.isArray(fileOrFiles)) {
+          fileOrFiles.forEach((file) => formData.append(fieldName, file));
+        } else {
+          formData.append(fieldName, fileOrFiles);
+        }
+      });
+    },
+    [files, endpoint.params, multiFileMode, isFieldVisible]
+  );
+
   const handleCheckPrice = async () => {
     if (!endpoint.hasPriceCalc) return;
 
@@ -842,15 +912,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
           }
         });
 
-        Object.entries(files).forEach(([key, fileOrFiles]) => {
-          const param = endpoint.params.find((p) => p.name === key);
-          if (param && !isFieldVisible(param)) return;
-          if (Array.isArray(fileOrFiles)) {
-            fileOrFiles.forEach((file) => formData.append(key, file));
-          } else {
-            formData.append(key, fileOrFiles);
-          }
-        });
+        appendFilesTo(formData);
 
         res = await fetch('/api/proxy', { method: 'POST', body: formData });
       } else {
@@ -910,21 +972,7 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
         }
       });
 
-      Object.entries(files).forEach(([key, fileOrFiles]) => {
-        const param = endpoint.params.find((p) => p.name === key);
-        // Skip hidden file fields
-        if (param && !isFieldVisible(param)) return;
-        const isMultiMode = param?.multiFieldName && multiFileMode[key];
-        const fieldName = isMultiMode && param?.multiFieldName ? param.multiFieldName : key;
-
-        if (Array.isArray(fileOrFiles)) {
-          fileOrFiles.forEach((file) => {
-            formData.append(fieldName, file);
-          });
-        } else {
-          formData.append(fieldName, fileOrFiles);
-        }
-      });
+      appendFilesTo(formData);
 
       onSubmit({ ...filteredValues, ...inlineBoostPayload('multipart') }, formData);
     } else {
@@ -945,6 +993,24 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
     },
     [endpoint.params, isRequestStatusEndpoint, isFieldVisible]
   );
+
+  // File fields grouped into the sections the registry declares, in registry
+  // order. Endpoints that declare none keep the single ungrouped row. Sections
+  // exist because some endpoints take two mutually exclusive sets of files and
+  // one flat row of five uploads reads as one shape you are meant to fill in.
+  const fileSections = useMemo(() => {
+    const sections: { title: string | null; note?: string; params: EndpointParam[] }[] = [];
+    fileParams.forEach((param) => {
+      const title = param.section ?? null;
+      const last = sections[sections.length - 1];
+      if (last && last.title === title) {
+        last.params.push(param);
+      } else {
+        sections.push({ title, note: param.sectionNote, params: [param] });
+      }
+    });
+    return sections;
+  }, [fileParams]);
 
   return (
     <form onSubmit={handleSubmit} className="h-full flex flex-col">
@@ -1038,7 +1104,11 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
             // field, so dragging the form taller mostly grows the prompt.
             <div
               key={param.name}
-              className={`flex flex-col min-h-0 ${
+              // min-h-fit is what stops flex from squeezing a prompt field into an
+              // overflow that paints over the file fields below — including when the
+              // field carries a height the user dragged it to. Past that floor the
+              // column scrolls instead.
+              className={`flex flex-col min-h-fit ${
                 param.name === 'prompt' || param.name === 'caption' ? 'flex-[2]' : 'flex-1'
               }`}
             >
@@ -1114,32 +1184,76 @@ export function EndpointForm({ endpoint, prefill, onSubmit, onPriceCheck, isSubm
             </div>
           ))}
 
-          {fileParams.length > 0 && (
-            <div className="flex gap-2 flex-wrap flex-shrink-0">
-              {fileParams.map((param) => (
-                <div key={param.name} className="flex-1 min-w-[180px]">
-                  <label className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)] mb-1">
-                    {param.label}
-                    {param.required && <span className="text-red-500">*</span>}
-                  </label>
-                  <FileUploadField
-                    name={param.name}
-                    label={param.label}
-                    required={param.required}
-                    accept={param.accept}
-                    multiFieldName={param.multiFieldName}
-                    multiOnly={param.multiOnly}
-                    files={files[param.name]}
-                    isMultiMode={!!(param.multiFieldName && multiFileMode[param.name])}
-                    previews={imagePreviews[param.name] || []}
-                    onFileChange={handleFileChange}
-                    onRemoveFile={removeFile}
-                    onModeChange={handleModeChange}
-                  />
+          {fileSections.map((section) => (
+            <div
+              key={section.title ?? '_ungrouped'}
+              className={`flex-shrink-0 ${
+                section.title
+                  ? 'rounded border border-[var(--border)] bg-[var(--surface)]/40 px-2 pt-1.5 pb-2'
+                  : ''
+              }`}
+            >
+              {section.title && (
+                <div className="flex items-baseline gap-2 mb-1.5">
+                  <span className="text-[10px] uppercase tracking-wide text-[var(--text-secondary)]">
+                    {section.title}
+                  </span>
+                  {section.note && (
+                    <span className="text-[9px] text-[var(--muted)] truncate" title={section.note}>
+                      {section.note}
+                    </span>
+                  )}
                 </div>
-              ))}
+              )}
+              <div
+                className="grid gap-2"
+                // One column per field, up to three, so an empty field stays the
+                // width of its control instead of stretching across the panel.
+                style={{
+                  gridTemplateColumns: `repeat(${Math.min(section.params.length, 3)}, minmax(0, 1fr))`,
+                }}
+              >
+                {section.params.map((param) => {
+                  const isMulti = !!(param.multiFieldName && multiFileMode[param.name]);
+                  const chosen = files[param.name];
+                  const count = chosen ? (Array.isArray(chosen) ? chosen.length : 1) : 0;
+                  // A list of tiles needs the width; an empty field does not, so
+                  // fields share a row until one of them actually holds files.
+                  const wide = isMulti && count > 0;
+                  return (
+                    <div key={param.name} className={wide ? 'col-span-full min-w-0' : 'min-w-0'}>
+                      <label
+                        className="flex items-baseline gap-1 text-xs text-[var(--text-secondary)] mb-1"
+                        title={param.description}
+                      >
+                        {param.label}
+                        {param.required && <span className="text-red-500">*</span>}
+                        {param.description && (
+                          <Info className="w-2.5 h-2.5 text-[var(--text-faint)] self-center" />
+                        )}
+                      </label>
+                      <FileUploadField
+                        name={param.name}
+                        label={param.label}
+                        required={param.required}
+                        accept={param.accept}
+                        multiFieldName={param.multiFieldName}
+                        multiOnly={param.multiOnly}
+                        maxFiles={getMaxFilesForField(param)}
+                        files={files[param.name]}
+                        isMultiMode={!!(param.multiFieldName && multiFileMode[param.name])}
+                        previews={filePreviews[param.name] || []}
+                        onFileChange={handleFileChange}
+                        onRemoveFile={removeFile}
+                        onReorderFiles={reorderFiles}
+                        onModeChange={handleModeChange}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          )}
+          ))}
         </div>
 
         {/* Center: Params with defaults/limits, plus toggles */}

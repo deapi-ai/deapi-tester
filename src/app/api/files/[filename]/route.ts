@@ -1,14 +1,8 @@
 import { NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
+import { mimeTypeFromName } from '@/lib/media-types';
 import * as fs from 'fs';
 import * as path from 'path';
-
-const MIME_TYPES: Record<string, string> = {
-  png: 'image/png',
-  jpg: 'image/jpeg',
-  jpeg: 'image/jpeg',
-  webp: 'image/webp',
-};
 
 // GET /api/files/[filename] - Serve a file from output directory
 export async function GET(
@@ -37,8 +31,7 @@ export async function GET(
       return NextResponse.json({ error: 'File not found' }, { status: 404 });
     }
 
-    const ext = path.extname(decoded).slice(1).toLowerCase();
-    const contentType = MIME_TYPES[ext] || 'application/octet-stream';
+    const contentType = mimeTypeFromName(decoded);
     const buffer = fs.readFileSync(filePath);
 
     return new NextResponse(buffer, {

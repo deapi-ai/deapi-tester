@@ -28,6 +28,18 @@ export interface EndpointParam {
   // the Single/Multiple switch. Used where the API has no single-file spelling of the field at all
   // (ref_images[] and friends), so offering "Single" would only ever produce a 422.
   multiOnly?: boolean;
+  // File fields carrying the same `section` are boxed together under it, in
+  // registry order. Use it where an endpoint takes two different sets of files
+  // (e.g. keyframes vs. reference lists) that should not read as one form.
+  section?: string;
+  // One-line note rendered next to the section heading. Read from the first
+  // param of the section.
+  sectionNote?: string;
+  // Key in the selected model's `info.limits` holding how many files this field
+  // accepts (e.g. `max_ref_images`, `max_input_images`). The count is shown
+  // against it and going over is flagged — the API rejects it. Never hardcode
+  // the number here: it differs per model and only /models knows it.
+  maxFilesFromModel?: string;
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
   visibleWhen?: VisibleWhen | VisibleWhen[];  // conditional visibility based on other fields (array = OR)

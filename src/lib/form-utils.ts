@@ -1,5 +1,6 @@
 import { EndpointParam } from '@/lib/types';
 import { COMPACT_FORM_FIELDS } from '@/lib/constants';
+import { MediaKind, mediaKindFromFile } from '@/lib/media-types';
 
 export interface CategorizedParams {
   promptParams: EndpointParam[];
@@ -89,32 +90,76 @@ export const DEFAULTABLE_FIELDS = [
 ];
 
 /**
- * Generate image preview data from file
+ * Preview metadata for one chosen file, kept 1:1 with the field's file list so
+ * a tile, its index badge and the file it stands for can never drift apart.
  */
-export function generateImagePreview(
-  file: File
-): Promise<{ url: string; width: number; height: number; format: string; size: number }> {
-  return new Promise((resolve) => {
-    const url = URL.createObjectURL(file);
-    const img = new Image();
-    img.onload = () => {
-      resolve({
-        url,
-        width: img.naturalWidth,
-        height: img.naturalHeight,
-        format: file.name.split('.').pop()?.toUpperCase() || file.type.split('/')[1]?.toUpperCase() || 'IMG',
-        size: file.size,
-      });
+export interface FilePreview {
+  url: string;        // object URL, revoked when the file leaves the field
+  kind: MediaKind;
+  name: string;
+  size: number;
+  format: string;     // extension, uppercased
+  width?: number;     // image/video only
+  height?: number;    // image/video only
+  duration?: number;  // video/audio only, seconds
+}
+
+// A file the browser cannot decode (an exotic codec, a mislabelled extension)
+// never fires loadedmetadata, so the probe resolves on whatever it has by then.
+const PROBE_TIMEOUT_MS = 5000;
+
+function extensionOf(file: File): string {
+  return (
+    file.name.split('.').pop()?.toUpperCase() ||
+    file.type.split('/')[1]?.toUpperCase() ||
+    'FILE'
+  );
+}
+
+/**
+ * Build preview metadata for a file: dimensions for images and videos, duration
+ * for videos and audio, and always an object URL the tile can render from.
+ */
+export function generateFilePreview(file: File): Promise<FilePreview> {
+  const url = URL.createObjectURL(file);
+  const kind = mediaKindFromFile(file);
+  const base: FilePreview = { url, kind, name: file.name, size: file.size, format: extensionOf(file) };
+
+  if (kind === 'other') return Promise.resolve(base);
+
+  return new Promise<FilePreview>((resolve) => {
+    let settled = false;
+    const finish = (extra: Partial<FilePreview>) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      resolve({ ...base, ...extra });
     };
-    img.onerror = () => {
-      resolve({
-        url,
-        width: 0,
-        height: 0,
-        format: file.name.split('.').pop()?.toUpperCase() || 'IMG',
-        size: file.size,
-      });
+    const timer = setTimeout(() => finish({}), PROBE_TIMEOUT_MS);
+
+    if (kind === 'image') {
+      const img = new Image();
+      img.onload = () => finish({ width: img.naturalWidth, height: img.naturalHeight });
+      img.onerror = () => finish({});
+      img.src = url;
+      return;
+    }
+
+    const el = document.createElement(kind === 'video' ? 'video' : 'audio');
+    el.preload = 'metadata';
+    el.onloadedmetadata = () => {
+      const duration = Number.isFinite(el.duration) ? el.duration : undefined;
+      finish(
+        kind === 'video'
+          ? {
+              duration,
+              width: (el as HTMLVideoElement).videoWidth,
+              height: (el as HTMLVideoElement).videoHeight,
+            }
+          : { duration }
+      );
     };
-    img.src = url;
+    el.onerror = () => finish({});
+    el.src = url;
   });
 }

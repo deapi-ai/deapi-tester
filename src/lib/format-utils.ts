@@ -153,6 +153,16 @@ export function formatTimestamp(seconds: number): string {
 }
 
 /**
+ * Format seconds as M:SS — the compact form used on media tiles.
+ */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '—';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds - mins * 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
+}
+
+/**
  * Extract a copyable text output from a job when the result is text rather than
  * a media file. Returns null when there is no text result.
  *  - Prompt enhancement returns a top-level { prompt, negative_prompt }.

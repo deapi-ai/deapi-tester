@@ -36,8 +36,9 @@ deapi-tester/
 │   │   ├── config.ts                   # Configuration management
 │   │   ├── types.ts                    # Shared types
 │   │   ├── constants.ts                # Shared constants (status colors, icons)
-│   │   ├── format-utils.ts             # Formatting utilities (time, cost, file size)
-│   │   └── form-utils.ts               # Form field utilities and categorization
+│   │   ├── format-utils.ts             # Formatting utilities (time, cost, file size, duration)
+│   │   ├── form-utils.ts               # Form field utilities, categorization, file previews
+│   │   └── media-types.ts              # Media kinds (image/video/audio): accept, extensions, MIME
 │   ├── components/
 │   │   ├── Providers.tsx               # Root providers wrapper (Contexts + Toast)
 │   │   ├── BalanceContext.tsx          # Global balance state (useBalance hook)
@@ -57,7 +58,10 @@ deapi-tester/
 │   │   ├── PriceCalculator.tsx         # Pre-calc costs
 │   │   ├── form/                       # Form field components
 │   │   │   ├── FormField.tsx           # Generic form field renderer
-│   │   │   └── FileUploadField.tsx     # File upload with preview
+│   │   │   ├── PromptTextarea.tsx      # Resizable prompt field (height remembered)
+│   │   │   ├── FileUploadField.tsx     # File upload: add/replace, model file cap
+│   │   │   ├── FilePickList.tsx        # Chosen files as ordered tiles (drag to reorder)
+│   │   │   └── AssetPicker.tsx         # Library of saved results (image/video/audio)
 │   │   └── jobs/                       # Job-related components
 │   │       ├── JobRow.tsx              # Single job row component
 │   │       └── JobLogsView.tsx         # Logs view for jobs

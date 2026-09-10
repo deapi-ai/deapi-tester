@@ -24,6 +24,10 @@ interface FormPrefill {
 // Request form panel sizing (dragged by the splitter below the form).
 const FORM_HEIGHT_KEY = 'deapi-form-height';
 const FORM_MIN_HEIGHT = 200;
+// Ceiling for the un-dragged form. Endpoints with several file fields (img2video
+// with keyframes *and* reference lists) need more than the jobs list does, and
+// the form only grows to what its content asks for anyway.
+const FORM_MAX_HEIGHT = '64vh';
 
 interface ProxyResponse {
   success: boolean;
@@ -240,7 +244,7 @@ export default function Home() {
             className="flex-shrink-0 border-b border-[var(--border)] bg-[var(--surface)] overflow-hidden"
             style={
               formHeight === null
-                ? { minHeight: `${FORM_MIN_HEIGHT}px`, maxHeight: '45vh' }
+                ? { minHeight: `${FORM_MIN_HEIGHT}px`, maxHeight: FORM_MAX_HEIGHT }
                 : { height: `${formHeight}px` }
             }
           >
