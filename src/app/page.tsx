@@ -12,7 +12,7 @@ import { WsIndicator } from '@/components/WsIndicator';
 import { useToast } from '@/components/Toast';
 import { useBalance } from '@/components/BalanceContext';
 import { useModelsContext } from '@/components/ModelsContext';
-import { getEndpointByApiPath } from '@/lib/endpoint-registry';
+import { getEndpointForJob } from '@/lib/endpoint-registry';
 import { EndpointDefinition, Job, JsonValue, UploadedFile } from '@/lib/types';
 
 interface FormPrefill {
@@ -92,7 +92,7 @@ export default function Home() {
   // Duplicate a request from history: select its endpoint and preload its params
   // into the form so the user can tweak and re-run without rebuilding from scratch.
   const handleDuplicate = (job: Job) => {
-    const endpoint = getEndpointByApiPath(job.endpointId);
+    const endpoint = getEndpointForJob(job);
     if (!endpoint) {
       showError(`Cannot duplicate: unknown endpoint "${job.endpointId}"`);
       return;

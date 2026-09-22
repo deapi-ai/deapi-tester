@@ -29,7 +29,13 @@ export function categorizeParams(
     if (skipParams.includes(param.name)) {
       return;
     }
-    if (param.name === 'prompt' || param.name === 'negative_prompt' || param.type === 'textarea' || param.name === 'source_url') {
+    if (
+      param.name === 'prompt' ||
+      param.name === 'negative_prompt' ||
+      param.type === 'textarea' ||
+      param.name === 'source_url' ||
+      param.name === 'video_url'
+    ) {
       promptParams.push(param);
     } else if (param.type === 'file') {
       fileParams.push(param);

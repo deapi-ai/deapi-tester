@@ -66,6 +66,10 @@ export interface EndpointDefinition {
   hasPriceCalc: boolean;           // has price-calculation endpoint
   priceCalcPath?: string;          // e.g. "/images/generations/price"
   inferenceType?: string;          // maps to model inference_types when different from id (e.g. "vid_upscale" for id "vid-upscale")
+  // The endpoint's own `path` IS a /price endpoint (a quote that no generation
+  // form can produce, e.g. by duration alone). Its rows are logged as price
+  // checks: the figure is a quote and nothing was charged.
+  priceOnly?: boolean;
   params: EndpointParam[];
 }
 
@@ -75,6 +79,7 @@ export type EndpointGroup =
   | 'audio-generation'
   | 'music-generation'
   | 'transcription'
+  | 'video-description'
   | 'ocr'
   | 'image-utils'
   | 'embeddings'
@@ -213,6 +218,8 @@ export interface ModelFeatures {
   // ASR capabilities (transcription models)
   supports_timestamps?: boolean;
   supports_diarization?: boolean;
+  // Video description: the model honours `preset` (its list is `limits.available_presets`)
+  supports_presets?: boolean;
 }
 
 export interface ModelLimits {
@@ -242,6 +249,9 @@ export interface ModelLimits {
   timestamp_levels?: string[];
   // ASR: language codes the model accepts; absent means "any value accepted"
   languages?: string[];
+  // Video description: presets the model offers, e.g. ["fast", "balanced", "detail"].
+  // Published only for a model with `features.supports_presets`.
+  available_presets?: string[];
 }
 
 export interface ModelDefaults {
@@ -312,6 +322,47 @@ export interface AsrTranscription {
   ts_level?: TsLevel;
   diarization_available?: boolean;
   segments?: AsrSegment[];
+}
+
+// ── Video description results ────────────────────────────────
+// The JSON document behind `result_url` of a /videos/descriptions job (and,
+// with `return_result_in_response`, the string in `data.result`). The API only
+// guarantees numeric start/end and a description on every event; everything
+// else is carried through from the worker as-is, so all of it is optional.
+export interface VideoDescriptionEvent {
+  start: number;
+  end: number;
+  description: string;
+  // How many overlapping windows saw this independently (2+) before it was
+  // combined into one event — a confidence signal. Absent = seen once.
+  merged?: number;
+  // Seconds from its window's nearer edge — less context on one side.
+  edge_distance?: number;
+}
+
+export interface VideoDescriptionScene {
+  idx?: number;
+  start?: number;
+  end?: number;
+  text?: string;
+}
+
+export interface VideoDescriptionMeta {
+  duration?: number;
+  // What the decoder actually delivered. Below `duration` = the source ended early.
+  decoded_duration?: number;
+  preset?: string;
+  windows?: number;
+  window_seconds?: number;
+  // Windows that hit the token cap — their tails are unreliable.
+  truncated_windows?: number[];
+  [key: string]: JsonValue | undefined;
+}
+
+export interface VideoDescriptionResult {
+  events: VideoDescriptionEvent[];
+  scenes?: VideoDescriptionScene[];
+  meta?: VideoDescriptionMeta;
 }
 
 export interface DeApiModel {

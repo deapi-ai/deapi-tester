@@ -1,4 +1,4 @@
-import { EndpointDefinition, EndpointGroupMeta, EndpointParam } from './types';
+import { EndpointDefinition, EndpointGroupMeta, EndpointParam, Job } from './types';
 import { ENHANCEMENT_TYPE_OPTIONS } from './prompt-enhancement';
 
 // ============================================================
@@ -34,6 +34,12 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     label: 'Transcription',
     icon: '📝',
     description: 'Video/Audio to Text (Whisper)',
+  },
+  {
+    id: 'video-description',
+    label: 'Video Description',
+    icon: '🎞️',
+    description: 'Timestamped index of what happens on screen',
   },
   {
     id: 'ocr',
@@ -223,6 +229,67 @@ const transcriptionParams = (opts?: { urlSource?: boolean }): EndpointParam[] =>
           default: false,
           description:
             'Return source info (title, channel, uploader, upload date, view/like/comment counts) on the job status.',
+        },
+      ]
+    : []),
+];
+
+// Shared controls for every /videos/descriptions endpoint.
+//
+// `preset` is the only model knob: it fixes the per-frame detail and, through
+// the model's constant pixel budget per call, the window length — so it is also
+// what the price follows. It is capability-gated like ts_level: shown only for a
+// model publishing `info.limits.available_presets` (the API publishes that list
+// only with `supports_presets`), options taken from that list. Picking
+// "Select..." sends it empty, which the API reads as "not sent" and pins the
+// platform default (balanced).
+//
+// `urlSource` adds Include Metadata — an uploaded file never has any, and the
+// flag is not charged on one. `withResult` adds Return Result in Response,
+// which only means something on the job request, not on a quote.
+const videoDescriptionParams = (opts?: {
+  urlSource?: boolean;
+  withResult?: boolean;
+}): EndpointParam[] => [
+  {
+    name: 'preset',
+    label: 'Preset',
+    type: 'select',
+    required: false,
+    default: 'balanced',
+    // Fallback list; replaced by the model's own `available_presets` when published.
+    options: [
+      { value: 'fast', label: 'Fast' },
+      { value: 'balanced', label: 'Balanced' },
+      { value: 'detail', label: 'Detail' },
+    ],
+    optionsFromModel: 'available_presets',
+    visibleFromModel: 'available_presets',
+    description:
+      'Detail per frame. Higher presets read small on-screen text and logos, but cut the video into more windows — slower and pricier.',
+  },
+  ...(opts?.urlSource
+    ? [
+        {
+          name: 'include_metadata',
+          label: 'Include Metadata',
+          type: 'boolean' as const,
+          required: false,
+          default: false,
+          description:
+            'Return source info (title, channel, uploader, upload date, view/like/comment counts) on the job status. Flat surcharge, same as transcription.',
+        },
+      ]
+    : []),
+  ...(opts?.withResult
+    ? [
+        {
+          name: 'return_result_in_response',
+          label: 'Return Result in Response',
+          type: 'boolean' as const,
+          required: false,
+          default: false,
+          description: 'Also put the description JSON inline in the job status `result`, next to result_url.',
         },
       ]
     : []),
@@ -940,6 +1007,109 @@ export const ENDPOINTS: EndpointDefinition[] = [
     ],
   },
 
+  // ── Video Description ─────────────────────────────────────
+  // One API path for both sources, like transcription: deAPI resolves
+  // video2desc vs video_file2desc from whether video_url or video_file is sent,
+  // and a model lists each type separately in `inference_types`.
+  {
+    id: 'vid2desc',
+    name: 'Video URL to Description',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions',
+    description:
+      'Timestamped events + scenes from YouTube/X/Twitch/Kick/TikTok URL. Reads the picture, not the audio.',
+    contentType: 'multipart',
+    isAsync: true,
+    hasPriceCalc: true,
+    priceCalcPath: '/videos/descriptions/price',
+    inferenceType: 'video2desc',
+    params: [
+      {
+        name: 'video_url',
+        label: 'Video URL',
+        type: 'text',
+        required: true,
+        placeholder: 'https://youtube.com/watch?v=...',
+        description:
+          'YouTube, X, Twitch, Kick or TikTok. Live streams and audio-only sources (X Spaces) are rejected. A price check from a TikTok URL is refused (the lookup costs money) — use Description Price by Duration.',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ urlSource: true, withResult: true }),
+    ],
+  },
+
+  {
+    id: 'videofile2desc',
+    name: 'Video File to Description',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions',
+    description: 'Timestamped events + scenes from an uploaded video file',
+    contentType: 'multipart',
+    isAsync: true,
+    hasPriceCalc: true,
+    priceCalcPath: '/videos/descriptions/price',
+    inferenceType: 'video_file2desc',
+    params: [
+      {
+        name: 'video_file',
+        label: 'Video File',
+        type: 'file',
+        required: true,
+        accept: 'video/*,.mp4,.mpeg,.mov,.avi,.wmv,.ogg,.webm,.mkv',
+        description:
+          'MP4, MPEG, QuickTime, AVI, WMV, OGG, WebM, MKV. Must have a video stream. Upload cap is per environment (50 MB default).',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ withResult: true }),
+    ],
+  },
+
+  {
+    id: 'vid2desc-price',
+    name: 'Description Price by Duration',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions/price',
+    description:
+      'Quote by length alone — the only way to quote TikTok (fixed card by length, max 10 min). Nothing is fetched or charged.',
+    contentType: 'multipart',
+    isAsync: false,
+    hasPriceCalc: false,
+    priceOnly: true,
+    inferenceType: 'video2desc',
+    params: [
+      {
+        name: 'duration_seconds',
+        label: 'Duration (seconds)',
+        type: 'number',
+        required: true,
+        min: 0.1,
+        step: 1,
+        placeholder: '600',
+        description: 'Source length in seconds. Checked against the model max duration.',
+      },
+      {
+        name: 'platform',
+        label: 'Platform',
+        type: 'select',
+        required: false,
+        options: [
+          { value: 'youtube', label: 'YouTube' },
+          { value: 'twitter', label: 'Twitter / X' },
+          { value: 'twitch', label: 'Twitch' },
+          { value: 'kick', label: 'Kick' },
+          { value: 'tiktok', label: 'TikTok' },
+        ],
+        description:
+          'Where the source comes from. tiktok = fixed card; the rest = machine time. None = priced as an upload, and Include Metadata is then free.',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ urlSource: true }),
+    ],
+  },
+
   // ── OCR ───────────────────────────────────────────────────
   {
     id: 'img2txt',
@@ -1219,4 +1389,34 @@ export function getEndpointByApiPath(apiPath: string): EndpointDefinition | unde
   if (byPricePath) return byPricePath;
   // Fallback: some jobs may have been stored using the registry id directly
   return ENDPOINTS.find(e => e.id === normalized);
+}
+
+// Helper: get the endpoint a history job was sent from.
+// Several endpoints share one API path and differ only in their source field
+// (video URL vs uploaded file on /videos/descriptions and /audio/transcriptions,
+// plus the duration-only quote on /videos/descriptions/price), so the path alone
+// resolves a file job to the URL form and drops its upload. Among the endpoints
+// the path maps to, pick the first whose required fields the job actually sent.
+export function getEndpointForJob(
+  job: Pick<Job, 'endpointId' | 'params' | 'uploadedFiles'>
+): EndpointDefinition | undefined {
+  const normalized = job.endpointId.replace(/^\//, '');
+  const candidates = ENDPOINTS.filter(
+    e =>
+      e.path.replace(/^\//, '') === normalized ||
+      e.priceCalcPath?.replace(/^\//, '') === normalized
+  );
+  if (candidates.length > 1) {
+    const sent = new Set([
+      ...Object.keys(job.params),
+      ...(job.uploadedFiles ?? []).map(f => f.field),
+    ]);
+    const match = candidates.find(e =>
+      e.params
+        .filter(p => p.required && !p.isPathParam)
+        .every(p => sent.has(p.name) || (!!p.multiFieldName && sent.has(p.multiFieldName)))
+    );
+    if (match) return match;
+  }
+  return getEndpointByApiPath(job.endpointId);
 }
