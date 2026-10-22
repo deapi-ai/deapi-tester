@@ -34,10 +34,15 @@ export function useEndpointFormState(endpoint: EndpointDefinition, prefill: Form
   const appliedModelRef = useRef<string | undefined>(undefined);
   const savedModelsRef = useRef<Record<string, string>>({});
   const appliedPrefillRef = useRef<number | undefined>(undefined);
+  // Endpoint the current `values` were initialized for. On the render that
+  // switches endpoints, `values` still hold the previous endpoint's model.
+  const valuesEndpointRef = useRef<string | undefined>(undefined);
 
   // Remember the model picked per endpoint, to restore it on the way back
   useEffect(() => {
-    if (selectedModelSlug) savedModelsRef.current[endpoint.id] = selectedModelSlug;
+    if (selectedModelSlug && valuesEndpointRef.current === endpoint.id) {
+      savedModelsRef.current[endpoint.id] = selectedModelSlug;
+    }
   }, [selectedModelSlug, endpoint.id]);
 
   // Initialize form state when the endpoint changes
@@ -63,6 +68,7 @@ export function useEndpointFormState(endpoint: EndpointDefinition, prefill: Form
       defaults['model'] = savedModel;
     }
 
+    valuesEndpointRef.current = endpoint.id;
     setValues(defaults);
     setNullableDisabled(nullableDefaults);
     setArrayMode({});
