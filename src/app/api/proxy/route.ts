@@ -4,6 +4,7 @@ import { addJob, generateJobId, updateJob } from '@/lib/storage';
 import { saveUploadedFile } from '@/lib/upload-storage';
 import { getEndpointById } from '@/lib/endpoint-registry';
 import { fetchAllPages, PAGE_LIMIT } from '@/lib/pagination';
+import { buildPriceFilePayload } from '@/lib/price-payload';
 import {
   INLINE_BOOST_FIELD,
   enhancementTypeForPath,
@@ -130,6 +131,22 @@ export async function POST(request: Request) {
     if (isPriceCalc && boostFlag !== undefined) {
       delete params[INLINE_BOOST_FIELD];
       formData?.delete(INLINE_BOOST_FIELD);
+    }
+
+    // A price check arrives with the same files as the request it quotes. Where
+    // the /price contract takes a count instead (reference lists), swap the
+    // files for it. The uploads are still kept on the job below, so the check
+    // can be duplicated back into the form with its references intact.
+    if (isPriceCalc && formData) {
+      const pricePayload = buildPriceFilePayload(endpoint.params, fileEntries);
+      for (const field of pricePayload.dropped) {
+        formData.delete(field);
+        delete params[field];
+      }
+      for (const [name, count] of Object.entries(pricePayload.counts)) {
+        formData.set(name, String(count));
+        params[name] = count;
+      }
     }
 
     // For price calculation, check if endpoint supports it
@@ -269,7 +286,12 @@ export async function POST(request: Request) {
               priceForm.append(key, String(value));
             }
           }
-          for (const { field, file } of fileEntries) {
+          // Reference lists are quoted by count, not by upload.
+          const pricePayload = buildPriceFilePayload(endpoint.params, fileEntries);
+          for (const [name, count] of Object.entries(pricePayload.counts)) {
+            priceForm.append(name, String(count));
+          }
+          for (const { field, file } of pricePayload.files) {
             priceForm.append(field, file);
           }
           priceResponse = await fetch(priceUrl, {

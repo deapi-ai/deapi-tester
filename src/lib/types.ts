@@ -40,6 +40,12 @@ export interface EndpointParam {
   // against it and going over is flagged — the API rejects it. Never hardcode
   // the number here: it differs per model and only /models knows it.
   maxFilesFromModel?: string;
+  // How this file field goes into the endpoint's /price call. `priceCountField`
+  // sends how many files there are under that name (e.g. `ref_images_count`)
+  // instead of the files; `priceOmit` leaves the field out of the quote entirely.
+  // Without either, the files are uploaded exactly as in the main request.
+  priceCountField?: string;
+  priceOmit?: boolean;
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
   visibleWhen?: VisibleWhen | VisibleWhen[];  // conditional visibility based on other fields (array = OR)

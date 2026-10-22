@@ -418,6 +418,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         multiFieldName: 'ref_images[]',
         multiOnly: true,
         maxFilesFromModel: 'max_ref_images',
+        // The quote takes the count, not the files: more than 2 images is x2.
+        priceCountField: 'ref_images_count',
         section: 'References (Ref2VA)',
         sectionNote: 'Order = binding: 1st image is <Picture 1>. Drag tiles to renumber.',
         visibleFromModel: 'supports_image_refs',
@@ -433,6 +435,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         multiFieldName: 'ref_videos[]',
         multiOnly: true,
         maxFilesFromModel: 'max_ref_videos',
+        // Any reference video is x3 (the highest multiplier wins, they do not compound).
+        priceCountField: 'ref_videos_count',
         section: 'References (Ref2VA)',
         visibleFromModel: 'supports_video_refs',
         description: 'Ref2VA: reference video, 2-5 seconds. Its soundtrack, if any, takes <Audio 1> and pushes every reference audio down by one.',
@@ -447,6 +451,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         multiFieldName: 'ref_audios[]',
         multiOnly: true,
         maxFilesFromModel: 'max_ref_audios',
+        // No surcharge and no count field — reference audio is not part of the quote.
+        priceOmit: true,
         section: 'References (Ref2VA)',
         visibleFromModel: 'supports_audio_refs',
         description: 'Ref2VA: reference audio. Cannot stand alone — needs at least one reference image or video.',
