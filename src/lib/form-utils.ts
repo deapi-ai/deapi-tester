@@ -1,4 +1,4 @@
-import { EndpointParam } from '@/lib/types';
+import { EndpointParam, JsonValue } from '@/lib/types';
 import { COMPACT_FORM_FIELDS } from '@/lib/constants';
 import { MediaKind, mediaKindFromFile } from '@/lib/media-types';
 
@@ -168,4 +168,17 @@ export function generateFilePreview(file: File): Promise<FilePreview> {
     el.onerror = () => finish({});
     el.src = url;
   });
+}
+
+/**
+ * What a column of form fields needs to render and edit its params: the form
+ * state, its handlers, and the model-driven lookups (limits, select options).
+ */
+export interface FieldBindings {
+  values: Record<string, JsonValue>;
+  nullableDisabled: Record<string, boolean>;
+  effectiveParam: (param: EndpointParam) => EndpointParam;
+  selectOptions: (paramName: string) => { value: string; label: string }[] | undefined;
+  onValueChange: (name: string, value: JsonValue) => void;
+  onNullableToggle: (name: string, disabled: boolean) => void;
 }
