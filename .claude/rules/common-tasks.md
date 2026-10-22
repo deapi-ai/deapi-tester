@@ -33,7 +33,7 @@ Just ensure the model's `inference_types` matches the endpoint `id` (e.g. `txt2i
 ## Adding a New Form Field Type
 1. Add type to `ParamType` in `src/lib/types.ts`
 2. Handle rendering in `src/components/form/FormField.tsx`
-3. Handle value processing in `src/components/EndpointForm.tsx` (buildRequestBody)
+3. Handle value processing in `src/lib/form-payload.ts` (`buildFilteredValues`)
 
 ## Adding a New Job Status
 1. Add to `Job['status']` type in `src/lib/types.ts`
