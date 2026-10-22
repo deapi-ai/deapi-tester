@@ -15,7 +15,7 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     id: 'video-generation',
     label: 'Video Generation',
     icon: '🎬',
-    description: 'Text-to-Video, Image-to-Video, Video Replace, Video Upscale',
+    description: 'Text-to-Video, Image-to-Video, Video Upscale',
   },
   {
     id: 'audio-generation',
@@ -582,55 +582,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
         nullable: true,
         description: 'Frames per second',
       },
-      seedParam(),
-    ],
-  },
-
-  {
-    id: 'video-replace',
-    name: 'Video Replace',
-    group: 'video-generation',
-    method: 'POST',
-    path: '/videos/replacements',
-    description: 'Replace a person in video with character from reference image',
-    contentType: 'multipart',
-    isAsync: true,
-    hasPriceCalc: true,
-    priceCalcPath: '/videos/replacements/price',
-    params: [
-      {
-        name: 'video',
-        label: 'Input Video',
-        type: 'file',
-        required: true,
-        accept: 'video/*,.mp4,.mpeg,.mov,.avi,.wmv,.ogg',
-        description: 'Input video file (MP4, MPEG, QuickTime, AVI, WMV, OGG)',
-      },
-      {
-        name: 'ref_image',
-        label: 'Reference Image',
-        type: 'file',
-        required: true,
-        accept: 'image/*',
-        description: 'Reference character image (JPG, PNG, GIF, BMP, WebP, max 10MB)',
-      },
-      promptParam(false),
-      modelSelectParam(),
-      {
-        name: 'width',
-        label: 'Width',
-        type: 'number',
-        required: false,
-        description: 'Output width in pixels (empty = use input video width)',
-      },
-      {
-        name: 'height',
-        label: 'Height',
-        type: 'number',
-        required: false,
-        description: 'Output height in pixels (empty = use input video height)',
-      },
-      stepsParam(),
       seedParam(),
     ],
   },
@@ -1379,8 +1330,8 @@ export function getEndpointById(id: string): EndpointDefinition | undefined {
 
 // Helper: get endpoint by the value stored as Job.endpointId.
 // The proxy stores the API path without its leading slash (e.g. "aud2video",
-// "videos/replace"), which often differs from the registry id (e.g. "audio2video",
-// "video-replace"). Used to map a history job back to its endpoint definition.
+// "videos/upscales"), which often differs from the registry id (e.g. "audio2video",
+// "vid-upscale"). Used to map a history job back to its endpoint definition.
 export function getEndpointByApiPath(apiPath: string): EndpointDefinition | undefined {
   const normalized = apiPath.replace(/^\//, '');
   const byPath = ENDPOINTS.find(e => e.path.replace(/^\//, '') === normalized);
