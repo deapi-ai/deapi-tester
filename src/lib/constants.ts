@@ -67,4 +67,6 @@ export const COMPACT_FORM_FIELDS = [
   'bpm',
   'inference_steps',
   'guidance_scale',
+  // video description quote by length
+  'duration_seconds',
 ];

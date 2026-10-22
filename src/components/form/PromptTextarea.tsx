@@ -11,8 +11,11 @@ interface PromptTextareaProps {
   onChange: (value: string) => void;
 }
 
-// Smallest height the field can be dragged down to.
-const MIN_HEIGHT = 90;
+// Smallest height the field can be dragged down to, and the floor the flex
+// layout must respect: a textarea cannot shrink past its own min-height, so a
+// parent that lets it be squeezed smaller gets an overflow that paints over
+// whatever comes next in the column.
+const MIN_HEIGHT = 64;
 // How close to the bottom-right corner a pointerdown counts as grabbing the
 // browser's native resize grip.
 const GRIP_SIZE = 20;
@@ -69,9 +72,11 @@ export function PromptTextarea({ value, placeholder, storageKey, onChange }: Pro
 
   return (
     <div
-      className={`group relative flex flex-col min-h-0 ${
-        height === null ? 'flex-1' : 'flex-shrink-0'
-      }`}
+      // The floor is inline because it is the same number the drag clamps to;
+      // a flex parent that ignores it would squeeze the textarea past its own
+      // minimum and the overflow would paint over the fields below.
+      style={{ minHeight: MIN_HEIGHT }}
+      className={`group relative flex flex-col ${height === null ? 'flex-1' : 'flex-shrink-0'}`}
     >
       <textarea
         ref={ref}
@@ -79,10 +84,8 @@ export function PromptTextarea({ value, placeholder, storageKey, onChange }: Pro
         onChange={(e) => onChange(e.target.value)}
         onPointerDown={handlePointerDown}
         placeholder={placeholder}
-        style={height === null ? undefined : { height }}
-        className={`w-full rounded px-2 py-1.5 text-sm resize-y min-h-[90px] ${
-          height === null ? 'flex-1' : ''
-        }`}
+        style={height === null ? { minHeight: MIN_HEIGHT } : { height, minHeight: MIN_HEIGHT }}
+        className={`w-full rounded px-2 py-1.5 text-sm resize-y ${height === null ? 'flex-1' : ''}`}
       />
       {height !== null && (
         <button

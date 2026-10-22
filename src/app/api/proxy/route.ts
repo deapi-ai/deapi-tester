@@ -4,6 +4,7 @@ import { addJob, generateJobId, updateJob } from '@/lib/storage';
 import { saveUploadedFile } from '@/lib/upload-storage';
 import { getEndpointById } from '@/lib/endpoint-registry';
 import { fetchAllPages, PAGE_LIMIT } from '@/lib/pagination';
+import { buildPriceFilePayload } from '@/lib/price-payload';
 import {
   INLINE_BOOST_FIELD,
   enhancementTypeForPath,
@@ -116,6 +117,10 @@ export async function POST(request: Request) {
       );
     }
 
+    // A quote either way: the "Check Price" button on a generation form, or an
+    // endpoint that is itself a /price path. Both are logged as price checks.
+    const isQuote = isPriceCalc || endpoint.priceOnly === true;
+
     // Inline prompt booster: `enhance_prompt` travels with the generation
     // request itself. The /price endpoints do not accept it, so it is stripped
     // from every price payload and the boost fee is quoted separately (below).
@@ -126,6 +131,22 @@ export async function POST(request: Request) {
     if (isPriceCalc && boostFlag !== undefined) {
       delete params[INLINE_BOOST_FIELD];
       formData?.delete(INLINE_BOOST_FIELD);
+    }
+
+    // A price check arrives with the same files as the request it quotes. Where
+    // the /price contract takes a count instead (reference lists), swap the
+    // files for it. The uploads are still kept on the job below, so the check
+    // can be duplicated back into the form with its references intact.
+    if (isPriceCalc && formData) {
+      const pricePayload = buildPriceFilePayload(endpoint.params, fileEntries);
+      for (const field of pricePayload.dropped) {
+        formData.delete(field);
+        delete params[field];
+      }
+      for (const [name, count] of Object.entries(pricePayload.counts)) {
+        formData.set(name, String(count));
+        params[name] = count;
+      }
     }
 
     // For price calculation, check if endpoint supports it
@@ -265,7 +286,12 @@ export async function POST(request: Request) {
               priceForm.append(key, String(value));
             }
           }
-          for (const { field, file } of fileEntries) {
+          // Reference lists are quoted by count, not by upload.
+          const pricePayload = buildPriceFilePayload(endpoint.params, fileEntries);
+          for (const [name, count] of Object.entries(pricePayload.counts)) {
+            priceForm.append(name, String(count));
+          }
+          for (const { field, file } of pricePayload.files) {
             priceForm.append(field, file);
           }
           priceResponse = await fetch(priceUrl, {
@@ -371,7 +397,7 @@ export async function POST(request: Request) {
       createdAt: new Date().toISOString(),
       costCredits: estimatedPrice,
       estimateBreakdown,
-      isPriceCheck: isPriceCalc || undefined,
+      isPriceCheck: isQuote || undefined,
     };
     if (providedJobId) {
       // Preserve the stub's original createdAt (set when the user clicked Execute).
@@ -551,7 +577,7 @@ export async function POST(request: Request) {
     // A price check's answer IS its price — there is no estimate/final pair to
     // reconcile, so record the quote as the job's price (and the separately
     // billed boost fee alongside it, when the check asked for one).
-    if (isPriceCalc) {
+    if (isQuote) {
       const quoted = rawResponse.data?.price ?? rawResponse.price;
       if (typeof quoted === 'number') {
         syncUpdateData.finalPrice = {

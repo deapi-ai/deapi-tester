@@ -4,9 +4,17 @@ import { useState } from 'react';
 import { ChevronRight, ExternalLink, Download, Trash2, Loader2, Copy, ClipboardCopy, ClipboardCheck } from 'lucide-react';
 import { Job, JsonValue } from '@/lib/types';
 import { STATUS_BG_COLORS } from '@/lib/constants';
-import { formatTime, formatCost, formatProgress, getResultType, getResultText } from '@/lib/format-utils';
+import {
+  formatTime,
+  formatCost,
+  formatProgress,
+  getResultType,
+  getResultText,
+  isVideoDescriptionJob,
+} from '@/lib/format-utils';
 import { useSettings } from '@/components/SettingsContext';
 import { JobTranscription } from '@/components/jobs/JobTranscription';
+import { JobVideoDescription } from '@/components/jobs/JobVideoDescription';
 import { JobPromptBoost } from '@/components/jobs/JobPromptBoost';
 
 interface PollUpdate {
@@ -447,9 +455,15 @@ export function JobRow({
         </div>
       </div>
 
-      {/* Transcription result — renders only for jobs deAPI reported a
-          `transcription` block for (self-hiding otherwise). */}
-      <JobTranscription job={job} resultUrl={resultUrl} />
+      {/* Text results. A video description is a JSON event index with its own
+          panel; the transcription panel renders only for jobs deAPI reported a
+          `transcription` or `metadata` block for (self-hiding otherwise) — and
+          a description with include_metadata has one, so it must not get both. */}
+      {isVideoDescriptionJob(job) ? (
+        <JobVideoDescription job={job} resultUrl={resultUrl} />
+      ) : (
+        <JobTranscription job={job} resultUrl={resultUrl} />
+      )}
 
       {/* Inline prompt-boost result — opened from the row's "boosted" chip, so
           it costs no vertical space until asked for. */}

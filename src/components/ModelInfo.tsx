@@ -236,6 +236,12 @@ function renderLimitPairs(limits: ModelLimits) {
       <div key="video-duration-value" className="text-[var(--text-secondary)] font-mono">{limits.max_video_duration_seconds}s</div>
     );
   }
+  if (limits.available_presets && limits.available_presets.length > 0) {
+    elements.push(
+      <div key="presets-label" className="text-[var(--muted)]">Presets:</div>,
+      <div key="presets-value" className="text-[var(--text-secondary)] font-mono">{limits.available_presets.join(', ')}</div>
+    );
+  }
   if (limits.available_ratios && limits.available_ratios.length > 0) {
     elements.push(
       <div key="sample-rates-label" className="text-[var(--muted)]">Sample rates:</div>,

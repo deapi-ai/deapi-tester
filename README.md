@@ -23,7 +23,9 @@ A local developer tool for testing [deAPI.ai](https://deapi.ai) endpoints — un
 - **Job History** - Persistent history of all requests with status, cost, and results
 - **Result Preview** - Inline previews for images, videos, and audio
 - **Download Manager** - Save generated results to local directory
-- **Output Picker** - Reuse previously downloaded images as input (e.g. use txt2img result in img2img)
+- **Asset Library** - Reuse saved results (images, videos, audio) from the output folder as inputs (e.g. a txt2img result in img2img)
+- **Ordered File Lists** - Multi-file fields show numbered tiles you can drag to reorder; for Ref2VA references the order is the `<Picture N>` / `<Video N>` binding
+- **Result Panels** - Transcriptions, video descriptions and prompt boosts render as readable panels, not just raw JSON
 - **Random Prompts** - Dice button fills in creative prompts for quick testing
 - **Balance Display** - Track your deAPI credit balance
 - **Multi-Profile Config** - Multiple API profiles for different environments (production, staging, etc.)
@@ -157,6 +159,8 @@ deapi-tester/
 │   │   │   ├── balance/          # Proxy to deAPI /balance
 │   │   │   ├── files/            # List/serve files from output dir
 │   │   │   ├── uploads/[name]/   # Serve persisted uploaded files
+│   │   │   ├── result/           # Fetch text/JSON results server-side (transcripts)
+│   │   │   ├── test-connection/  # Check a profile's URL + token before saving
 │   │   │   └── download/         # Download results
 │   ├── components/
 │   │   ├── Providers.tsx         # Root providers (Contexts + Toast)
@@ -164,8 +168,10 @@ deapi-tester/
 │   │   ├── ModelsContext.tsx      # Models cache (useModelsContext hook)
 │   │   ├── JobSocketContext.tsx   # WebSocket (Pusher/soketi) realtime job updates
 │   │   ├── ThemeContext.tsx       # Theme state (useTheme hook)
+│   │   ├── SettingsContext.tsx    # Shared app settings (useSettings hook)
 │   │   ├── Toast.tsx             # Toast notifications (useToast hook)
 │   │   ├── WsIndicator.tsx       # Header WebSocket status indicator
+│   │   ├── ConfigPanel.tsx       # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx      # Full settings drawer (profiles + WebSocket)
 │   │   ├── EndpointSelector.tsx  # Endpoint browser
 │   │   ├── EndpointForm.tsx      # Dynamic form generator
@@ -177,11 +183,17 @@ deapi-tester/
 │   │   ├── PriceCalculator.tsx   # Cost pre-calculator
 │   │   ├── form/                 # Form field components
 │   │   │   ├── FormField.tsx     # Generic form field renderer
-│   │   │   ├── FileUploadField.tsx # File upload with preview
-│   │   │   └── OutputPicker.tsx  # Pick images from output directory
+│   │   │   ├── PromptTextarea.tsx  # Resizable prompt field (height remembered)
+│   │   │   ├── FileUploadField.tsx # File upload: add/replace, model file cap
+│   │   │   ├── FilePickList.tsx  # Chosen files as ordered tiles (drag to reorder)
+│   │   │   └── AssetPicker.tsx   # Library of saved results (image/video/audio)
 │   │   └── jobs/                 # Job-related components
 │   │       ├── JobRow.tsx        # Single job row
-│   │       └── JobLogsView.tsx   # Logs view
+│   │       ├── JobLogsView.tsx   # Logs view
+│   │       ├── JobTranscription.tsx    # Transcription result panel
+│   │       ├── JobVideoDescription.tsx # Video description result panel
+│   │       ├── JobPromptBoost.tsx      # Prompt boost result panel
+│   │       └── KeyValueGrid.tsx  # Shared key/value layout for result panels
 │   ├── hooks/
 │   │   ├── useDeApi.ts           # Main API hook
 │   │   └── useConfig.ts          # Configuration hook
@@ -193,7 +205,12 @@ deapi-tester/
 │       ├── types.ts              # TypeScript types
 │       ├── constants.ts          # Shared constants
 │       ├── format-utils.ts       # Formatting utilities
-│       ├── form-utils.ts         # Form utilities
+│       ├── form-utils.ts         # Form utilities, categorization, file previews
+│       ├── media-types.ts        # Media kinds (image/video/audio): accept, extensions, MIME
+│       ├── price-payload.ts      # Reshape files for /price (reference lists by count)
+│       ├── prompt-enhancement.ts # Prompt boost types and inline-boost endpoints
+│       ├── upload-storage.ts     # Content-addressed storage for uploaded files
+│       ├── pagination.ts         # Walk paginated deAPI list endpoints
 │       └── sample-prompts.ts     # Random prompt data
 ├── data/                         # Local storage (auto-created, git-ignored)
 ├── output/                       # Downloaded results (git-ignored)

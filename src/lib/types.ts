@@ -24,6 +24,28 @@ export interface EndpointParam {
   nullable?: boolean;  // allows field to be disabled/set to null via toggle
   multiple?: boolean;  // for file: allows multiple file selection (array)
   multiFieldName?: string;  // for file with multiple: alternative field name when in multi mode (e.g. "images")
+  // for file with multiFieldName: the field is ALWAYS an array, so start in multi mode and drop
+  // the Single/Multiple switch. Used where the API has no single-file spelling of the field at all
+  // (ref_images[] and friends), so offering "Single" would only ever produce a 422.
+  multiOnly?: boolean;
+  // File fields carrying the same `section` are boxed together under it, in
+  // registry order. Use it where an endpoint takes two different sets of files
+  // (e.g. keyframes vs. reference lists) that should not read as one form.
+  section?: string;
+  // One-line note rendered next to the section heading. Read from the first
+  // param of the section.
+  sectionNote?: string;
+  // Key in the selected model's `info.limits` holding how many files this field
+  // accepts (e.g. `max_ref_images`, `max_input_images`). The count is shown
+  // against it and going over is flagged — the API rejects it. Never hardcode
+  // the number here: it differs per model and only /models knows it.
+  maxFilesFromModel?: string;
+  // How this file field goes into the endpoint's /price call. `priceCountField`
+  // sends how many files there are under that name (e.g. `ref_images_count`)
+  // instead of the files; `priceOmit` leaves the field out of the quote entirely.
+  // Without either, the files are uploaded exactly as in the main request.
+  priceCountField?: string;
+  priceOmit?: boolean;
   isPathParam?: boolean;  // for params that go in URL path (e.g. /request-status/{request_id})
   supportsArray?: boolean;  // allows toggling between single value and array of values (one per line)
   visibleWhen?: VisibleWhen | VisibleWhen[];  // conditional visibility based on other fields (array = OR)
@@ -50,6 +72,10 @@ export interface EndpointDefinition {
   hasPriceCalc: boolean;           // has price-calculation endpoint
   priceCalcPath?: string;          // e.g. "/images/generations/price"
   inferenceType?: string;          // maps to model inference_types when different from id (e.g. "vid_upscale" for id "vid-upscale")
+  // The endpoint's own `path` IS a /price endpoint (a quote that no generation
+  // form can produce, e.g. by duration alone). Its rows are logged as price
+  // checks: the figure is a quote and nothing was charged.
+  priceOnly?: boolean;
   params: EndpointParam[];
 }
 
@@ -59,6 +85,7 @@ export type EndpointGroup =
   | 'audio-generation'
   | 'music-generation'
   | 'transcription'
+  | 'video-description'
   | 'ocr'
   | 'image-utils'
   | 'embeddings'
@@ -197,6 +224,8 @@ export interface ModelFeatures {
   // ASR capabilities (transcription models)
   supports_timestamps?: boolean;
   supports_diarization?: boolean;
+  // Video description: the model honours `preset` (its list is `limits.available_presets`)
+  supports_presets?: boolean;
 }
 
 export interface ModelLimits {
@@ -226,6 +255,9 @@ export interface ModelLimits {
   timestamp_levels?: string[];
   // ASR: language codes the model accepts; absent means "any value accepted"
   languages?: string[];
+  // Video description: presets the model offers, e.g. ["fast", "balanced", "detail"].
+  // Published only for a model with `features.supports_presets`.
+  available_presets?: string[];
 }
 
 export interface ModelDefaults {
@@ -296,6 +328,47 @@ export interface AsrTranscription {
   ts_level?: TsLevel;
   diarization_available?: boolean;
   segments?: AsrSegment[];
+}
+
+// ── Video description results ────────────────────────────────
+// The JSON document behind `result_url` of a /videos/descriptions job (and,
+// with `return_result_in_response`, the string in `data.result`). The API only
+// guarantees numeric start/end and a description on every event; everything
+// else is carried through from the worker as-is, so all of it is optional.
+export interface VideoDescriptionEvent {
+  start: number;
+  end: number;
+  description: string;
+  // How many overlapping windows saw this independently (2+) before it was
+  // combined into one event — a confidence signal. Absent = seen once.
+  merged?: number;
+  // Seconds from its window's nearer edge — less context on one side.
+  edge_distance?: number;
+}
+
+export interface VideoDescriptionScene {
+  idx?: number;
+  start?: number;
+  end?: number;
+  text?: string;
+}
+
+export interface VideoDescriptionMeta {
+  duration?: number;
+  // What the decoder actually delivered. Below `duration` = the source ended early.
+  decoded_duration?: number;
+  preset?: string;
+  windows?: number;
+  window_seconds?: number;
+  // Windows that hit the token cap — their tails are unreliable.
+  truncated_windows?: number[];
+  [key: string]: JsonValue | undefined;
+}
+
+export interface VideoDescriptionResult {
+  events: VideoDescriptionEvent[];
+  scenes?: VideoDescriptionScene[];
+  meta?: VideoDescriptionMeta;
 }
 
 export interface DeApiModel {

@@ -2,13 +2,14 @@
 
 import { useCallback, useState } from 'react';
 import { ChevronRight, ClipboardCheck, ClipboardCopy, Loader2 } from 'lucide-react';
-import { AsrSegment, AsrTranscription, AsrWord, Job, JsonValue, TranscriptionMeta } from '@/lib/types';
+import { AsrSegment, AsrTranscription, AsrWord, Job, TranscriptionMeta } from '@/lib/types';
 import {
   formatFileSize,
   formatTimestamp,
   getSourceMetadata,
   getTranscriptionMeta,
 } from '@/lib/format-utils';
+import { KeyValueGrid } from '@/components/jobs/KeyValueGrid';
 
 interface JobTranscriptionProps {
   job: Job;
@@ -91,23 +92,6 @@ function MetaBadges({ meta }: { meta: TranscriptionMeta }) {
           speakers
         </span>
       )}
-    </div>
-  );
-}
-
-// Rendered generically: which fields a platform reports varies, and deAPI can
-// grow the block without a change here.
-function SourceMetadata({ metadata }: { metadata: Record<string, JsonValue> }) {
-  return (
-    <div className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 bg-[var(--surface)] rounded p-2">
-      {Object.entries(metadata).map(([key, value]) => (
-        <div key={key} className="contents">
-          <span className="text-[9px] font-mono text-[var(--text-faint)]">{key}</span>
-          <span className="text-[10px] text-[var(--text-secondary)] break-words">
-            {typeof value === 'object' ? JSON.stringify(value) : String(value)}
-          </span>
-        </div>
-      ))}
     </div>
   );
 }
@@ -284,7 +268,7 @@ export function JobTranscription({ job, resultUrl }: JobTranscriptionProps) {
 
         {isExpanded && (
           <div className="border-t border-[var(--border-dim)] px-2 py-2 space-y-2">
-            {sourceMetadata && <SourceMetadata metadata={sourceMetadata} />}
+            {sourceMetadata && <KeyValueGrid entries={sourceMetadata} />}
 
             {error && <p className="text-[10px] text-red-400 font-mono">{error}</p>}
 

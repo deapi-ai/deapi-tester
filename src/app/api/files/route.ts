@@ -1,20 +1,32 @@
 import { NextResponse } from 'next/server';
 import { loadConfig } from '@/lib/config';
+import { MEDIA_EXTENSIONS, MediaKind, mediaKindFromName } from '@/lib/media-types';
 import * as fs from 'fs';
 import * as path from 'path';
-
-const IMAGE_EXTENSIONS = new Set(['png', 'jpg', 'jpeg', 'webp']);
 
 interface OutputFile {
   name: string;
   size: number;
   modified: number;
+  kind: MediaKind;
   url: string;
 }
 
-// GET /api/files - List image files from output directory
-export async function GET() {
+const KNOWN_KINDS = Object.keys(MEDIA_EXTENSIONS) as Exclude<MediaKind, 'other'>[];
+
+// GET /api/files?kind=image|video|audio - List saved result files from the output
+// directory. Without `kind` every media file is returned; an unknown kind is a 400
+// rather than a silently empty list.
+export async function GET(request: Request) {
   try {
+    const kindParam = new URL(request.url).searchParams.get('kind');
+    if (kindParam && !KNOWN_KINDS.includes(kindParam as Exclude<MediaKind, 'other'>)) {
+      return NextResponse.json(
+        { error: `Unknown kind "${kindParam}". Expected one of: ${KNOWN_KINDS.join(', ')}` },
+        { status: 400 }
+      );
+    }
+
     const config = loadConfig();
     const outputDir = path.resolve(process.cwd(), config.outputDir);
 
@@ -25,18 +37,16 @@ export async function GET() {
     const entries = fs.readdirSync(outputDir, { withFileTypes: true });
 
     const files: OutputFile[] = entries
-      .filter((entry) => {
-        if (!entry.isFile()) return false;
-        const ext = path.extname(entry.name).slice(1).toLowerCase();
-        return IMAGE_EXTENSIONS.has(ext);
-      })
-      .map((entry) => {
-        const filePath = path.join(outputDir, entry.name);
-        const stat = fs.statSync(filePath);
+      .filter((entry) => entry.isFile())
+      .map((entry) => ({ entry, kind: mediaKindFromName(entry.name) }))
+      .filter(({ kind }) => (kindParam ? kind === kindParam : kind !== 'other'))
+      .map(({ entry, kind }) => {
+        const stat = fs.statSync(path.join(outputDir, entry.name));
         return {
           name: entry.name,
           size: stat.size,
           modified: stat.mtimeMs,
+          kind,
           url: `/api/files/${encodeURIComponent(entry.name)}`,
         };
       })

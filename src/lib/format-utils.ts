@@ -121,6 +121,36 @@ export function getTranscriptionMeta(job: Job): TranscriptionMeta | null {
 }
 
 /**
+ * Whether a job ran a video description (either source). Its result is a JSON
+ * event index, not a transcript, so it gets its own result panel. Price checks
+ * are excluded — they have no result to show.
+ */
+export function isVideoDescriptionJob(job: Job): boolean {
+  return (
+    !job.isPriceCheck && getEndpointByApiPath(job.endpointId)?.group === 'video-description'
+  );
+}
+
+/**
+ * The result inlined on the job status (`data.result`) — set for text results
+ * when the request asked for `return_result_in_response`. Documented as the
+ * file's text; an already-decoded object is re-serialised so callers get one
+ * shape. Null when there is none.
+ */
+export function getInlineResult(job: Job): string | null {
+  const rr = job.rawResponse;
+  if (!rr || typeof rr !== 'object' || Array.isArray(rr)) return null;
+
+  const data = (rr as Record<string, JsonValue>).data;
+  if (!data || typeof data !== 'object' || Array.isArray(data)) return null;
+
+  const result = (data as Record<string, JsonValue>).result;
+  if (typeof result === 'string') return result.trim() ? result : null;
+  if (result && typeof result === 'object') return JSON.stringify(result);
+  return null;
+}
+
+/**
  * Source metadata deAPI attaches to the job status when `include_metadata` was
  * requested — title, channel, uploader, upload date and engagement counts.
  * Null for uploaded files and for sources whose resolver reports nothing.
@@ -150,6 +180,16 @@ export function formatTimestamp(seconds: number): string {
   const mins = Math.floor(seconds / 60);
   const secs = seconds - mins * 60;
   return `${mins}:${secs.toFixed(3).padStart(6, '0')}`;
+}
+
+/**
+ * Format seconds as M:SS — the compact form used on media tiles.
+ */
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds)) return '—';
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.round(seconds - mins * 60);
+  return `${mins}:${String(secs).padStart(2, '0')}`;
 }
 
 /**

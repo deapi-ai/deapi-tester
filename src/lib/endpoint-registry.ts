@@ -1,4 +1,4 @@
-import { EndpointDefinition, EndpointGroupMeta, EndpointParam } from './types';
+import { EndpointDefinition, EndpointGroupMeta, EndpointParam, Job } from './types';
 import { ENHANCEMENT_TYPE_OPTIONS } from './prompt-enhancement';
 
 // ============================================================
@@ -15,7 +15,7 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     id: 'video-generation',
     label: 'Video Generation',
     icon: '🎬',
-    description: 'Text-to-Video, Image-to-Video, Video Replace, Video Upscale',
+    description: 'Text-to-Video, Image-to-Video, Video Upscale',
   },
   {
     id: 'audio-generation',
@@ -34,6 +34,12 @@ export const ENDPOINT_GROUPS: EndpointGroupMeta[] = [
     label: 'Transcription',
     icon: '📝',
     description: 'Video/Audio to Text (Whisper)',
+  },
+  {
+    id: 'video-description',
+    label: 'Video Description',
+    icon: '🎞️',
+    description: 'Timestamped index of what happens on screen',
   },
   {
     id: 'ocr',
@@ -228,6 +234,67 @@ const transcriptionParams = (opts?: { urlSource?: boolean }): EndpointParam[] =>
     : []),
 ];
 
+// Shared controls for every /videos/descriptions endpoint.
+//
+// `preset` is the only model knob: it fixes the per-frame detail and, through
+// the model's constant pixel budget per call, the window length — so it is also
+// what the price follows. It is capability-gated like ts_level: shown only for a
+// model publishing `info.limits.available_presets` (the API publishes that list
+// only with `supports_presets`), options taken from that list. Picking
+// "Select..." sends it empty, which the API reads as "not sent" and pins the
+// platform default (balanced).
+//
+// `urlSource` adds Include Metadata — an uploaded file never has any, and the
+// flag is not charged on one. `withResult` adds Return Result in Response,
+// which only means something on the job request, not on a quote.
+const videoDescriptionParams = (opts?: {
+  urlSource?: boolean;
+  withResult?: boolean;
+}): EndpointParam[] => [
+  {
+    name: 'preset',
+    label: 'Preset',
+    type: 'select',
+    required: false,
+    default: 'balanced',
+    // Fallback list; replaced by the model's own `available_presets` when published.
+    options: [
+      { value: 'fast', label: 'Fast' },
+      { value: 'balanced', label: 'Balanced' },
+      { value: 'detail', label: 'Detail' },
+    ],
+    optionsFromModel: 'available_presets',
+    visibleFromModel: 'available_presets',
+    description:
+      'Detail per frame. Higher presets read small on-screen text and logos, but cut the video into more windows — slower and pricier.',
+  },
+  ...(opts?.urlSource
+    ? [
+        {
+          name: 'include_metadata',
+          label: 'Include Metadata',
+          type: 'boolean' as const,
+          required: false,
+          default: false,
+          description:
+            'Return source info (title, channel, uploader, upload date, view/like/comment counts) on the job status. Flat surcharge, same as transcription.',
+        },
+      ]
+    : []),
+  ...(opts?.withResult
+    ? [
+        {
+          name: 'return_result_in_response',
+          label: 'Return Result in Response',
+          type: 'boolean' as const,
+          required: false,
+          default: false,
+          description: 'Also put the description JSON inline in the job status `result`, next to result_url.',
+        },
+      ]
+    : []),
+];
+
 // ============================================================
 // ENDPOINT DEFINITIONS
 // ============================================================
@@ -278,7 +345,8 @@ export const ENDPOINTS: EndpointDefinition[] = [
         accept: 'image/*',
         multiple: true,
         multiFieldName: 'images[]',
-        description: 'Single image (image) or multiple images (images[] array)',
+        maxFilesFromModel: 'max_input_images',
+        description: 'Single image (image) or several (images[]). How many the model takes is shown on the field.',
       },
       promptParam(),
       modelSelectParam(),
@@ -304,13 +372,19 @@ export const ENDPOINTS: EndpointDefinition[] = [
     hasPriceCalc: true,
     priceCalcPath: '/videos/animations/price',
     params: [
+      // Two mutually exclusive input shapes. The keyframe anchors below are the classic one;
+      // the reference lists further down are MiniMax-H3's Ref2VA mode. Sending both is a 422
+      // (`prohibits`), and sending neither is a 422 too — hence `required: false` on the first
+      // frame, which the API spells `required_without_all:ref_images,ref_videos`.
       {
         name: 'first_frame_image',
         label: 'First Frame Image',
         type: 'file',
-        required: true,
+        required: false,
         accept: 'image/*',
-        description: 'Starting frame image',
+        section: 'Keyframes',
+        sectionNote: 'Animate between frames — cannot be combined with references',
+        description: 'Starting frame image. Required unless you supply reference images/videos below — the two modes cannot be combined.',
       },
       {
         name: 'last_frame_image',
@@ -318,7 +392,70 @@ export const ENDPOINTS: EndpointDefinition[] = [
         type: 'file',
         required: false,
         accept: 'image/*',
-        description: 'Optional ending frame image',
+        section: 'Keyframes',
+        description: 'Optional ending frame image. Keyframe mode only.',
+      },
+      // ⛔ ORDER IS THE CONTRACT. Position in each list is what the prompt's <Picture N> /
+      // <Video N> / <Audio N> tags resolve against, counted 1-based WITHIN each type. The API
+      // binds by the index it receives, so the upload order here is the numbering — reordering
+      // the files silently rebinds every tag the prompt refers to and nothing raises.
+      //
+      // ⚠️ A reference video that carries a soundtrack consumes an <Audio N> slot of its own,
+      // immediately before its <Video N> — so ref_audios[0] becomes <Audio 2>, not <Audio 1>.
+      // The response echoes `reference_labels` with the mapping each file actually answers to;
+      // read it rather than assuming.
+      //
+      // Sent as `ref_images[]` etc. so PHP builds the dense 0-based array the API requires.
+      // Shown only for models that declare the matching capability, which is exactly what the
+      // API validates against — a model may take image references and not audio ones.
+      {
+        name: 'ref_images',
+        label: 'Reference Images',
+        type: 'file',
+        required: false,
+        accept: 'image/*',
+        multiple: true,
+        multiFieldName: 'ref_images[]',
+        multiOnly: true,
+        maxFilesFromModel: 'max_ref_images',
+        // The quote takes the count, not the files: more than 2 images is x2.
+        priceCountField: 'ref_images_count',
+        section: 'References (Ref2VA)',
+        sectionNote: 'Order = binding: 1st image is <Picture 1>. Drag tiles to renumber.',
+        visibleFromModel: 'supports_image_refs',
+        description: 'Ref2VA: reference images in binding order — the first is <Picture 1>. Aspect ratio must be within 1:4..4:1. The count the model accepts is shown on the field.',
+      },
+      {
+        name: 'ref_videos',
+        label: 'Reference Videos',
+        type: 'file',
+        required: false,
+        accept: 'video/*,.mp4,.mov,.webm,.avi,.mkv',
+        multiple: true,
+        multiFieldName: 'ref_videos[]',
+        multiOnly: true,
+        maxFilesFromModel: 'max_ref_videos',
+        // Any reference video is x3 (the highest multiplier wins, they do not compound).
+        priceCountField: 'ref_videos_count',
+        section: 'References (Ref2VA)',
+        visibleFromModel: 'supports_video_refs',
+        description: 'Ref2VA: reference video, 2-5 seconds. Its soundtrack, if any, takes <Audio 1> and pushes every reference audio down by one.',
+      },
+      {
+        name: 'ref_audios',
+        label: 'Reference Audios',
+        type: 'file',
+        required: false,
+        accept: 'audio/*,.wav,.mp3,.flac,.ogg,.m4a',
+        multiple: true,
+        multiFieldName: 'ref_audios[]',
+        multiOnly: true,
+        maxFilesFromModel: 'max_ref_audios',
+        // No surcharge and no count field — reference audio is not part of the quote.
+        priceOmit: true,
+        section: 'References (Ref2VA)',
+        visibleFromModel: 'supports_audio_refs',
+        description: 'Ref2VA: reference audio. Cannot stand alone — needs at least one reference image or video.',
       },
       promptParam(),
       negativePromptParam(),
@@ -445,55 +582,6 @@ export const ENDPOINTS: EndpointDefinition[] = [
         nullable: true,
         description: 'Frames per second',
       },
-      seedParam(),
-    ],
-  },
-
-  {
-    id: 'video-replace',
-    name: 'Video Replace',
-    group: 'video-generation',
-    method: 'POST',
-    path: '/videos/replacements',
-    description: 'Replace a person in video with character from reference image',
-    contentType: 'multipart',
-    isAsync: true,
-    hasPriceCalc: true,
-    priceCalcPath: '/videos/replacements/price',
-    params: [
-      {
-        name: 'video',
-        label: 'Input Video',
-        type: 'file',
-        required: true,
-        accept: 'video/*,.mp4,.mpeg,.mov,.avi,.wmv,.ogg',
-        description: 'Input video file (MP4, MPEG, QuickTime, AVI, WMV, OGG)',
-      },
-      {
-        name: 'ref_image',
-        label: 'Reference Image',
-        type: 'file',
-        required: true,
-        accept: 'image/*',
-        description: 'Reference character image (JPG, PNG, GIF, BMP, WebP, max 10MB)',
-      },
-      promptParam(false),
-      modelSelectParam(),
-      {
-        name: 'width',
-        label: 'Width',
-        type: 'number',
-        required: false,
-        description: 'Output width in pixels (empty = use input video width)',
-      },
-      {
-        name: 'height',
-        label: 'Height',
-        type: 'number',
-        required: false,
-        description: 'Output height in pixels (empty = use input video height)',
-      },
-      stepsParam(),
       seedParam(),
     ],
   },
@@ -876,6 +964,109 @@ export const ENDPOINTS: EndpointDefinition[] = [
     ],
   },
 
+  // ── Video Description ─────────────────────────────────────
+  // One API path for both sources, like transcription: deAPI resolves
+  // video2desc vs video_file2desc from whether video_url or video_file is sent,
+  // and a model lists each type separately in `inference_types`.
+  {
+    id: 'vid2desc',
+    name: 'Video URL to Description',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions',
+    description:
+      'Timestamped events + scenes from YouTube/X/Twitch/Kick/TikTok URL. Reads the picture, not the audio.',
+    contentType: 'multipart',
+    isAsync: true,
+    hasPriceCalc: true,
+    priceCalcPath: '/videos/descriptions/price',
+    inferenceType: 'video2desc',
+    params: [
+      {
+        name: 'video_url',
+        label: 'Video URL',
+        type: 'text',
+        required: true,
+        placeholder: 'https://youtube.com/watch?v=...',
+        description:
+          'YouTube, X, Twitch, Kick or TikTok. Live streams and audio-only sources (X Spaces) are rejected. A price check from a TikTok URL is refused (the lookup costs money) — use Description Price by Duration.',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ urlSource: true, withResult: true }),
+    ],
+  },
+
+  {
+    id: 'videofile2desc',
+    name: 'Video File to Description',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions',
+    description: 'Timestamped events + scenes from an uploaded video file',
+    contentType: 'multipart',
+    isAsync: true,
+    hasPriceCalc: true,
+    priceCalcPath: '/videos/descriptions/price',
+    inferenceType: 'video_file2desc',
+    params: [
+      {
+        name: 'video_file',
+        label: 'Video File',
+        type: 'file',
+        required: true,
+        accept: 'video/*,.mp4,.mpeg,.mov,.avi,.wmv,.ogg,.webm,.mkv',
+        description:
+          'MP4, MPEG, QuickTime, AVI, WMV, OGG, WebM, MKV. Must have a video stream. Upload cap is per environment (50 MB default).',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ withResult: true }),
+    ],
+  },
+
+  {
+    id: 'vid2desc-price',
+    name: 'Description Price by Duration',
+    group: 'video-description',
+    method: 'POST',
+    path: '/videos/descriptions/price',
+    description:
+      'Quote by length alone — the only way to quote TikTok (fixed card by length, max 10 min). Nothing is fetched or charged.',
+    contentType: 'multipart',
+    isAsync: false,
+    hasPriceCalc: false,
+    priceOnly: true,
+    inferenceType: 'video2desc',
+    params: [
+      {
+        name: 'duration_seconds',
+        label: 'Duration (seconds)',
+        type: 'number',
+        required: true,
+        min: 0.1,
+        step: 1,
+        placeholder: '600',
+        description: 'Source length in seconds. Checked against the model max duration.',
+      },
+      {
+        name: 'platform',
+        label: 'Platform',
+        type: 'select',
+        required: false,
+        options: [
+          { value: 'youtube', label: 'YouTube' },
+          { value: 'twitter', label: 'Twitter / X' },
+          { value: 'twitch', label: 'Twitch' },
+          { value: 'kick', label: 'Kick' },
+          { value: 'tiktok', label: 'TikTok' },
+        ],
+        description:
+          'Where the source comes from. tiktok = fixed card; the rest = machine time. None = priced as an upload, and Include Metadata is then free.',
+      },
+      modelSelectParam(),
+      ...videoDescriptionParams({ urlSource: true }),
+    ],
+  },
+
   // ── OCR ───────────────────────────────────────────────────
   {
     id: 'img2txt',
@@ -1139,8 +1330,8 @@ export function getEndpointById(id: string): EndpointDefinition | undefined {
 
 // Helper: get endpoint by the value stored as Job.endpointId.
 // The proxy stores the API path without its leading slash (e.g. "aud2video",
-// "videos/replace"), which often differs from the registry id (e.g. "audio2video",
-// "video-replace"). Used to map a history job back to its endpoint definition.
+// "videos/upscales"), which often differs from the registry id (e.g. "audio2video",
+// "vid-upscale"). Used to map a history job back to its endpoint definition.
 export function getEndpointByApiPath(apiPath: string): EndpointDefinition | undefined {
   const normalized = apiPath.replace(/^\//, '');
   const byPath = ENDPOINTS.find(e => e.path.replace(/^\//, '') === normalized);
@@ -1155,4 +1346,34 @@ export function getEndpointByApiPath(apiPath: string): EndpointDefinition | unde
   if (byPricePath) return byPricePath;
   // Fallback: some jobs may have been stored using the registry id directly
   return ENDPOINTS.find(e => e.id === normalized);
+}
+
+// Helper: get the endpoint a history job was sent from.
+// Several endpoints share one API path and differ only in their source field
+// (video URL vs uploaded file on /videos/descriptions and /audio/transcriptions,
+// plus the duration-only quote on /videos/descriptions/price), so the path alone
+// resolves a file job to the URL form and drops its upload. Among the endpoints
+// the path maps to, pick the first whose required fields the job actually sent.
+export function getEndpointForJob(
+  job: Pick<Job, 'endpointId' | 'params' | 'uploadedFiles'>
+): EndpointDefinition | undefined {
+  const normalized = job.endpointId.replace(/^\//, '');
+  const candidates = ENDPOINTS.filter(
+    e =>
+      e.path.replace(/^\//, '') === normalized ||
+      e.priceCalcPath?.replace(/^\//, '') === normalized
+  );
+  if (candidates.length > 1) {
+    const sent = new Set([
+      ...Object.keys(job.params),
+      ...(job.uploadedFiles ?? []).map(f => f.field),
+    ]);
+    const match = candidates.find(e =>
+      e.params
+        .filter(p => p.required && !p.isPathParam)
+        .every(p => sent.has(p.name) || (!!p.multiFieldName && sent.has(p.multiFieldName)))
+    );
+    if (match) return match;
+  }
+  return getEndpointByApiPath(job.endpointId);
 }
