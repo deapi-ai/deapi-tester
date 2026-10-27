@@ -174,7 +174,7 @@ deapi-tester/
 │   │   ├── ConfigPanel.tsx       # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx      # Full settings drawer (profiles + WebSocket)
 │   │   ├── EndpointSelector.tsx  # Endpoint browser
-│   │   ├── EndpointForm.tsx      # Dynamic form generator
+│   │   ├── EndpointForm.tsx      # Dynamic form generator (orchestrator, layout only)
 │   │   ├── RequestInspector.tsx  # Raw JSON viewer
 │   │   ├── JobsPanel.tsx         # Job tracking & history
 │   │   ├── ResultViewer.tsx      # Preview img/video/audio
@@ -183,6 +183,11 @@ deapi-tester/
 │   │   ├── PriceCalculator.tsx   # Cost pre-calculator
 │   │   ├── form/                 # Form field components
 │   │   │   ├── FormField.tsx     # Generic form field renderer
+│   │   │   ├── FormHeader.tsx    # Endpoint title, price quote, Check Price / Execute
+│   │   │   ├── PromptField.tsx   # Prompt with toolbar (random, boost, array mode)
+│   │   │   ├── FileSections.tsx  # File fields grouped into registry sections
+│   │   │   ├── CompactParamsColumn.tsx # Numeric params + toggles column
+│   │   │   ├── SettingsColumn.tsx      # Model, selects, "More options" column
 │   │   │   ├── PromptTextarea.tsx  # Resizable prompt field (height remembered)
 │   │   │   ├── FileUploadField.tsx # File upload: add/replace, model file cap
 │   │   │   ├── FilePickList.tsx  # Chosen files as ordered tiles (drag to reorder)
@@ -196,7 +201,14 @@ deapi-tester/
 │   │       └── KeyValueGrid.tsx  # Shared key/value layout for result panels
 │   ├── hooks/
 │   │   ├── useDeApi.ts           # Main API hook
-│   │   └── useConfig.ts          # Configuration hook
+│   │   ├── useConfig.ts          # Configuration hook
+│   │   ├── useEndpointFormState.ts # EndpointForm state: init, model defaults, prefill
+│   │   ├── useFormFiles.ts       # Chosen files + previews (index-aligned)
+│   │   ├── useModelDefaults.ts   # Auto-select a model, apply its defaults
+│   │   ├── useModelParams.ts     # Per-field lookups against the selected model
+│   │   ├── useInlineBoost.ts     # "Boost in request" toggle (enhance_prompt)
+│   │   ├── usePromptBoost.ts     # Boost button (rewrite the prompt in place)
+│   │   └── usePriceCheck.ts      # Check Price
 │   └── lib/
 │       ├── endpoint-registry.ts  # Endpoint definitions (form structure only)
 │       ├── deapi-client.ts       # HTTP client for deAPI
@@ -206,6 +218,8 @@ deapi-tester/
 │       ├── constants.ts          # Shared constants
 │       ├── format-utils.ts       # Formatting utilities
 │       ├── form-utils.ts         # Form utilities, categorization, file previews
+│       ├── model-params.ts       # Model-derived form data: limits, defaults, options
+│       ├── form-payload.ts       # Form state -> proxy request (Execute + Check Price)
 │       ├── media-types.ts        # Media kinds (image/video/audio): accept, extensions, MIME
 │       ├── price-payload.ts      # Reshape files for /price (reference lists by count)
 │       ├── prompt-enhancement.ts # Prompt boost types and inline-boost endpoints

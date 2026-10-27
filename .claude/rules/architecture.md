@@ -17,10 +17,14 @@ All model data comes dynamically from `/api/models` → `ModelsContext`:
 - Voice/language options (TTS): from `model.languages[]`
 - LoRA adapters: from `model.loras[]`
 
-EndpointForm applies model data via:
-- `getDynamicSelectOptions()` — dynamic select options for model, voice, lang
-- `getEffectiveParam()` — overlays model limits/defaults onto param definitions
-- `buildFilteredValues()` — sends model defaults for disabled nullable fields
+EndpointForm applies model data via pure functions (wrapped by hooks):
+- `src/lib/model-params.ts`:
+  - `getSelectOptions()` — dynamic select options for model, voice, lang
+  - `getEffectiveParam()` — overlays model limits/defaults onto param definitions
+  - `withModelDefaultValues()` / `withModelDefaultDisabled()` — apply a model's defaults
+- `src/lib/form-payload.ts`:
+  - `buildFilteredValues()` — sends model defaults for disabled nullable fields
+  - `buildProxyRequest()` — one builder for Execute AND Check Price (same payload)
 
 Adding new endpoint = adding entry in registry (one file).
 Adding new model to deAPI = ZERO code changes (auto-discovered via /models API).

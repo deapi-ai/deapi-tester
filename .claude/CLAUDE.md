@@ -38,6 +38,8 @@ deapi-tester/
 │   │   ├── constants.ts                # Shared constants (status colors, icons)
 │   │   ├── format-utils.ts             # Formatting utilities (time, cost, file size, duration)
 │   │   ├── form-utils.ts               # Form field utilities, categorization, file previews
+│   │   ├── model-params.ts             # Model-derived form data: limits, defaults, options, visibility
+│   │   ├── form-payload.ts             # Form state -> proxy request (Execute + Check Price)
 │   │   └── media-types.ts              # Media kinds (image/video/audio): accept, extensions, MIME
 │   ├── components/
 │   │   ├── Providers.tsx               # Root providers wrapper (Contexts + Toast)
@@ -48,7 +50,7 @@ deapi-tester/
 │   │   ├── ConfigPanel.tsx             # Quick profile switcher (header)
 │   │   ├── ConfigDrawer.tsx            # Full settings drawer (profiles CRUD)
 │   │   ├── EndpointSelector.tsx        # Endpoint selection from groups
-│   │   ├── EndpointForm.tsx            # Dynamic form from registry (orchestrator)
+│   │   ├── EndpointForm.tsx            # Dynamic form from registry (orchestrator, layout only)
 │   │   ├── RequestInspector.tsx        # Raw JSON request/response
 │   │   ├── JobTracker.tsx              # Polling status, progress bar
 │   │   ├── JobsPanel.tsx               # Main jobs panel (list/logs views)
@@ -58,6 +60,11 @@ deapi-tester/
 │   │   ├── PriceCalculator.tsx         # Pre-calc costs
 │   │   ├── form/                       # Form field components
 │   │   │   ├── FormField.tsx           # Generic form field renderer
+│   │   │   ├── FormHeader.tsx          # Endpoint title, price quote, Check Price / Execute
+│   │   │   ├── PromptField.tsx         # Prompt with toolbar (random, boost, array mode)
+│   │   │   ├── FileSections.tsx        # File fields grouped into registry sections
+│   │   │   ├── CompactParamsColumn.tsx # Center column: numeric params + toggles
+│   │   │   ├── SettingsColumn.tsx      # Right column: model, selects, more options
 │   │   │   ├── PromptTextarea.tsx      # Resizable prompt field (height remembered)
 │   │   │   ├── FileUploadField.tsx     # File upload: add/replace, model file cap
 │   │   │   ├── FilePickList.tsx        # Chosen files as ordered tiles (drag to reorder)
@@ -67,6 +74,13 @@ deapi-tester/
 │   │       └── JobLogsView.tsx         # Logs view for jobs
 │   └── hooks/
 │       ├── useDeApi.ts                 # Main API hook
+│       ├── useEndpointFormState.ts     # EndpointForm state: init, model defaults, prefill
+│       ├── useFormFiles.ts             # Chosen files + previews (index-aligned)
+│       ├── useModelDefaults.ts         # Auto-select model, apply its defaults
+│       ├── useModelParams.ts           # Per-field lookups against the selected model
+│       ├── useInlineBoost.ts           # "Boost in request" toggle (enhance_prompt)
+│       ├── usePromptBoost.ts           # Boost button (rewrite prompt in place)
+│       ├── usePriceCheck.ts            # Check Price
 │       ├── usePolling.ts               # SSE/polling hook
 │       └── useConfig.ts                # Configuration hook
 ├── data/                               # Local "database"
